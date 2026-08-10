@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.env
+.env.local
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js
+
+# OSRM routing data (тяжёлые индексированные файлы; используются Node-биндингами @project-osrm/osrm)
+routing/data
