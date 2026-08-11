@@ -14,5 +14,14 @@ import { BasketBuilder } from "../basket/builders/BasketBuilder";
  *  архитектурному решению — использованы здесь и в BasketAdapter.ts. */
 export const BasketScreen: ScreenDefinition<BasketViewModel> = {
   builder: BasketBuilder,
-  availableActions: ["OPEN_PRODUCT", "OPEN_SELLER", "CHANGE_QUANTITY", "REMOVE_FROM_BASKET", "REFRESH_BASKET", "START_PURCHASE", "CLOSE_SCREEN"] as const,
+  availableActions: [
+    "OPEN_PRODUCT",
+    "OPEN_SELLER",
+    "CHANGE_QUANTITY",
+    "REMOVE_FROM_BASKET",
+    "CLEAR_BASKET",
+    "REFRESH_BASKET",
+    "START_PURCHASE",
+    "CLOSE_SCREEN",
+  ] as const,
 };

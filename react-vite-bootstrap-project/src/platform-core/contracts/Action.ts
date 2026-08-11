@@ -1,4 +1,5 @@
 import type { CategoryId } from "./DomainTypes";
+import type { PhotoItem } from "./ContentBlock";
 
 /* ============================================================================
  * ОБЩИЕ ИДЕНТИФИКАТОРЫ ПРЕДМЕТНОЙ ОБЛАСТИ
@@ -43,10 +44,21 @@ export type Action =
   | { type: "REPORT_PRICE_CHANGE"; payload: { sellerId: SellerId } }
   | { type: "SHARE_SELLER"; payload: { sellerId: SellerId } }
   | { type: "RETRY_SELLER_LOAD"; payload: { sellerId: SellerId } }
-  | { type: "ADD_TO_BASKET"; payload: { sellerId: SellerId; productId: ProductId } }
+  | {
+      type: "ADD_TO_BASKET";
+      payload: {
+        sellerId: SellerId;
+        productId: ProductId;
+        name: string;
+        unit: string;
+        price: number;
+        photo: PhotoItem | null;
+      };
+    }
   | { type: "REMOVE_FROM_BASKET"; payload: { sellerId: SellerId; productId: ProductId } }
   | { type: "SHOW_ON_MAP"; payload: { sellerId: SellerId; productId: ProductId } }
   | { type: "CHANGE_QUANTITY"; payload: { sellerId: SellerId; productId: ProductId; quantity: number } }
+  | { type: "CLEAR_BASKET" }
   | { type: "CLOSE_SCREEN" }
   | { type: "SEARCH"; payload: { query: string } }
   | { type: "RETRY_SEARCH" }

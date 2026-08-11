@@ -71,7 +71,11 @@ export function ProductScreen() {
           ) : (
             <Stack gap="md">
               {state.product.offers.map((offer) => (
-                <OfferCard key={offer.seller_product_id} offer={offer} />
+                <OfferCard
+                  key={offer.seller_product_id}
+                  offer={offer}
+                  product={{ id: state.product.id, name: state.product.name }}
+                />
               ))}
             </Stack>
           )}

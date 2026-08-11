@@ -17,5 +17,16 @@ import { CatalogBuilder } from "../catalog/builders/CatalogBuilder";
  *  и REFRESH_CATALOG (contracts/Action.ts), использованы именно они. */
 export const CatalogScreen: ScreenDefinition<CatalogViewModel> = {
   builder: CatalogBuilder,
-  availableActions: ["OPEN_PRODUCT", "OPEN_SELLER", "SELECT_CATEGORY", "REFRESH_CATALOG", "OPEN_MAP", "CLOSE_SCREEN"] as const,
+  // ADD_TO_BASKET: buyer_mvp (/ и /product/:id) живёт на ScreenId Catalog в
+  // Runtime (routeMapping не знает /product/:id) — без этого dispatch с
+  // карточки товара отклоняется isActionAllowed (CART-006).
+  availableActions: [
+    "OPEN_PRODUCT",
+    "OPEN_SELLER",
+    "SELECT_CATEGORY",
+    "REFRESH_CATALOG",
+    "OPEN_MAP",
+    "ADD_TO_BASKET",
+    "CLOSE_SCREEN",
+  ] as const,
 };

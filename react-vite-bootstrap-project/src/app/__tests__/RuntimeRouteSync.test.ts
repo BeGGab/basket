@@ -32,6 +32,7 @@ function run() {
   assert.deepEqual(entryFromPath("/catalog"), { screen: "Catalog", params: {} }, "/catalog → Catalog");
   assert.deepEqual(entryFromPath("/map"), { screen: "Map", params: {} }, "/map → Map");
   assert.deepEqual(entryFromPath("/seller-list"), { screen: "SellerList", params: {} }, "/seller-list → SellerList");
+  assert.deepEqual(entryFromPath("/cart"), { screen: "Basket", params: {} }, "/cart → Basket");
 
   // Неизвестный путь — null: RuntimeRouteSync ничего не синхронизирует.
   assert.equal(entryFromPath("/unknown"), null, "неизвестный путь → null");

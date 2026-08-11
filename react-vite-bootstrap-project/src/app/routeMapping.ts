@@ -15,12 +15,14 @@ import type { NavigationEntry, ScreenId } from "@/platform-core/navigation-runti
 const PATH_TO_SCREEN: Record<string, ScreenId> = {
   '/': 'Catalog',
   '/catalog': 'Catalog',
+  '/cart': 'Basket',
   '/map': 'Map',
   '/seller-list': 'SellerList',
 };
 
 const SCREEN_TO_PATH: Partial<Record<ScreenId, string>> = {
   Catalog: '/catalog',
+  Basket: '/cart',
   Map: '/map',
   SellerList: '/seller-list',
 };

@@ -3,6 +3,7 @@ import { PlaceholderScreen } from '@/screens/PlaceholderScreen';
 import { MapScreenView } from '@/screens/map/MapScreenView';
 import { SellerListScreenView } from '@/screens/seller-list/SellerListScreenView';
 import { SellerCardScreenView } from '@/screens/seller-card/SellerCardScreenView';
+import { CartScreenView } from '@/screens/cart/CartScreenView';
 import { Header, Page, Row } from '@/layout';
 import { Text } from '@/design-system/components';
 import '@/buyer_mvp/buyer_mvp.css';
@@ -71,7 +72,7 @@ export function NavigationContainer() {
             <Route path="/" element={<HomeScreen />} />
             <Route path="/catalog" element={<CatalogScreen />} />
             <Route path="/product/:productId" element={<ProductScreen />} />
-            <Route path="/cart" element={<PlaceholderScreen name="Корзина" />} />
+            <Route path="/cart" element={<CartScreenView />} />
             <Route path="/profile" element={<PlaceholderScreen name="Профиль" />} />
             <Route path="*" element={<PlaceholderScreen name="Страница не найдена" />} />
           </Routes>

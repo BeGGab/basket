@@ -1,0 +1,46 @@
+/* ---------- Экран корзины (/cart) ----------
+ * Токены темы; без произвольной палитры мимо Design System. */
+
+.gm-cart {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.gm-cart__header {
+  padding: var(--space-lg) var(--space-lg) var(--space-md);
+}
+
+.gm-cart__content {
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 var(--space-lg) var(--space-huge);
+}
+
+.gm-cart__item-title {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.gm-cart__item-controls {
+  margin-top: var(--space-xs);
+}
+
+.gm-cart-stepper {
+  flex-wrap: nowrap;
+}
+
+.gm-cart__footer {
+  position: sticky;
+  bottom: 0;
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+  background: linear-gradient(180deg, transparent, var(--color-surface-base) 30%);
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
