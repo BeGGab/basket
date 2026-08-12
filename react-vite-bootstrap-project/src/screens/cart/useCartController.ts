@@ -5,7 +5,7 @@ import type { ContentBlock } from '@/platform-core/contracts/ContentBlock';
 import type { BasketViewModel } from '@/platform-core/basket/viewmodels/BasketViewModel';
 import { asBasketId } from '@/platform-core/basket/viewmodels/BasketViewModel';
 import { BasketAdapter } from '@/platform-core/basket/adapters/BasketAdapter';
-import { getBasketViewModel } from '@/platform-core/basket/BasketActionHandlers';
+import { getBasketViewModel, basketActionHandlers } from '@/platform-core/basket/BasketActionHandlers';
 import {
   BasketStore,
   type StoredBasketItem,
@@ -23,6 +23,29 @@ import { useGreenMarketRuntime } from '@/platform-core/navigation-runtime-layer/
  * во временной переменной контроллера (не в localStorage); «Отменить» в
  * Snackbar восстанавливает его в течение UNDO_TIMEOUT_MS.
  */
+
+const BASKET_MUTATION_TYPES = new Set([
+  'ADD_TO_BASKET',
+  'REMOVE_FROM_BASKET',
+  'CHANGE_QUANTITY',
+  'CLEAR_BASKET',
+  'REFRESH_BASKET',
+  'START_PURCHASE',
+]);
+
+/** Применяет basket-action через Runtime; если isActionAllowed отклонил —
+ *  пишет в store напрямую (экран /cart должен работать даже при рассинхроне ScreenId). */
+function applyBasketAction(
+  dispatch: (action: Action) => boolean,
+  action: Action
+): boolean {
+  const accepted = dispatch(action);
+  if (accepted) return true;
+  if (!BASKET_MUTATION_TYPES.has(action.type)) return false;
+  if (action.type === 'START_PURCHASE') return false;
+  basketActionHandlers.handle(action, 'Basket');
+  return true;
+}
 
 export type CartPageState = 'loading' | 'error' | 'ready';
 
@@ -143,8 +166,8 @@ export function useCartController(): CartPageModel {
       if (action.type !== 'REFRESH_BASKET') {
         dismissUndo();
       }
-      const accepted = dispatch(action);
-      if (accepted || action.type === 'REFRESH_BASKET') {
+      const applied = applyBasketAction(dispatch, action);
+      if (applied || action.type === 'REFRESH_BASKET') {
         refresh(action.type === 'REFRESH_BASKET' ? { showLoading: true } : undefined);
       }
     },
@@ -155,8 +178,8 @@ export function useCartController(): CartPageModel {
     (message: string, action: Action) => {
       const snapshot = cloneItems(BasketStore.load());
       dismissUndo();
-      const accepted = dispatch(action);
-      if (!accepted) return;
+      const applied = applyBasketAction(dispatch, action);
+      if (!applied) return;
       refresh();
       armUndo(message, snapshot);
     },

@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Card, Text, Divider, Button } from '@/design-system/components';
 import { Stack } from '@/layout';
-import { asProductId, asSellerId } from '@/platform-core/contracts/Action';
+import { asProductId, asSellerId, type Action } from '@/platform-core/contracts/Action';
+import { basketActionHandlers } from '@/platform-core/basket/BasketActionHandlers';
 import { useGreenMarketRuntime } from '@/platform-core/navigation-runtime-layer/hooks/useGreenMarketRuntime';
 import { PhotoStrip } from './PhotoStrip';
 import { formatPrice, formatStock } from '../format';
@@ -18,12 +20,16 @@ interface OfferCardProps {
 /** Экран 3 (Карточка товара): продавец, цена, единица, остаток, фото (все, лентой), описание, «В корзину». */
 export function OfferCard({ offer, product }: OfferCardProps) {
   const { dispatch } = useGreenMarketRuntime();
+  const [addedHint, setAddedHint] = useState<string | null>(null);
 
   function handleAddToBasket() {
     const price = Number(offer.price);
-    if (!Number.isFinite(price) || price < 0) return;
+    if (!Number.isFinite(price) || price < 0) {
+      setAddedHint('Некорректная цена предложения');
+      return;
+    }
 
-    dispatch({
+    const action: Action = {
       type: 'ADD_TO_BASKET',
       payload: {
         sellerId: asSellerId(String(offer.seller_id)),
@@ -35,7 +41,17 @@ export function OfferCard({ offer, product }: OfferCardProps) {
           ? { id: String(product.id), placeholderColor: PHOTO_PLACEHOLDER_COLOR }
           : null,
       },
-    });
+    };
+
+    // Runtime может быть на Basket/Map после других экранов — isActionAllowed
+    // тогда отклонит ADD. Пишем в BasketStore напрямую как fallback.
+    const accepted = dispatch(action);
+    if (!accepted) {
+      basketActionHandlers.handle(action, 'Catalog');
+    }
+
+    setAddedHint('Добавлено в корзину');
+    window.setTimeout(() => setAddedHint(null), 2500);
   }
 
   return (
@@ -65,6 +81,11 @@ export function OfferCard({ offer, product }: OfferCardProps) {
         <Button variant="primary" onClick={handleAddToBasket} data-testid="add-to-basket">
           В корзину
         </Button>
+        {addedHint && (
+          <Text variant="caption" tone="secondary" data-testid="add-to-basket-hint">
+            {addedHint}
+          </Text>
+        )}
       </Stack>
     </Card>
   );

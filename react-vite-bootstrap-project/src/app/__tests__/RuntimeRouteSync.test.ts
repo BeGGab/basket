@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { entryFromPath } from "../routeMapping";
+import { entryFromPath, isBrowserOnlyPath } from "../routeMapping";
 
 /**
  * Регрессия на баг deep-link: заход по /seller/seller-2 (или вставка такой
@@ -36,6 +36,14 @@ function run() {
 
   // Неизвестный путь — null: RuntimeRouteSync ничего не синхронизирует.
   assert.equal(entryFromPath("/unknown"), null, "неизвестный путь → null");
+
+  // buyer_mvp: /product/:id не в ScreenId-карте — Runtime не должен
+  // переписывать URL обратно на /catalog (иначе «В корзину» недоступна).
+  assert.equal(entryFromPath("/product/17"), null, "/product/17 вне Platform map");
+  assert.equal(isBrowserOnlyPath("/product/17"), true, "/product/17 — browser-only");
+  assert.equal(isBrowserOnlyPath("/catalog"), false, "/catalog — platform path");
+  assert.equal(isBrowserOnlyPath("/cart"), false, "/cart — platform path");
+  assert.equal(isBrowserOnlyPath("/profile"), true, "/profile — browser-only");
 
   console.log("RuntimeRouteSync entryFromPath: все проверки пройдены");
 }

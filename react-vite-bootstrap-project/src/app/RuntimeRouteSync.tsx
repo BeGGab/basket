@@ -5,7 +5,7 @@ import {
   useRuntimeInstance,
 } from '@/platform-core/navigation-runtime-layer/hooks/useGreenMarketRuntime';
 import { currentEntry } from '@/platform-core/navigation-runtime-layer/navigation/NavigationStack';
-import { entryFromPath, pathFromEntry } from '@/app/routeMapping';
+import { entryFromPath, isBrowserOnlyPath, pathFromEntry } from '@/app/routeMapping';
 
 /**
  * Мост между реальным GreenMarketRuntime (стек экранов Platform Core) и
@@ -76,6 +76,12 @@ export function RuntimeRouteSync() {
     const entry = currentEntry(runtime.getState().navigation);
     const path = pathFromEntry(entry);
     if (path && path !== location.pathname) {
+      // /product/:id и другие buyer_mvp-пути не имеют ScreenId. Раньше
+      // Runtime=Catalog заставлял navigate('/catalog') и выкидывал с карточки
+      // товара — «В корзину» становилась недоступной (корзина «не работала»).
+      if (isBrowserOnlyPath(location.pathname)) {
+        return;
+      }
       navigate(path);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `state` служит триггером на изменение навигации

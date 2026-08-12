@@ -44,3 +44,16 @@ export function pathFromEntry(entry: NavigationEntry): string | null {
   }
   return SCREEN_TO_PATH[entry.screen] ?? null;
 }
+
+/**
+ * Маршруты React Router вне Platform Core ScreenId (buyer_mvp и т.п.).
+ * Runtime→URL не должен переписывать их на /catalog|/cart|/map.
+ */
+export function isBrowserOnlyPath(pathname: string): boolean {
+  if (entryFromPath(pathname) !== null) return false;
+  return (
+    pathname.startsWith('/product/') ||
+    pathname === '/profile' ||
+    pathname.startsWith('/profile/')
+  );
+}
