@@ -7,6 +7,7 @@
 - **[`specifications/`](./specifications/)** — технические задания (ТЗ-001…ТЗ-026), включая черновики и утверждённые версии.
 - **[`architecture/`](./architecture/)** — подготовка к FSM Engine: промпт-инструкция и ТЗ-022.
 - **[`reviews/`](./reviews/)** — ревью, рецензии архива, мета-разборы структуры.
+- **[`basket/`](./basket/)** — экспериментальная доменная модель корзины v0.1: [`BASKET_EXPERIMENT.md`](./basket/BASKET_EXPERIMENT.md), domain model, invariants, open questions, emulator spec, breaking scenarios, test matrix, results template.
 
 > `research/` в исходном плане структуры пока не создана — в репозитории нет исследовательских материалов отдельно от specifications/reviews. Создавайте её по факту появления первого такого документа, а не заранее.
 
