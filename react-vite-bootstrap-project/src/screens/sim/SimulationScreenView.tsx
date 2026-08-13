@@ -1,10 +1,16 @@
 import { useReducer, useState } from 'react';
 import { Badge, Button, Card, Text } from '@/design-system/components';
 import { Row, Stack } from '@/layout';
+import { adviseBuyer, adviseSeller, type Advice } from 'basket-experiment/assistants';
 import { DEMO_SCENARIOS } from 'basket-experiment/runtime/demos';
 import { ScenarioPlayer } from 'basket-experiment/runtime/player';
 import type { Scenario } from 'basket-experiment/runtime/engine';
 import '@/screens/sim/sim.css';
+
+function formatAdvice(advice: Advice): string {
+  const price = advice.price != null ? ` · ${advice.price} MAD` : '';
+  return `${advice.kind}${price}`;
+}
 
 function formatItems(items: { productId: string; quantity: number; unit: string; price?: number }[]): string {
   if (!items.length) return '—';
@@ -23,6 +29,8 @@ export function SimulationScreenView() {
   const sellerPurchases = [...world.sellerPurchases.values()];
   const selected = sellerPurchases[0];
   const snapshot = selected ? world.snapshot(selected.id) : null;
+  const buyerAdvice = selected ? adviseBuyer(world, selected.id) : null;
+  const sellerAdvice = selected ? adviseSeller(world, selected.id) : null;
 
   function load(next: Scenario) {
     setScenarioName(next.name);
@@ -42,13 +50,13 @@ export function SimulationScreenView() {
     <div className="gm-sim" data-testid="simulation-screen">
       <header className="gm-sim__header">
         <Text variant="overline" tone="secondary">
-          TZ-BASKET-003 · не production-корзина
+          TZ-BASKET-004 · не production-корзина
         </Text>
         <Text variant="headline" as="h1">
           Симуляция закупки
         </Text>
         <Text tone="secondary">
-          Demo и training поверх List → Purchase → Offer. Экран «Корзина» (/cart) не затрагивается.
+          Demo, training и советы ассистентов поверх List → Purchase → Offer. Экран «Корзина» (/cart) не затрагивается.
         </Text>
       </header>
 
@@ -122,7 +130,7 @@ export function SimulationScreenView() {
             <Text variant="title" as="h2">
               Snapshot
             </Text>
-            {selected ? (
+            {selected && buyerAdvice && sellerAdvice ? (
               <>
                 <Row gap="sm" align="center">
                   <Badge tone={selected.status === 'STABLE' ? 'success' : 'neutral'}>{selected.status}</Badge>
@@ -155,6 +163,34 @@ export function SimulationScreenView() {
                   ) : (
                     <Text tone="secondary">нет</Text>
                   )}
+                </div>
+                <div className="gm-sim__lane gm-sim__lane--advice">
+                  <Text variant="overline">BUYER ASSISTANT</Text>
+                  <Text variant="bodyStrong">{formatAdvice(buyerAdvice)}</Text>
+                  <Text variant="caption" tone="secondary">
+                    {buyerAdvice.rationale}
+                  </Text>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => act(() => player.runtime.applyBuyerAdvice(selected.id))}
+                  >
+                    Apply buyer
+                  </Button>
+                </div>
+                <div className="gm-sim__lane gm-sim__lane--advice">
+                  <Text variant="overline">SELLER ASSISTANT</Text>
+                  <Text variant="bodyStrong">{formatAdvice(sellerAdvice)}</Text>
+                  <Text variant="caption" tone="secondary">
+                    {sellerAdvice.rationale}
+                  </Text>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => act(() => player.runtime.applySellerAdvice(selected.id))}
+                  >
+                    Apply seller
+                  </Button>
                 </div>
               </>
             ) : (
