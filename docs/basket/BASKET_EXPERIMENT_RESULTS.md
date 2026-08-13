@@ -2,14 +2,15 @@
 
 **Status:** Evidence from TZ-BASKET-001…004 mock run  
 **Experiment version:** v0.1  
-**Model version:** v0.1.4 (stock claim = active Offer; 28 scenarios exercised)
+**Model version:** v0.1.5 (advice binding; accept actor; qty>0; cancelled/expired claims)
 
 ## How to read results
 
 - **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).
-- **Domain `CONFIRMED`** — the scenario closes or supports a domain hypothesis.
+- **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).
 - **Domain `OPEN`** — implementation is deterministic, but the business semantics are still an open question (see `openQuestion`).
 - Do not treat Impl PASS as confirmation of an unresolved OQ.
+- Expected/Actual are serialized from the same fact map `prove()` asserted, or from live values after assertions. They are not a separately maintained narrative.
 - All 28 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped.
 
 ## Purpose
@@ -30,8 +31,8 @@ Record evidence from the mock domain and seller emulator.
 | BS-008 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-009 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-010 | PASS | OPEN (OQ-002) | none | keep v0.1 |
-| BS-011 | PASS | CONFIRMED | none | keep v0.1 |
-| BS-012 | PASS | OPEN (OQ-009) | none | keep v0.1 |
+| BS-011 | PASS | OPEN (OQ-016) | none | detection layer only; Allocation remains OQ-016 |
+| BS-012 | PASS | OPEN (OQ-009) | none | domain does not auto-drop STABLE on agreed expiry (OQ-009 OPEN) |
 | BS-013 | PASS | OPEN (OQ-012) | none | keep v0.1 |
 | BS-014 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-015 | PASS | CONFIRMED | none | keep v0.1 |
@@ -42,7 +43,7 @@ Record evidence from the mock domain and seller emulator.
 | BS-020 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-021 | PASS | OPEN (OQ-009) | none | keep v0.1 |
 | BS-022 | PASS | OPEN (OQ-011) | none | keep v0.1 |
-| BS-023 | PASS | CONFIRMED | none | keep v0.1 |
+| BS-023 | PASS | OPEN (OQ-016) | none | detection-event log only; Allocation/Reservation remain OQ-016 |
 | BS-024 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-025 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-026 | PASS | CONFIRMED | none | keep v0.1 |
@@ -171,29 +172,29 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: keep v0.1
 
-### BS-011 — Impl PASS / Domain CONFIRMED
+### BS-011 — Impl PASS / Domain OPEN (OQ-016)
 
-- Expected: True race stock=6 A→4 B→3: first conflict at second Offer creation; no allocation
-- Actual: first=OFFER_CREATION combined=7 vs stock=6
+- Expected: detectedAt=OFFER_CREATION; combined=7; stock=6
+- Actual: detectedAt=OFFER_CREATION; combined=7; stock=6
 - Invariant: I-025
-- Hypothesis: CONFIRMED
-- Open question: none
+- Hypothesis: OPEN
+- Open question: OQ-016
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: keep v0.1
+- Decision: detection layer only; Allocation remains OQ-016
 
 ### BS-012 — Impl PASS / Domain OPEN (OQ-009)
 
-- Expected: Expired Offer cannot be accepted; after later expiry of an agreed Offer, SP is not auto-EXPIRED
-- Actual: no-accept-expired; later status=WAITING_BUYER
+- Expected: laterStatus=STABLE; laterOfferValid=false; agreedIsLive=true
+- Actual: laterStatus=STABLE; laterOfferValid=false; agreedIsLive=true
 - Invariant: I-026 I-028
 - Hypothesis: OPEN
 - Open question: OQ-009
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: keep v0.1
+- Decision: domain does not auto-drop STABLE on agreed expiry (OQ-009 OPEN)
 
 ### BS-013 — Impl PASS / Domain OPEN (OQ-012)
 
@@ -269,8 +270,8 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-019 — Impl PASS / Domain CONFIRMED
 
-- Expected: Resolution is catalog-global and precedes partitioning; not per-seller product choice
-- Actual: A=black_bread B=black_bread kind=PRIMARY
+- Expected: sellerA=none; sellerB=black_bread
+- Actual: sellerA=none; sellerB=black_bread
 - Invariant: I-015
 - Hypothesis: CONFIRMED
 - Open question: none
@@ -315,17 +316,17 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: keep v0.1
 
-### BS-023 — Impl PASS / Domain CONFIRMED
+### BS-023 — Impl PASS / Domain OPEN (OQ-016)
 
-- Expected: stock=6 A=4 B=3 combined=7 at OFFER_CREATION; both STABLE; claim follows active Offer (3+7=10)
-- Actual: STABLE+STABLE first=OFFER_CREATION stock=6 combined=7 detections=5; later activeClaim combined=10
+- Expected: aStatus=STABLE; bStatus=STABLE; firstAt=OFFER_CREATION; stock=6; combined=7; activeClaimCombined=10; fulfillments=0
+- Actual: aStatus=STABLE; bStatus=STABLE; firstAt=OFFER_CREATION; stock=6; combined=7; activeClaimCombined=10; fulfillments=0
 - Invariant: I-025
-- Hypothesis: CONFIRMED
-- Open question: none
+- Hypothesis: OPEN
+- Open question: OQ-016
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: keep v0.1
+- Decision: detection-event log only; Allocation/Reservation remain OQ-016
 
 ### BS-024 — Impl PASS / Domain CONFIRMED
 
@@ -377,8 +378,8 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-028 — Impl PASS / Domain CONFIRMED
 
-- Expected: PartialAvailabilitySeller offers 5 kg of requested 20; agreed and active are 5 kg STABLE
-- Actual: activeQty=5 agreedQty=5 STABLE
+- Expected: activeQty=5; agreedQty=5; status=STABLE; afterStockDropQty=2; originalOfferUnchanged=5
+- Actual: activeQty=5; agreedQty=5; status=STABLE; afterStockDropQty=2; originalOfferUnchanged=5
 - Invariant: I-017
 - Hypothesis: CONFIRMED
 - Open question: none
@@ -390,7 +391,7 @@ Record evidence from the mock domain and seller emulator.
 ## Final decision
 
 ```text
-Model version: v0.1.4
+Model version: v0.1.5
 Status: experiment implemented; production architecture not started
 
 Changes in this PR (already implemented and tested):
@@ -400,7 +401,10 @@ Changes in this PR (already implemented and tested):
 - OQ-006 / OQ-008 closed
 - PartialAvailabilitySeller offers min(requested, stock)
 - Stock race records combined claims (stock=6, A→4, B→3) at OFFER_CREATION
-- stock claim = active Offer quantity, not agreed-when-present
+- stock claim = valid active Offer quantity; REJECTED/CANCELLED/expired excluded
+- I-029: only the counterparty may accept an Offer
+- Offer items: quantity > 0, finite price/qty; applyAdvice requires matching snapshot basis
+- TZ-001…004 remain one stacked experiment PR; each layer has its own test entrypoint
 - removed duplicate SellerPurchase.rejected; REJECTED is FSM status only
 
 Still open after this experiment (future domain work, not blockers for TZ-001…004):

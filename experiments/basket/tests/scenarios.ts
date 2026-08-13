@@ -72,6 +72,26 @@ function pass(
   };
 }
 
+/** Assert each expected fact against live actuals; serialize the same map into evidence. */
+function prove(
+  id: string,
+  invariant: string,
+  expected: Record<string, string | number | boolean | null>,
+  actual: Record<string, string | number | boolean | null>,
+  decision = "keep v0.1",
+  hypothesis: "CONFIRMED" | "OPEN" = "CONFIRMED",
+  openQuestion = "none"
+): ScenarioResult {
+  const keys = Object.keys(expected);
+  assert.ok(keys.length > 0, `${id}: prove() requires facts`);
+  for (const key of keys) {
+    assert.equal(actual[key], expected[key], `${id}.${key}`);
+  }
+  const fmt = (row: Record<string, string | number | boolean | null>) =>
+    keys.map((key) => `${key}=${row[key]}`).join("; ");
+  return pass(id, fmt(expected), fmt(actual), invariant, decision, hypothesis, openQuestion);
+}
+
 function run(id: string, fn: () => ScenarioResult): ScenarioResult {
   try {
     return fn();
@@ -356,11 +376,14 @@ export function runAllScenarios(): ScenarioResult[] {
       assert.equal(first.combined, 7);
       assert.equal(first.stock, 6);
       assert.equal(w.purchases.size, 2);
-      return pass(
+      return prove(
         "BS-011",
-        "True race stock=6 A→4 B→3: first conflict at second Offer creation; no allocation",
-        `first=${first.detectedAt} combined=${first.combined} vs stock=${first.stock}`,
-        "I-025"
+        "I-025",
+        { detectedAt: "OFFER_CREATION", combined: 7, stock: 6 },
+        { detectedAt: first.detectedAt, combined: first.combined, stock: first.stock },
+        "detection layer only; Allocation remains OQ-016",
+        "OPEN",
+        "OQ-016"
       );
     })
   );
@@ -396,14 +419,18 @@ export function runAllScenarios(): ScenarioResult[] {
       assert.equal(w.requireSp(sp).status, "STABLE");
       w.advance(5_000);
       assert.equal(w.isOfferValid(live), false);
+      assert.equal(w.requireSp(sp).status, "STABLE");
       assert.notEqual(w.requireSp(sp).status, "EXPIRED");
-      assert.ok(w.sellerPurchases.has(sp));
-      return pass(
+      return prove(
         "BS-012",
-        "Expired Offer cannot be accepted; after later expiry of an agreed Offer, SP is not auto-EXPIRED",
-        `no-accept-expired; later status=${w.requireSp(sp).status}`,
         "I-026 I-028",
-        "keep v0.1",
+        { laterStatus: "STABLE", laterOfferValid: false, agreedIsLive: true },
+        {
+          laterStatus: w.requireSp(sp).status,
+          laterOfferValid: w.isOfferValid(live),
+          agreedIsLive: w.requireSp(sp).agreedOfferId === live.id,
+        },
+        "domain does not auto-drop STABLE on agreed expiry (OQ-009 OPEN)",
         "OPEN",
         "OQ-009"
       );
@@ -656,11 +683,30 @@ export function runAllScenarios(): ScenarioResult[] {
       assert.equal(againstActive.stock, 6);
       assert.equal(againstActive.requested, 3);
 
-      return pass(
+      return prove(
         "BS-023",
-        "stock=6 A=4 B=3 combined=7 at OFFER_CREATION; both STABLE; claim follows active Offer (3+7=10)",
-        `STABLE+STABLE first=${first.detectedAt} stock=${first.stock} combined=${first.combined} detections=${w.stockConflicts.length}; later activeClaim combined=${againstActive.combined}`,
-        "I-025"
+        "I-025",
+        {
+          aStatus: "STABLE",
+          bStatus: "STABLE",
+          firstAt: "OFFER_CREATION",
+          stock: 6,
+          combined: 7,
+          activeClaimCombined: 10,
+          fulfillments: 0,
+        },
+        {
+          aStatus: w.requireSp(p1.sellerPurchaseIds[0]).status,
+          bStatus: w.requireSp(p2.sellerPurchaseIds[0]).status,
+          firstAt: first.detectedAt,
+          stock: first.stock,
+          combined: first.combined,
+          activeClaimCombined: againstActive.combined,
+          fulfillments: w.fulfillments.length,
+        },
+        "detection-event log only; Allocation/Reservation remain OQ-016",
+        "OPEN",
+        "OQ-016"
       );
     })
   );
@@ -783,16 +829,37 @@ export function runAllScenarios(): ScenarioResult[] {
       const offer = w.lastOffer(sp, "SELLER")!;
       w.acceptOffer(offer.id, "BUYER");
       const after = w.requireSp(sp);
-      assert.equal(offer.items[0].quantity, 5);
-      assert.equal(w.offerById(after.activeOfferId!).items[0].quantity, 5);
-      assert.equal(w.offerById(after.agreedOfferId!).items[0].quantity, 5);
-      assert.equal(after.status, "STABLE");
-      assert.equal(after.items[0].quantity, 5);
-      return pass(
+
+      const w2 = new BasketWorld();
+      w2.setCatalog({
+        names: { tomatoes: "Tomatoes" },
+        availability: [{ sellerId: "seller-a", productId: "tomatoes", quantity: 20, unit: "kg", price: 15, stock: 5 }],
+      });
+      const list2 = w2.createList("stock-drop");
+      w2.addItem(list2.id, { productId: "tomatoes", quantity: 20, unit: "kg", alternatives: [] });
+      const sp2 = w2.createPurchaseFromList(list2.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      const emu2 = createSellerEmulator("seller-a", "PartialAvailabilitySeller");
+      buyerOffer(w2, sp2, tomatoes(20, 15));
+      emu2.respondToBuyerOffer(w2, sp2, tomatoes(20, 15));
+      const offered5 = w2.lastOffer(sp2, "SELLER")!;
+      assert.equal(offered5.items[0].quantity, 5);
+      w2.setStock("seller-a", "tomatoes", 2);
+      emu2.tick(w2, sp2);
+      const afterDrop = w2.lastOffer(sp2, "SELLER")!;
+      assert.notEqual(afterDrop.id, offered5.id);
+      assert.equal(offered5.items[0].quantity, 5);
+
+      return prove(
         "BS-028",
-        "PartialAvailabilitySeller offers 5 kg of requested 20; agreed and active are 5 kg STABLE",
-        `activeQty=${w.offerById(after.activeOfferId!).items[0].quantity} agreedQty=${w.offerById(after.agreedOfferId!).items[0].quantity} ${after.status}`,
-        "I-017"
+        "I-017",
+        { activeQty: 5, agreedQty: 5, status: "STABLE", afterStockDropQty: 2, originalOfferUnchanged: 5 },
+        {
+          activeQty: w.offerById(after.activeOfferId!).items[0].quantity,
+          agreedQty: w.offerById(after.agreedOfferId!).items[0].quantity,
+          status: after.status,
+          afterStockDropQty: afterDrop.items[0].quantity,
+          originalOfferUnchanged: offered5.items[0].quantity,
+        }
       );
     })
   );
@@ -867,15 +934,15 @@ export function runAllScenarios(): ScenarioResult[] {
       );
       const itemA = bySeller.get("seller-a")?.items[0];
       const itemB = bySeller.get("seller-b")?.items[0];
-      assert.equal(itemA?.productId, "black_bread", "seller A must not get a private alternative");
+      assert.equal(itemA, undefined, "seller A has no stock of the globally resolved primary");
       assert.equal(itemB?.productId, "black_bread");
-      assert.equal(itemA?.resolvedFrom, "black_bread");
-      assert.equal(itemA?.alternativePriority, 0);
-      return pass(
+      assert.equal(itemB?.resolvedFrom, "black_bread");
+      assert.equal(itemB?.alternativePriority, 0);
+      return prove(
         "BS-019",
-        "Resolution is catalog-global and precedes partitioning; not per-seller product choice",
-        `A=${itemA?.productId} B=${itemB?.productId} kind=PRIMARY`,
         "I-015",
+        { sellerA: "none", sellerB: "black_bread" },
+        { sellerA: itemA?.productId ?? "none", sellerB: itemB?.productId ?? "none" },
         "close OQ-006: Resolution before seller partitioning"
       );
     })
@@ -922,14 +989,15 @@ export function formatResults(rows: ScenarioResult[]): string {
     "",
     "**Status:** Evidence from TZ-BASKET-001…004 mock run  ",
     "**Experiment version:** v0.1  ",
-    "**Model version:** v0.1.4 (stock claim = active Offer; 28 scenarios exercised)",
+    "**Model version:** v0.1.5 (advice binding; accept actor; qty>0; cancelled/expired claims)",
     "",
     "## How to read results",
     "",
     "- **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).",
-    "- **Domain `CONFIRMED`** — the scenario closes or supports a domain hypothesis.",
+    "- **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).",
     "- **Domain `OPEN`** — implementation is deterministic, but the business semantics are still an open question (see `openQuestion`).",
     "- Do not treat Impl PASS as confirmation of an unresolved OQ.",
+    "- Expected/Actual are serialized from the same fact map `prove()` asserted, or from live values after assertions. They are not a separately maintained narrative.",
     "- All 28 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped.",
     "",
     "## Purpose",
@@ -961,7 +1029,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   }
   lines.push("## Final decision", "");
   lines.push("```text");
-  lines.push("Model version: v0.1.4");
+  lines.push("Model version: v0.1.5");
   lines.push("Status: experiment implemented; production architecture not started");
   lines.push("");
   lines.push("Changes in this PR (already implemented and tested):");
@@ -971,7 +1039,10 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("- OQ-006 / OQ-008 closed");
   lines.push("- PartialAvailabilitySeller offers min(requested, stock)");
   lines.push("- Stock race records combined claims (stock=6, A→4, B→3) at OFFER_CREATION");
-  lines.push("- stock claim = active Offer quantity, not agreed-when-present");
+  lines.push("- stock claim = valid active Offer quantity; REJECTED/CANCELLED/expired excluded");
+  lines.push("- I-029: only the counterparty may accept an Offer");
+  lines.push("- Offer items: quantity > 0, finite price/qty; applyAdvice requires matching snapshot basis");
+  lines.push("- TZ-001…004 remain one stacked experiment PR; each layer has its own test entrypoint");
   lines.push("- removed duplicate SellerPurchase.rejected; REJECTED is FSM status only");
   lines.push("");
   lines.push("Still open after this experiment (future domain work, not blockers for TZ-001…004):");

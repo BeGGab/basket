@@ -1,3 +1,5 @@
+import type { AdviceBasis } from "./basis";
+
 export type AdviceKind =
   | "ACCEPT_ACTIVE"
   | "COUNTER"
@@ -11,4 +13,6 @@ export interface Advice {
   rationale: string;
   /** For COUNTER: proposed unit price of the first item. */
   price?: number;
+  /** Must match the SellerPurchase snapshot at apply time. */
+  basis: AdviceBasis;
 }

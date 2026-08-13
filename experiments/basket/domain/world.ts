@@ -74,7 +74,7 @@ export class BasketWorld {
   /**
    * Experimental helper, not a production purchase API.
    * - `sellerIds` omitted: one SellerPurchase via deterministic `pickSeller` (lexicographic sellerId).
-   * - `sellerIds` provided: **fan-out** — one SellerPurchase per listed seller that has a catalog row.
+   * - `sellerIds` provided: **fan-out** — one SellerPurchase per listed seller that has a catalog row with stock > 0.
    * Passing sellerIds is therefore a multi-seller scenario mode, not merely a search filter.
    */
   createPurchaseFromList(listId: string, policy: ResolutionPolicy, sellerIds?: string[]): Purchase {
@@ -103,6 +103,7 @@ export class BasketWorld {
 
       const rows = this.catalog.availability.filter((row) => {
         if (row.productId !== result.productId) return false;
+        if (row.stock <= 0) return false;
         if (allowed && !allowed.has(row.sellerId)) return false;
         return true;
       });
@@ -156,6 +157,19 @@ export class BasketWorld {
     return rows.slice().sort((a, b) => a.sellerId.localeCompare(b.sellerId))[0];
   }
 
+  setStock(sellerId: string, productId: string, stock: number): void {
+    if (!Number.isFinite(stock) || stock < 0) {
+      throw new Error(`stock must be a finite number ≥ 0, got ${stock}`);
+    }
+    const row = this.catalog.availability.find((item) => item.sellerId === sellerId && item.productId === productId);
+    if (!row) throw new Error(`No catalog row for ${sellerId}/${productId}`);
+    row.stock = stock;
+  }
+
+  cancelSellerPurchase(sellerPurchaseId: string): void {
+    this.applyStatus(this.requireSp(sellerPurchaseId), "CANCELLED");
+  }
+
   proposeOffer(input: {
     sellerPurchaseId: string;
     actor: Actor;
@@ -164,6 +178,7 @@ export class BasketWorld {
     validUntil?: string;
   }): Offer {
     const sp = this.requireSp(input.sellerPurchaseId);
+    this.assertOfferItems(input.items);
     const offer: Offer = Object.freeze({
       id: this.id("offer"),
       sellerPurchaseId: sp.id,
@@ -200,6 +215,7 @@ export class BasketWorld {
     if (!this.isOfferValid(offer)) {
       throw new Error(`Cannot accept Offer ${offer.id}: offer is expired (I-028).`);
     }
+    this.assertAcceptanceActor(offer, actor);
     const acceptance: Acceptance = {
       id: this.id("acc"),
       offerId: offer.id,
@@ -301,6 +317,7 @@ export class BasketWorld {
   derivedPurchaseStatus(purchaseId: string): string {
     const purchase = this.requirePurchase(purchaseId);
     const states = purchase.sellerPurchaseIds.map((id) => this.requireSp(id).status);
+    if (states.length === 0) return "EMPTY";
     if (states.every((s) => s === "STABLE")) return "STABLE";
     if (states.every((s) => s === "REJECTED")) return "REJECTED";
     if (states.some((s) => s === "STABLE") && states.some((s) => s !== "STABLE")) return "MIXED";
@@ -346,29 +363,67 @@ export class BasketWorld {
     }
     if (agreed && active && agreed.id !== active.id) {
       this.applyStatus(sp, active.actor === "BUYER" ? "WAITING_SELLER" : "WAITING_BUYER");
-      return;
     }
-    if (agreed && !this.isOfferValid(agreed) && sp.status === "STABLE") {
-      // Observed experimental behavior (not a closed OQ-009 decision): clock re-eval drops STABLE.
-      this.applyStatus(sp, "WAITING_BUYER");
-    }
+    // OQ-009 remains OPEN: an already-agreed Offer that later expires does not
+    // auto-change SellerPurchase status. Validity only prevents *entering* STABLE.
   }
 
   /**
-   * Competing claim = quantity on the other SellerPurchase's **active** commercial proposal.
-   * `agreedOfferId` is not used: after a new Offer the current request is `activeOfferId`.
+   * Competing claim = quantity on the other SellerPurchase's **valid active** commercial proposal.
+   * REJECTED and CANCELLED are ignored. Expired Offers (`isOfferValid` = false) are not claims.
    */
   private claimedByOthers(sp: SellerPurchase, productId: string): number {
     let sum = 0;
     for (const other of this.sellerPurchases.values()) {
-      if (other.id === sp.id || other.sellerId !== sp.sellerId || other.status === "REJECTED") continue;
+      if (other.id === sp.id || other.sellerId !== sp.sellerId) continue;
+      if (other.status === "REJECTED" || other.status === "CANCELLED") continue;
       if (!other.activeOfferId) continue;
       const offer = this.requireOffer(other.activeOfferId);
+      if (!this.isOfferValid(offer)) continue;
       for (const item of offer.items) {
         if (item.productId === productId) sum += item.quantity;
       }
     }
     return sum;
+  }
+
+  private assertOfferItems(items: PurchaseItem[]): void {
+    if (items.length === 0) {
+      throw new Error("Offer must contain at least one item.");
+    }
+    for (const item of items) {
+      if (!item.productId) {
+        throw new Error("Offer item requires productId.");
+      }
+      if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
+        throw new Error(`Offer quantity must be a finite number > 0, got ${item.quantity}.`);
+      }
+      if (!item.unit) {
+        throw new Error("Offer item requires unit.");
+      }
+      if (item.price !== undefined && (!Number.isFinite(item.price) || item.price < 0)) {
+        throw new Error(`Offer price must be a finite number ≥ 0, got ${item.price}.`);
+      }
+      if (item.discount !== undefined && !Number.isFinite(item.discount)) {
+        throw new Error(`Offer discount must be a finite number, got ${item.discount}.`);
+      }
+    }
+  }
+
+  /** BUYER accepts SELLER/SYSTEM; SELLER accepts BUYER; nobody accepts their own Offer. */
+  private assertAcceptanceActor(offer: Offer, actor: Actor): void {
+    if (actor === "SYSTEM") {
+      throw new Error(`SYSTEM cannot accept Offers (I-029).`);
+    }
+    if (actor === offer.actor) {
+      throw new Error(`Cannot accept own Offer ${offer.id} (I-029).`);
+    }
+    if (offer.actor === "BUYER" && actor !== "SELLER") {
+      throw new Error(`Only SELLER may accept a BUYER Offer (I-029).`);
+    }
+    if ((offer.actor === "SELLER" || offer.actor === "SYSTEM") && actor !== "BUYER") {
+      throw new Error(`Only BUYER may accept a ${offer.actor} Offer (I-029).`);
+    }
   }
 
   /** Append a detection event when combined claims exceed catalog stock. Same race may log at several checkpoints. */

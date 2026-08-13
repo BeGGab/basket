@@ -227,7 +227,7 @@ Expiration is split:
 
 1. **Validity** — `isOfferValid(offer)` from `validUntil`. Defined.
 2. **Acceptance** — expired Offer cannot be accepted (I-028). Defined.
-3. **OQ-009 (open)** — what happens to the pointer and SellerPurchase status when an already-agreed Offer later expires and no newer Offer exists. The mock currently drops STABLE to WAITING_BUYER on clock re-eval; that is observed behavior, not a closed decision.
+3. **OQ-009 (open)** — what happens to the pointer and SellerPurchase status when an already-agreed Offer later expires and no newer Offer exists. The domain does **not** auto-transition status on that expiry (STABLE may remain STABLE). That is deliberately not a closed decision.
 
 ## Snapshot invariant
 
@@ -274,7 +274,7 @@ STABLE does not mean payment, reservation, delivery, guaranteed physical availab
 
 `stockConflicts` is a **detection-event log**, not a unique conflict state. The same race (e.g. stock=6, A→4, B→3, combined=7) may be recorded at `OFFER_CREATION`, `ACCEPTANCE` and `STABLE`. Multiple rows for one race are expected. There is no Allocation/Reservation in this experiment.
 
-For stock-conflict detection, a **claim** is the quantity represented by the SellerPurchase's current **active** commercial proposal (`activeOfferId`). `agreedOfferId` is not used as the claim when a newer active Offer exists.
+For stock-conflict detection, a **claim** is the quantity represented by the SellerPurchase's current **valid active** commercial proposal (`activeOfferId` and `isOfferValid`). REJECTED, CANCELLED, and expired Offers are not claims. `agreedOfferId` is not used as the claim when a newer active Offer exists.
 
 ## Experimental SellerPurchase states
 

@@ -201,7 +201,7 @@ export function SimulationScreenView() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => act(() => player.runtime.applyBuyerAdvice(selected.id))}
+                    onClick={() => act(() => player.runtime.applyDisplayedAdvice(selected.id, buyerAdvice))}
                   >
                     Apply buyer
                   </Button>
@@ -215,7 +215,7 @@ export function SimulationScreenView() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => act(() => player.runtime.applySellerAdvice(selected.id))}
+                    onClick={() => act(() => player.runtime.applyDisplayedAdvice(selected.id, sellerAdvice))}
                   >
                     Apply seller
                   </Button>

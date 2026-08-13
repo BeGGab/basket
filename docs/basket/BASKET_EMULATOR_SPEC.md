@@ -87,7 +87,7 @@ It must expose the first layer at which combined claims exceed stock (Offer crea
 
 `stockConflicts` is a **detection-event log**: the same race may produce several rows (one per checkpoint). Do not treat `conflicts.length` as the number of unique races.
 
-For stock-conflict detection, a claim is the quantity represented by the SellerPurchase's current active commercial proposal.
+For stock-conflict detection, a claim is the quantity represented by the SellerPurchase's current valid active commercial proposal. REJECTED, CANCELLED, and expired Offers are not claims.
 
 ## Observation
 
@@ -114,4 +114,6 @@ related SellerPurchase → SimEvent.sellerPurchaseId
 - Slow
 - Partial Availability
 
-`PartialAvailabilitySeller` observes catalog stock only; cross-purchase allocation is outside this experiment.
+`PartialAvailabilitySeller` observes catalog stock at Offer time and on `tick()` if stock later drops; it does not create quantity-0 Offers. Cross-purchase allocation is outside this experiment.
+
+`TimeDiscountSeller` does not emit TIME_DISCOUNT against a STABLE SellerPurchase.

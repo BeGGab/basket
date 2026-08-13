@@ -16,7 +16,6 @@ const navItems = [
   { to: '/catalog', label: 'Каталог' },
   { to: '/map', label: 'Карта' },
   { to: '/cart', label: 'Корзина' },
-  { to: '/sim', label: 'Симуляция' },
   { to: '/profile', label: 'Профиль' },
 ];
 
@@ -59,9 +58,12 @@ export function NavigationContainer() {
   const isFullScreenRoute =
     FULL_SCREEN_ROUTES.has(location.pathname) || location.pathname.startsWith('/seller/');
 
+  const hideNav =
+    isFullScreenRoute || location.pathname === '/sim';
+
   return (
     <>
-      {!isFullScreenRoute && <TopNav />}
+      {!hideNav && <TopNav />}
       {isFullScreenRoute ? (
         <Routes>
           <Route path="/map" element={<MapScreenView />} />

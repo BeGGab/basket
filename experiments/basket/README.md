@@ -14,7 +14,9 @@ npx tsx experiments/basket/tests/run.ts
 
 Writes evidence into `docs/basket/BASKET_EXPERIMENT_RESULTS.md`.
 
-Human-facing demo (TZ-003/004): open `/sim` in the Vite app (`react-vite-bootstrap-project`). This is not the production `/cart` screen. Assistants on that screen advise; Apply is explicit.
+Human-facing demo (TZ-003/004): open `/sim` directly in the Vite app (`react-vite-bootstrap-project`). It is **not** in Customer UI navigation and is not the production `/cart` screen. Assistants on that screen advise; Apply uses the displayed Advice and refuses a stale `basis`.
+
+TZ-001…004 are stacked in one experiment PR by design. Independent runners: domain scenarios in this file, TZ-002 in `tests/runtime.ts`, TZ-004 in `tests/assistants.ts`. `/sim` is a viewer, not acceptance.
 
 ## Layout
 

@@ -29,7 +29,7 @@ UI не доказывает модель (это ТЗ-001/002). Он тольк
 
 ## В scope
 
-- маршрут `/sim`, изолированный от Platform Core ScreenId (browser-only, как `/product/:id`)
+- маршрут `/sim`, изолированный от Platform Core ScreenId (browser-only, как `/product/:id`); **не** пункт Customer UI nav — только прямой URL
 - только компоненты Design System
 - список demo-сценариев (включая трёх продавцов)
 - Run all / Step / Reset
@@ -48,6 +48,7 @@ UI не доказывает модель (это ТЗ-001/002). Он тольк
 ## Критерии приёмки
 
 - [x] `/sim` открывается и не редиректится на `/catalog`
+- [x] `/sim` не входит в основную навигацию Customer UI
 - [x] `/cart` по-прежнему production-корзина
 - [x] demo-сценарий STABLE / TIME_DISCOUNT / SNAPSHOT запускается с экрана
 - [x] шаг сценария двигает состояние без перезагрузки

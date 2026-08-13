@@ -120,5 +120,21 @@ export function runTz004(): void {
   runtime.applySellerAdvice(spId);
   assert.equal(runtime.world.requireSp(spId).status, "STABLE");
 
+  const stale = tomatoesWorld();
+  stale.world.proposeOffer({
+    sellerPurchaseId: stale.spId,
+    actor: "SELLER",
+    items: [{ productId: "tomatoes", quantity: 2, unit: "kg", price: 15 }],
+    reason: "PRICE_CHANGE",
+  });
+  const advice = adviseBuyer(stale.world, stale.spId);
+  stale.world.proposeOffer({
+    sellerPurchaseId: stale.spId,
+    actor: "SELLER",
+    items: [{ productId: "tomatoes", quantity: 2, unit: "kg", price: 12 }],
+    reason: "PRICE_CHANGE",
+  });
+  assert.throws(() => applyAdvice(stale.world, stale.spId, advice), /stale/);
+
   console.log("TZ-BASKET-004 assistants: OK");
 }

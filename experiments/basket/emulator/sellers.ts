@@ -16,6 +16,21 @@ export interface SellerEmulator {
   tick(world: BasketWorld, sellerPurchaseId: string): void;
 }
 
+function catalogStock(world: BasketWorld, sellerId: string, productId: string): number {
+  return world.catalog.availability
+    .filter((row) => row.sellerId === sellerId && row.productId === productId)
+    .reduce((sum, row) => sum + row.stock, 0);
+}
+
+function reduceToStock(world: BasketWorld, sellerId: string, items: readonly PurchaseItem[]): PurchaseItem[] {
+  return items
+    .map((item) => ({
+      ...item,
+      quantity: Math.min(item.quantity, Math.max(0, catalogStock(world, sellerId, item.productId))),
+    }))
+    .filter((item) => item.quantity > 0);
+}
+
 export function createSellerEmulator(sellerId: string, profile: SellerProfileName): SellerEmulator {
   return {
     sellerId,
@@ -58,13 +73,12 @@ export function createSellerEmulator(sellerId: string, profile: SellerProfileNam
       }
 
       if (profile === "PartialAvailabilitySeller") {
-        // Catalog stock only. Cross-purchase competing claims / allocation are outside this experiment.
-        const reduced = buyerOfferItems.map((item) => {
-          const stock = world.catalog.availability
-            .filter((row) => row.sellerId === sellerId && row.productId === item.productId)
-            .reduce((sum, row) => sum + row.stock, 0);
-          return { ...item, quantity: Math.min(item.quantity, Math.max(0, stock)) };
-        });
+        // Catalog stock at this moment only. Cross-purchase allocation is outside this experiment.
+        const reduced = reduceToStock(world, sellerId, buyerOfferItems);
+        if (reduced.length === 0) {
+          world.markWaiting(sellerPurchaseId);
+          return;
+        }
         world.proposeOffer({
           sellerPurchaseId,
           actor: "SELLER",
@@ -81,20 +95,44 @@ export function createSellerEmulator(sellerId: string, profile: SellerProfileNam
       }
     },
     tick(world, sellerPurchaseId) {
-      if (profile !== "TimeDiscountSeller") return;
       const sp = world.requireSp(sellerPurchaseId);
-      const active = sp.activeOfferId ? world.offerById(sp.activeOfferId) : null;
-      if (!active || active.reason === "TIME_DISCOUNT") return;
-      const dropped = active.items.map((item) => ({
-        ...item,
-        price: Math.max(0, (item.price ?? 0) - 3),
-      }));
-      world.proposeOffer({
-        sellerPurchaseId,
-        actor: "SYSTEM",
-        items: dropped,
-        reason: "TIME_DISCOUNT" satisfies OfferReason,
-      });
+      if (sp.status === "STABLE" || sp.status === "REJECTED" || sp.status === "CANCELLED") return;
+
+      if (profile === "TimeDiscountSeller") {
+        const active = sp.activeOfferId ? world.offerById(sp.activeOfferId) : null;
+        if (!active || active.reason === "TIME_DISCOUNT") return;
+        const dropped = active.items.map((item) => ({
+          ...item,
+          price: Math.max(0, (item.price ?? 0) - 3),
+        }));
+        world.proposeOffer({
+          sellerPurchaseId,
+          actor: "SYSTEM",
+          items: dropped,
+          reason: "TIME_DISCOUNT" satisfies OfferReason,
+        });
+        return;
+      }
+
+      if (profile === "PartialAvailabilitySeller") {
+        const active = sp.activeOfferId ? world.offerById(sp.activeOfferId) : null;
+        if (!active) return;
+        const reduced = reduceToStock(world, sellerId, active.items);
+        const same =
+          reduced.length === active.items.length &&
+          reduced.every((item, index) => item.quantity === active.items[index]?.quantity);
+        if (same) return;
+        if (reduced.length === 0) {
+          world.markWaiting(sellerPurchaseId);
+          return;
+        }
+        world.proposeOffer({
+          sellerPurchaseId,
+          actor: "SELLER",
+          items: reduced,
+          reason: "AVAILABILITY_CHANGE",
+        });
+      }
     },
   };
 }

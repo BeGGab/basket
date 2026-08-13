@@ -150,6 +150,20 @@ export class SimulationRuntime {
     return advice;
   }
 
+  /** Apply a previously displayed Advice; throws if the snapshot has changed. */
+  applyDisplayedAdvice(sellerPurchaseId: string, advice: Advice): void {
+    applyAdvice(this.world, sellerPurchaseId, advice);
+    const after = this.world.requireSp(sellerPurchaseId);
+    this.log({
+      event: "assistantApply",
+      seller: after.sellerId,
+      sellerPurchaseId,
+      offerId: after.activeOfferId,
+      input: `${advice.actor} ${advice.kind}`,
+      result: after.status,
+    });
+  }
+
   /** Advance clock and give every bound seller a tick (SYSTEM events, delays). */
   tick(durationMs: number): void {
     this.world.advance(durationMs);

@@ -21,7 +21,7 @@ These are hypotheses to resolve through experiments, not implementation requirem
   - Offer **validity** (`isOfferValid` / `validUntil`) — defined.
   - **Acceptance** of an expired Offer — forbidden (I-028).
   - `activeOfferId` as a required pointer — closed (OQ-007).
-  - Still open: pointer/status when an **already agreed** Offer later expires and no replacement Offer is proposed (keep pointer? clear it? which status?). The mock’s `STABLE → WAITING_BUYER` on clock advance is experimental observation, not a closed answer.
+  - Still open: pointer/status when an **already agreed** Offer later expires and no replacement Offer is proposed (keep pointer? clear it? which status?). The domain does not auto-change status on that expiry.
 - **OQ-010:** Is a separate negotiation TTL necessary?
 
 ## Silence
@@ -37,7 +37,7 @@ These are hypotheses to resolve through experiments, not implementation requirem
 ## Stock and fulfillment
 
 - **OQ-015:** At what point does limited stock become a commercial conflict: Offer, Acceptance, STABLE or fulfillment?
-- **OQ-016:** Does the future domain need Allocation?
+- **OQ-016:** Does the future domain need Allocation? OPEN. BS-011/BS-023 only confirm a detection-event log, not an allocation model.
 - **OQ-017:** Does the future domain need Reservation?
 
 ## Purchase state

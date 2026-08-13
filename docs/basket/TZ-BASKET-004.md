@@ -19,9 +19,10 @@
 ```text
 Snapshot (AGREED / CURRENT / PENDING)
   ↓
-BuyerAssistant / SellerAssistant  →  Advice { kind, rationale }
+BuyerAssistant / SellerAssistant  →  Advice { kind, rationale, basis }
   ↓
 applyAdvice → Domain commands (accept / counter / reject / wait)
+             (throws if basis ≠ current snapshot / activeOfferId)
 ```
 
 Внешний LLM не входит: тесты должны быть воспроизводимы без сети. Контракт `Advice` оставляем таким, чтобы позже подставить модель.
@@ -48,7 +49,7 @@ applyAdvice → Domain commands (accept / counter / reject / wait)
 ## Критерии приёмки
 
 - [x] совет детерминирован на одном snapshot
-- [x] applyAdvice меняет domain state
+- [x] applyAdvice отказывается применять Advice, чей `basis` не совпадает с текущим snapshot / `activeOfferId`
 - [x] buyer принимает TIME_DISCOUNT (12 < agreed 15)
 - [x] buyer не принимает молча рост цены относительно agreed
 - [x] ТЗ-001…003 тесты зелёные

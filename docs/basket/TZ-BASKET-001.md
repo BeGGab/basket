@@ -239,7 +239,7 @@ STABLE =
 
 ## 27–28. Breaking / acceptance scenarios
 
-Автоматизировать минимум: BS-001…028 (programmatically exercised; Domain OPEN не значит «не гонялся»). BS-017: принимать можно только active Offer (I-027). BS-012: просроченный Offer нельзя принять (I-028). BS-019: Resolution до разбиения по продавцам, не per-seller product. BS-023: stock=6, A=4, B=3, combined=7, `detectedAt=OFFER_CREATION`, оба STABLE, без Allocation; `stockConflicts` — лог обнаружений; claim = active Offer (agreed=4 + active=7 → B's 3 combines as 10). BS-028: `activeOffer` и `agreedOffer` quantity === 5, не только STABLE.
+Автоматизировать минимум: BS-001…028 (programmatically exercised; Domain OPEN не значит «не гонялся»). BS-017: принимать можно только active Offer (I-027). BS-012: просроченный Offer нельзя принять (I-028). Acceptance только counterparty (I-029). Offer quantity > 0 (I-030). BS-019: Resolution до разбиения по продавцам; SellerPurchase только при stock > 0. BS-023: detection log, Domain OPEN (OQ-016). BS-028: qty 5 и реакция tick() на падение stock.
 
 Обязательные приёмочные: Independent sellers; SYSTEM price drop; Alternatives; Expensive alternative (без скрытой ценовой логики); Stock race (точка конфликта, не allocation); Expiration; Silence; Partial fulfillment; Snapshot; Accepted+new Offer; Partial availability before STABLE.
 
