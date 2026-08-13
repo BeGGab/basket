@@ -1,3 +1,4 @@
+import { adviseBuyer, adviseSeller, applyAdvice, type Advice } from "../assistants";
 import { BasketWorld } from "../domain/world";
 import type { ProductCatalog } from "../domain/types";
 import { createSellerEmulator, type SellerEmulator, type SellerProfileName } from "../emulator/sellers";
@@ -50,6 +51,32 @@ export class SimulationRuntime {
   buyerRespond(sellerPurchaseId: string): void {
     this.buyer.respond(this.world, sellerPurchaseId);
     this.log("buyerRespond", `${this.buyer.profile} → ${this.world.requireSp(sellerPurchaseId).status}`);
+  }
+
+  adviseBuyer(sellerPurchaseId: string): Advice {
+    const advice = adviseBuyer(this.world, sellerPurchaseId);
+    this.log("assistantAdvice", `BUYER ${advice.kind}: ${advice.rationale}`);
+    return advice;
+  }
+
+  adviseSeller(sellerPurchaseId: string): Advice {
+    const advice = adviseSeller(this.world, sellerPurchaseId);
+    this.log("assistantAdvice", `SELLER ${advice.kind}: ${advice.rationale}`);
+    return advice;
+  }
+
+  applyBuyerAdvice(sellerPurchaseId: string): Advice {
+    const advice = this.adviseBuyer(sellerPurchaseId);
+    applyAdvice(this.world, sellerPurchaseId, advice);
+    this.log("assistantApply", `BUYER ${advice.kind} → ${this.world.requireSp(sellerPurchaseId).status}`);
+    return advice;
+  }
+
+  applySellerAdvice(sellerPurchaseId: string): Advice {
+    const advice = this.adviseSeller(sellerPurchaseId);
+    applyAdvice(this.world, sellerPurchaseId, advice);
+    this.log("assistantApply", `SELLER ${advice.kind} → ${this.world.requireSp(sellerPurchaseId).status}`);
+    return advice;
   }
 
   /** Advance clock and give every bound seller a tick (SYSTEM events, delays). */

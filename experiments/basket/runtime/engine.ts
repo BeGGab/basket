@@ -1,3 +1,4 @@
+import { adviseBuyer, adviseSeller } from "../assistants";
 import type { Actor, Alternative, OfferReason, ProductCatalog, ResolutionPolicy, SellerPurchaseStatus } from "../domain/types";
 import type { BuyerProfileName } from "../emulator/buyers";
 import type { SellerProfileName } from "../emulator/sellers";
@@ -33,7 +34,10 @@ export type ScenarioStep =
   | { op: "tick"; ms: number }
   | { op: "assertStatus"; sellerIndex: number; status: SellerPurchaseStatus }
   | { op: "assertSnapshot"; sellerIndex: number; agreedPrice?: number; currentPrice?: number; pending?: number }
-  | { op: "assertNotStatus"; sellerIndex: number; status: SellerPurchaseStatus };
+  | { op: "assertNotStatus"; sellerIndex: number; status: SellerPurchaseStatus }
+  | { op: "applyBuyerAdvice"; sellerIndex: number }
+  | { op: "applySellerAdvice"; sellerIndex: number }
+  | { op: "assertAdvice"; sellerIndex: number; actor: "BUYER" | "SELLER"; kind: string };
 
 export interface Scenario {
   name: string;
@@ -165,6 +169,20 @@ export function executeStep(ctx: ScenarioContext, step: ScenarioStep): void {
       }
       if (step.pending !== undefined && snap.pendingSubstitutions.length !== step.pending) {
         throw new Error(`${ctx.scenarioName}: pending ${snap.pendingSubstitutions.length} != ${step.pending}`);
+      }
+      break;
+    }
+    case "applyBuyerAdvice":
+      runtime.applyBuyerAdvice(spAt(ctx, step.sellerIndex));
+      break;
+    case "applySellerAdvice":
+      runtime.applySellerAdvice(spAt(ctx, step.sellerIndex));
+      break;
+    case "assertAdvice": {
+      const spId = spAt(ctx, step.sellerIndex);
+      const advice = step.actor === "BUYER" ? adviseBuyer(runtime.world, spId) : adviseSeller(runtime.world, spId);
+      if (advice.kind !== step.kind) {
+        throw new Error(`${ctx.scenarioName}: ${step.actor} advice ${advice.kind} != ${step.kind}`);
       }
       break;
     }
