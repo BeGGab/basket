@@ -85,7 +85,7 @@ List
 Purchase
 ```
 
-Resolution chooses primary/alternative/unresolved.
+Resolution chooses primary/alternative/unresolved **before** seller partitioning (OQ-006). It does not pick a different product per seller.
 
 Initial experimental policies:
 

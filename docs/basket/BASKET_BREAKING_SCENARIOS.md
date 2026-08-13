@@ -115,7 +115,7 @@ Mandatory consistency test.
 
 ## BS-017 — Accept Previous Offer
 
-Test acceptance of an older Offer when a newer one exists. If prohibited, make that prohibition explicit.
+Acceptance of an older Offer when a newer one exists is **prohibited**. Only the active Offer can be accepted (I-027). Older Offers remain in append-only history. To return to a previous price, the actor proposes a new Offer.
 
 ## BS-018 — Substitution Outside Alternatives
 
@@ -123,7 +123,7 @@ Buyer allows Black→White; seller proposes Baguette. Must be Substitution.
 
 ## BS-019 — Alternative Across Sellers
 
-Primary unavailable from Seller A but available from Seller B. Determine whether Resolution precedes seller partitioning.
+Primary unavailable from Seller A but available from Seller B. **Resolution precedes seller partitioning** and is not seller-specific: both sellers receive the globally resolved primary, not a private alternative on A.
 
 ## BS-020 — Simultaneous Seller Changes
 

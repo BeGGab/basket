@@ -46,7 +46,7 @@ function tomatoes(qty: number, price: number): PurchaseItem[] {
   return [{ productId: "tomatoes", quantity: qty, unit: "kg", price }];
 }
 
-function pass(id: string, expected: string, actual: string, invariant: string): ScenarioResult {
+function pass(id: string, expected: string, actual: string, invariant: string, decision = "keep v0.1"): ScenarioResult {
   return {
     id,
     result: "PASS",
@@ -56,7 +56,7 @@ function pass(id: string, expected: string, actual: string, invariant: string): 
     modelViolation: "none",
     newConcept: "none",
     workaround: "none",
-    decision: "keep v0.1",
+    decision,
   };
 }
 
@@ -667,29 +667,89 @@ export function runAllScenarios(): ScenarioResult[] {
     })
   );
 
-  results.push({
-    id: "BS-017",
-    result: "OPEN",
-    expected: "Policy: may buyer accept an older Offer after a newer one exists?",
-    actual: "not automated — exploratory (TZ §27)",
-    invariant: "I-009 I-010",
-    modelViolation: "none yet",
-    newConcept: "possibly explicit accept-previous rule",
-    workaround: "none",
-    decision: "leave to OQ-008",
-  });
+  results.push(
+    run("BS-017", () => {
+      const w = new BasketWorld();
+      w.setCatalog(catalog());
+      const list = w.createList("prev");
+      w.addItem(list.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      const older = w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 15),
+        reason: "PRICE_CHANGE",
+      });
+      const newer = w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 17),
+        reason: "PRICE_CHANGE",
+      });
+      assert.equal(w.requireSp(sp).activeOfferId, newer.id);
+      assert.throws(
+        () => w.acceptOffer(older.id, "BUYER"),
+        /only the active Offer/,
+        "older Offer must not become agreed after a newer one exists"
+      );
+      assert.equal(w.requireSp(sp).agreedOfferId, null);
+      assert.equal(w.offerById(older.id).items[0].price, 15);
+      w.acceptOffer(newer.id, "BUYER");
+      assert.equal(w.requireSp(sp).agreedOfferId, newer.id);
+      assert.equal(w.requireSp(sp).status, "STABLE");
+      return pass(
+        "BS-017",
+        "Older Offer cannot be accepted once a newer Offer is active; history stays immutable",
+        `rejected ${older.id}; agreed=${newer.id}`,
+        "I-007 I-011 I-027",
+        "close OQ-008: only active Offer is acceptable"
+      );
+    })
+  );
 
-  results.push({
-    id: "BS-019",
-    result: "OPEN",
-    expected: "Resolution vs seller partitioning order",
-    actual: "not automated — exploratory (TZ §27)",
-    invariant: "I-015",
-    modelViolation: "none yet",
-    newConcept: "possibly seller-aware Resolution",
-    workaround: "none",
-    decision: "leave to OQ-006",
-  });
+  results.push(
+    run("BS-019", () => {
+      const split: ProductCatalog = {
+        names: { black_bread: "Black Bread", white_bread: "White Bread" },
+        availability: [
+          { sellerId: "seller-a", productId: "black_bread", quantity: 1, unit: "pcs", price: 8, stock: 0 },
+          { sellerId: "seller-a", productId: "white_bread", quantity: 1, unit: "pcs", price: 9, stock: 10 },
+          { sellerId: "seller-b", productId: "black_bread", quantity: 1, unit: "pcs", price: 8, stock: 10 },
+        ],
+      };
+      const w = new BasketWorld();
+      w.setCatalog(split);
+      const list = w.createList("across");
+      w.addItem(list.id, {
+        productId: "black_bread",
+        quantity: 1,
+        unit: "pcs",
+        alternatives: [
+          { productId: "black_bread", alternativePriority: 0 },
+          { productId: "white_bread", alternativePriority: 1 },
+        ],
+      });
+      const purchase = w.createPurchaseFromList(list.id, "FIRST_AVAILABLE", ["seller-a", "seller-b"]);
+      const bySeller = new Map(
+        [...w.sellerPurchases.values()]
+          .filter((sp) => purchase.sellerPurchaseIds.includes(sp.id))
+          .map((sp) => [sp.sellerId, sp])
+      );
+      const itemA = bySeller.get("seller-a")?.items[0];
+      const itemB = bySeller.get("seller-b")?.items[0];
+      assert.equal(itemA?.productId, "black_bread", "seller A must not get a private alternative");
+      assert.equal(itemB?.productId, "black_bread");
+      assert.equal(itemA?.resolvedFrom, "black_bread");
+      assert.equal(itemA?.alternativePriority, 0);
+      return pass(
+        "BS-019",
+        "Resolution is catalog-global and precedes partitioning; not per-seller product choice",
+        `A=${itemA?.productId} B=${itemB?.productId} kind=PRIMARY`,
+        "I-015",
+        "close OQ-006: Resolution before seller partitioning"
+      );
+    })
+  );
 
   results.push(
     run("BS-022", () => {
@@ -729,7 +789,7 @@ export function formatResults(rows: ScenarioResult[]): string {
     "",
     "**Status:** Evidence from TZ-BASKET-001 mock run  ",
     "**Experiment version:** v0.1  ",
-    "**Model version:** v0.1 (unchanged)",
+    "**Model version:** v0.1.1 (OQ-006 / OQ-008 closed)",
     "",
     "## Purpose",
     "",
@@ -756,11 +816,12 @@ export function formatResults(rows: ScenarioResult[]): string {
   }
   lines.push("## Final decision", "");
   lines.push("```text");
-  lines.push("Model version: v0.1");
+  lines.push("Model version: v0.1.1");
   lines.push("Status: experiment implemented; production architecture not started");
-  lines.push("Open questions: OQ-002, OQ-006, OQ-008, OQ-009, OQ-011, OQ-012");
-  lines.push("Required model changes: none in this PR");
-  lines.push("Recommended next step: TZ-002 Actor / Simulation Runtime");
+  lines.push("Open questions: OQ-002, OQ-009, OQ-011, OQ-012");
+  lines.push("Closed this run: OQ-006 (resolution before partition), OQ-008 (active Offer only)");
+  lines.push("Required model changes: acceptOffer rejects non-active Offers (I-027)");
+  lines.push("Recommended next step: none in the TZ-BASKET-001…004 ladder");
   lines.push("```");
   lines.push("");
   return lines.join("\n");

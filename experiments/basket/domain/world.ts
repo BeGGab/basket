@@ -187,6 +187,11 @@ export class BasketWorld {
   acceptOffer(offerId: string, actor: Actor): Acceptance {
     const offer = this.requireOffer(offerId);
     const sp = this.requireSp(offer.sellerPurchaseId);
+    if (sp.activeOfferId !== offer.id) {
+      throw new Error(
+        `Cannot accept Offer ${offer.id}: only the active Offer (${sp.activeOfferId}) can be accepted (OQ-008 / I-027).`
+      );
+    }
     const acceptance: Acceptance = {
       id: this.id("acc"),
       offerId: offer.id,

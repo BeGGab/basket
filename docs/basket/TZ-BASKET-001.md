@@ -4,7 +4,7 @@
 **Stage:** 1 — Customer UI  
 **Тип:** экспериментальная инфраструктура доменной модели  
 **Приёмка:** Pull Request  
-**Статус:** Draft for implementation  
+**Статус:** Implemented 
 **Основание:** `BASKET_DOMAIN_MODEL.md`, `BASKET_EXPERIMENT.md`, `BASKET_INVARIANTS.md`, `BASKET_BREAKING_SCENARIOS.md`
 
 Уточнение scope (владелец задачи): UI **не входит в обязательный scope** ТЗ-001. Все сценарии должны выполняться **программно и детерминированно**. Debug/demo viewer допустим как помощь разработчику, но PR не принимается и не отклоняется по наличию или качеству UI. Не формулировать требование как «без участия человека».
@@ -235,7 +235,7 @@ STABLE =
 
 ## 27–28. Breaking / acceptance scenarios
 
-Автоматизировать минимум: BS-001…016, 018, 020, 021, 023–028. BS-017 и BS-019 — exploratory, если требуют отдельного policy decision.
+Автоматизировать минимум: BS-001…028. BS-017: принимать можно только active Offer (I-027). BS-019: Resolution до разбиения по продавцам, не per-seller product.
 
 Обязательные приёмочные: Independent sellers; SYSTEM price drop; Alternatives; Expensive alternative (без скрытой ценовой логики); Stock race (точка конфликта, не allocation); Expiration; Silence; Partial fulfillment; Snapshot; Accepted+new Offer; Partial availability before STABLE.
 

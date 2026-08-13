@@ -11,12 +11,12 @@ These are hypotheses to resolve through experiments, not implementation requirem
 - **OQ-003:** If yes, should referencePrice participate?
 - **OQ-004:** Does each alternative need its own expected price/range?
 - **OQ-005:** Is ANY_ACCEPTABLE required?
-- **OQ-006:** Does Resolution happen before seller partitioning or consider seller-specific offers?
+- **OQ-006:** RESOLVED (BS-019). Resolution is catalog-global and happens *before* seller partitioning. One ListItem → one productId for the Purchase; sellers are not given private alternatives.
 
 ## Offers
 
 - **OQ-007:** Is activeOfferId required or derivable?
-- **OQ-008:** Can an older Offer be accepted after a newer Offer exists?
+- **OQ-008:** RESOLVED (BS-017 / I-027). No. After a newer Offer exists, the older Offer cannot be accepted. Only `activeOfferId` is acceptable; history stays append-only.
 - **OQ-009:** What happens to activeOfferId on expiration?
 - **OQ-010:** Is a separate negotiation TTL necessary?
 

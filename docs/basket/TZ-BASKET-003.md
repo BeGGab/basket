@@ -3,7 +3,7 @@
 **Проект:** GreenMarket  
 **Основание:** ТЗ-BASKET-001/002 и решение после ТЗ-002  
 **Приёмка:** demo/training экран; production `/cart` не заменяется  
-**Статус:** Draft for implementation
+**Статус:** Implemented
 
 ## Решение после ТЗ-002
 
@@ -46,10 +46,10 @@ UI не доказывает модель (это ТЗ-001/002). Он тольк
 
 ## Критерии приёмки
 
-- [ ] `/sim` открывается и не редиректится на `/catalog`
-- [ ] `/cart` по-прежнему production-корзина
-- [ ] demo-сценарий STABLE / TIME_DISCOUNT / SNAPSHOT запускается с экрана
-- [ ] шаг сценария двигает состояние без перезагрузки
-- [ ] snapshot показывает agreed ≠ current при расхождении
-- [ ] ТЗ-001/002 `npx tsx experiments/basket/tests/run.ts` зелёные
-- [ ] `npm run build` проходит
+- [x] `/sim` открывается и не редиректится на `/catalog`
+- [x] `/cart` по-прежнему production-корзина
+- [x] demo-сценарий STABLE / TIME_DISCOUNT / SNAPSHOT запускается с экрана
+- [x] шаг сценария двигает состояние без перезагрузки
+- [x] snapshot показывает agreed ≠ current при расхождении
+- [x] ТЗ-001/002 `npx tsx experiments/basket/tests/run.ts` зелёные
+- [x] `npm run build` проходит
