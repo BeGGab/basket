@@ -14,6 +14,8 @@ npx tsx experiments/basket/tests/run.ts
 
 Writes evidence into `docs/basket/BASKET_EXPERIMENT_RESULTS.md`.
 
+Human-facing demo (TZ-003): open `/sim` in the Vite app (`react-vite-bootstrap-project`). This is not the production `/cart` screen.
+
 ## Layout
 
 ```text

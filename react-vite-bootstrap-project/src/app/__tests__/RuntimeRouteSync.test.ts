@@ -44,6 +44,7 @@ function run() {
   assert.equal(isBrowserOnlyPath("/catalog"), false, "/catalog — platform path");
   assert.equal(isBrowserOnlyPath("/cart"), false, "/cart — platform path");
   assert.equal(isBrowserOnlyPath("/profile"), true, "/profile — browser-only");
+  assert.equal(isBrowserOnlyPath("/sim"), true, "/sim — browser-only simulation UI");
 
   console.log("RuntimeRouteSync entryFromPath: все проверки пройдены");
 }

@@ -53,6 +53,8 @@ export function isBrowserOnlyPath(pathname: string): boolean {
   if (entryFromPath(pathname) !== null) return false;
   return (
     pathname.startsWith('/product/') ||
+    pathname === '/sim' ||
+    pathname.startsWith('/sim/') ||
     pathname === '/profile' ||
     pathname.startsWith('/profile/')
   );

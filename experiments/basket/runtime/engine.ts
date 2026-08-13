@@ -37,134 +37,146 @@ export type ScenarioStep =
 
 export interface Scenario {
   name: string;
+  title?: string;
   steps: ScenarioStep[];
 }
 
-export function runScenario(scenario: Scenario, runtime = new SimulationRuntime()): SimulationRuntime {
-  let listId: string | null = null;
-  let purchaseSellerIds: string[] = [];
+export interface ScenarioContext {
+  runtime: SimulationRuntime;
+  listId: string | null;
+  purchaseSellerIds: string[];
+  scenarioName: string;
+}
 
-  const spAt = (index: number) => {
-    const id = purchaseSellerIds[index];
-    if (!id) throw new Error(`${scenario.name}: no SellerPurchase at index ${index}`);
-    return id;
-  };
+export function createScenarioContext(scenarioName: string, runtime = new SimulationRuntime()): ScenarioContext {
+  return { runtime, listId: null, purchaseSellerIds: [], scenarioName };
+}
 
-  for (const step of scenario.steps) {
-    switch (step.op) {
-      case "catalog":
-        runtime.setCatalog(step.catalog);
-        break;
-      case "bindSeller":
-        runtime.bindSeller(step.sellerId, step.profile);
-        break;
-      case "bindBuyer":
-        runtime.bindBuyer(step.profile);
-        break;
-      case "createList":
-        listId = runtime.world.createList(step.name).id;
-        break;
-      case "addItem":
-        if (!listId) throw new Error("createList before addItem");
-        runtime.world.addItem(listId, {
-          productId: step.productId,
-          quantity: step.quantity,
-          unit: step.unit,
-          alternatives: step.alternatives ?? [],
-        });
-        break;
-      case "createPurchase": {
-        if (!listId) throw new Error("createList before createPurchase");
-        const purchase = runtime.world.createPurchaseFromList(listId, step.policy, step.sellerIds);
-        purchaseSellerIds = purchase.sellerPurchaseIds;
-        break;
+function spAt(ctx: ScenarioContext, index: number): string {
+  const id = ctx.purchaseSellerIds[index];
+  if (!id) throw new Error(`${ctx.scenarioName}: no SellerPurchase at index ${index}`);
+  return id;
+}
+
+export function executeStep(ctx: ScenarioContext, step: ScenarioStep): void {
+  const { runtime } = ctx;
+  switch (step.op) {
+    case "catalog":
+      runtime.setCatalog(step.catalog);
+      break;
+    case "bindSeller":
+      runtime.bindSeller(step.sellerId, step.profile);
+      break;
+    case "bindBuyer":
+      runtime.bindBuyer(step.profile);
+      break;
+    case "createList":
+      ctx.listId = runtime.world.createList(step.name).id;
+      break;
+    case "addItem":
+      if (!ctx.listId) throw new Error("createList before addItem");
+      runtime.world.addItem(ctx.listId, {
+        productId: step.productId,
+        quantity: step.quantity,
+        unit: step.unit,
+        alternatives: step.alternatives ?? [],
+      });
+      break;
+    case "createPurchase": {
+      if (!ctx.listId) throw new Error("createList before createPurchase");
+      const purchase = runtime.world.createPurchaseFromList(ctx.listId, step.policy, step.sellerIds);
+      ctx.purchaseSellerIds = purchase.sellerPurchaseIds;
+      break;
+    }
+    case "buyerOffer":
+      runtime.world.proposeOffer({
+        sellerPurchaseId: spAt(ctx, step.sellerIndex),
+        actor: "BUYER",
+        items: [
+          {
+            productId: step.productId,
+            quantity: step.quantity,
+            unit: step.unit,
+            price: step.price,
+          },
+        ],
+        reason: "BUYER_CHANGE",
+      });
+      break;
+    case "sellerOffer":
+      runtime.world.proposeOffer({
+        sellerPurchaseId: spAt(ctx, step.sellerIndex),
+        actor: "SELLER",
+        items: [
+          {
+            productId: step.productId,
+            quantity: step.quantity,
+            unit: step.unit,
+            price: step.price,
+          },
+        ],
+        reason: step.reason ?? "SELLER_COUNTEROFFER",
+      });
+      break;
+    case "acceptActive": {
+      const sp = runtime.world.requireSp(spAt(ctx, step.sellerIndex));
+      if (!sp.activeOfferId) throw new Error(`${ctx.scenarioName}: no active offer`);
+      runtime.world.acceptOffer(sp.activeOfferId, step.actor);
+      break;
+    }
+    case "proposeSubstitution":
+      runtime.world.proposeSubstitution({
+        sellerPurchaseId: spAt(ctx, step.sellerIndex),
+        originalProductId: step.originalProductId,
+        replacementProductId: step.replacementProductId,
+        proposedBy: "SELLER",
+      });
+      break;
+    case "sellerRespond":
+      runtime.sellerRespond(spAt(ctx, step.sellerIndex));
+      break;
+    case "buyerRespond":
+      runtime.buyerRespond(spAt(ctx, step.sellerIndex));
+      break;
+    case "tick":
+      runtime.tick(step.ms);
+      break;
+    case "assertStatus": {
+      const actual = runtime.world.requireSp(spAt(ctx, step.sellerIndex)).status;
+      if (actual !== step.status) {
+        throw new Error(`${ctx.scenarioName}: expected ${step.status}, got ${actual}`);
       }
-      case "buyerOffer":
-        runtime.world.proposeOffer({
-          sellerPurchaseId: spAt(step.sellerIndex),
-          actor: "BUYER",
-          items: [
-            {
-              productId: step.productId,
-              quantity: step.quantity,
-              unit: step.unit,
-              price: step.price,
-            },
-          ],
-          reason: "BUYER_CHANGE",
-        });
-        break;
-      case "sellerOffer":
-        runtime.world.proposeOffer({
-          sellerPurchaseId: spAt(step.sellerIndex),
-          actor: "SELLER",
-          items: [
-            {
-              productId: step.productId,
-              quantity: step.quantity,
-              unit: step.unit,
-              price: step.price,
-            },
-          ],
-          reason: step.reason ?? "SELLER_COUNTEROFFER",
-        });
-        break;
-      case "acceptActive": {
-        const sp = runtime.world.requireSp(spAt(step.sellerIndex));
-        if (!sp.activeOfferId) throw new Error(`${scenario.name}: no active offer`);
-        runtime.world.acceptOffer(sp.activeOfferId, step.actor);
-        break;
+      break;
+    }
+    case "assertNotStatus": {
+      const actual = runtime.world.requireSp(spAt(ctx, step.sellerIndex)).status;
+      if (actual === step.status) {
+        throw new Error(`${ctx.scenarioName}: status should not be ${step.status}`);
       }
-      case "proposeSubstitution":
-        runtime.world.proposeSubstitution({
-          sellerPurchaseId: spAt(step.sellerIndex),
-          originalProductId: step.originalProductId,
-          replacementProductId: step.replacementProductId,
-          proposedBy: "SELLER",
-        });
-        break;
-      case "sellerRespond":
-        runtime.sellerRespond(spAt(step.sellerIndex));
-        break;
-      case "buyerRespond":
-        runtime.buyerRespond(spAt(step.sellerIndex));
-        break;
-      case "tick":
-        runtime.tick(step.ms);
-        break;
-      case "assertStatus": {
-        const actual = runtime.world.requireSp(spAt(step.sellerIndex)).status;
-        if (actual !== step.status) {
-          throw new Error(`${scenario.name}: expected ${step.status}, got ${actual}`);
-        }
-        break;
+      break;
+    }
+    case "assertSnapshot": {
+      const snap = runtime.world.snapshot(spAt(ctx, step.sellerIndex));
+      if (step.agreedPrice !== undefined && snap.agreed.items[0]?.price !== step.agreedPrice) {
+        throw new Error(`${ctx.scenarioName}: agreed price ${snap.agreed.items[0]?.price} != ${step.agreedPrice}`);
       }
-      case "assertNotStatus": {
-        const actual = runtime.world.requireSp(spAt(step.sellerIndex)).status;
-        if (actual === step.status) {
-          throw new Error(`${scenario.name}: status should not be ${step.status}`);
-        }
-        break;
+      if (step.currentPrice !== undefined && snap.current.items[0]?.price !== step.currentPrice) {
+        throw new Error(`${ctx.scenarioName}: current price ${snap.current.items[0]?.price} != ${step.currentPrice}`);
       }
-      case "assertSnapshot": {
-        const snap = runtime.world.snapshot(spAt(step.sellerIndex));
-        if (step.agreedPrice !== undefined && snap.agreed.items[0]?.price !== step.agreedPrice) {
-          throw new Error(`${scenario.name}: agreed price ${snap.agreed.items[0]?.price} != ${step.agreedPrice}`);
-        }
-        if (step.currentPrice !== undefined && snap.current.items[0]?.price !== step.currentPrice) {
-          throw new Error(`${scenario.name}: current price ${snap.current.items[0]?.price} != ${step.currentPrice}`);
-        }
-        if (step.pending !== undefined && snap.pendingSubstitutions.length !== step.pending) {
-          throw new Error(`${scenario.name}: pending ${snap.pendingSubstitutions.length} != ${step.pending}`);
-        }
-        break;
+      if (step.pending !== undefined && snap.pendingSubstitutions.length !== step.pending) {
+        throw new Error(`${ctx.scenarioName}: pending ${snap.pendingSubstitutions.length} != ${step.pending}`);
       }
-      default: {
-        const _never: never = step;
-        throw new Error(`Unknown step ${JSON.stringify(_never)}`);
-      }
+      break;
+    }
+    default: {
+      const _never: never = step;
+      throw new Error(`Unknown step ${JSON.stringify(_never)}`);
     }
   }
+}
 
-  return runtime;
+export function runScenario(scenario: Scenario, runtime = new SimulationRuntime()): SimulationRuntime {
+  const ctx = createScenarioContext(scenario.name, runtime);
+  for (const step of scenario.steps) executeStep(ctx, step);
+  return ctx.runtime;
 }
