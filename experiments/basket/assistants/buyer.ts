@@ -29,6 +29,9 @@ export function adviseBuyer(world: BasketWorld, sellerPurchaseId: string): Advic
   }
 
   const active = world.offerById(sp.activeOfferId);
+  if (!world.isOfferValid(active)) {
+    return { actor: "BUYER", kind: "WAIT", rationale: "Active offer is expired; acceptance is forbidden (I-028)." };
+  }
   if (active.actor === "BUYER") {
     return { actor: "BUYER", kind: "WAIT", rationale: "Active offer is already the buyer's; waiting for seller." };
   }

@@ -2,7 +2,7 @@
 
 **Status:** Evidence from TZ-BASKET-001…004 mock run  
 **Experiment version:** v0.1  
-**Model version:** v0.1.2 (review: partial availability, concurrent stock race, Impl vs Domain)
+**Model version:** v0.1.3 (expired accept forbidden; rejected flag removed; stronger BS-023/028)
 
 ## How to read results
 
@@ -100,7 +100,7 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-005 — Impl PASS / Domain CONFIRMED
 
-- Expected: Each price is a new immutable Offer
+- Expected: Each price is a new immutable Offer; earlier Offer items stay frozen
 - Actual: offer-5/offer-6/offer-7
 - Invariant: I-006
 - Hypothesis: CONFIRMED
@@ -184,9 +184,9 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-012 — Impl PASS / Domain OPEN (OQ-009)
 
-- Expected: Offer expires; SellerPurchase remains (not auto-EXPIRED)
-- Actual: WAITING_BUYER
-- Invariant: I-026
+- Expected: Expired Offer cannot be accepted; after later expiry of an agreed Offer, SP is not auto-EXPIRED
+- Actual: no-accept-expired; later status=WAITING_BUYER
+- Invariant: I-026 I-028
 - Hypothesis: OPEN
 - Open question: OQ-009
 - Model violation: none
@@ -316,8 +316,8 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-023 — Impl PASS / Domain CONFIRMED
 
-- Expected: Both STABLE on stock=6 with 4+3 claims; conflict recorded; no Reservation/Allocation
-- Actual: both STABLE, conflicts=5 first=OFFER_CREATION
+- Expected: stock=6 A=4 B=3 combined=7 at OFFER_CREATION; both STABLE; no Allocation
+- Actual: STABLE+STABLE first=OFFER_CREATION stock=6 combined=7 detections=5
 - Invariant: I-025
 - Hypothesis: CONFIRMED
 - Open question: none
@@ -376,8 +376,8 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-028 — Impl PASS / Domain CONFIRMED
 
-- Expected: PartialAvailabilitySeller offers 5 kg of requested 20; STABLE agreed=5
-- Actual: STABLE
+- Expected: PartialAvailabilitySeller offers 5 kg of requested 20; agreed and active are 5 kg STABLE
+- Actual: activeQty=5 agreedQty=5 STABLE
 - Invariant: I-017
 - Hypothesis: CONFIRMED
 - Open question: none
@@ -389,21 +389,23 @@ Record evidence from the mock domain and seller emulator.
 ## Final decision
 
 ```text
-Model version: v0.1.2
+Model version: v0.1.3
 Status: experiment implemented; production architecture not started
 
 Changes in this PR (already implemented and tested):
 - I-027: acceptOffer rejects non-active Offers
+- I-028: acceptOffer rejects expired Offers
 - OQ-007 closed: activeOfferId is a required projection pointer
 - OQ-006 / OQ-008 closed
 - PartialAvailabilitySeller offers min(requested, stock)
 - Stock race records combined claims (stock=6, A→4, B→3) at OFFER_CREATION
+- removed duplicate SellerPurchase.rejected; REJECTED is FSM status only
 
 Still open after this experiment (future domain work, not blockers for TZ-001…004):
 - OQ-001, OQ-002 — resolution / price policy
-- OQ-009 — Offer applicability after expiration (pointer itself is required)
+- OQ-009 — pointer/status when an *already agreed* Offer later expires without a replacement
 - OQ-011, OQ-012 — silence / waiting facts
 
-Required model changes after experiment: none identified for the 001…004 ladder
+No new domain concepts required. Existing model required several invariant/behavior corrections.
 Recommended next step: none in TZ-BASKET-001…004; remaining OQs are separate
 ```

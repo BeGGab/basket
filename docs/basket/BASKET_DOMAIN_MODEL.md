@@ -118,6 +118,8 @@ Purchase
 
 The independent commercial lifecycle unit for one seller.
 
+Lifecycle truth is **`status` only**. There is no parallel `rejected` flag.
+
 Different SellerPurchases may simultaneously be:
 
 ```text
@@ -221,7 +223,11 @@ This means Offer #18 is accepted while #19 is currently awaiting a decision.
 
 `activeOfferId` is a **required projection pointer** (I-011 / OQ-007 closed). The field is part of SellerPurchase; snapshot, acceptance and STABLE use it. `lastOffer()` is only a history scan helper.
 
-**Separate question (OQ-009, still open):** what happens to that pointer — and to Offer applicability — when the pointed-at Offer expires and no newer Offer exists. That is not a question of whether `activeOfferId` exists.
+Expiration is split:
+
+1. **Validity** — `isOfferValid(offer)` from `validUntil`. Defined.
+2. **Acceptance** — expired Offer cannot be accepted (I-028). Defined.
+3. **OQ-009 (open)** — what happens to the pointer and SellerPurchase status when an already-agreed Offer later expires and no newer Offer exists. The mock currently drops STABLE to WAITING_BUYER on clock re-eval; that is observed behavior, not a closed decision.
 
 ## Snapshot invariant
 
@@ -261,6 +267,12 @@ AND agreed offer is valid
 ```
 
 STABLE does not mean payment, reservation, delivery, guaranteed physical availability, or guaranteed quantity.
+
+`acceptOffer()` refuses an expired Offer **before** recording Acceptance (I-028). STABLE’s “agreed offer is valid” is therefore not the only validity gate.
+
+## Stock conflict detections
+
+`stockConflicts` is a **detection-event log**, not a unique conflict state. The same race (e.g. stock=6, A→4, B→3, combined=7) may be recorded at `OFFER_CREATION`, `ACCEPTANCE` and `STABLE`. Multiple rows for one race are expected. There is no Allocation/Reservation in this experiment.
 
 ## Experimental SellerPurchase states
 
@@ -305,3 +317,5 @@ These are outside the current experiment.
 11. Historical Offers/Acceptances remain inspectable.
 12. Alternatives are resolved before/while forming Purchase; Substitution is explicit.
 13. Future execution systems are not introduced merely to simplify this experiment.
+14. Only the active Offer may be accepted (I-027).
+15. An expired Offer cannot be accepted (I-028).

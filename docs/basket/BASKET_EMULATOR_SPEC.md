@@ -85,6 +85,8 @@ without silently solving allocation.
 
 It must expose the first layer at which combined claims exceed stock (Offer creation, Acceptance, STABLE or fulfillment).
 
+`stockConflicts` is a **detection-event log**: the same race may produce several rows (one per checkpoint). Do not treat `conflicts.length` as the number of unique races.
+
 ## Observation
 
 Each emulator / runtime event records:

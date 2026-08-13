@@ -17,8 +17,15 @@
 - **I-008:** Acceptance does not mutate Offer.
 - **I-009:** Unaccepted Offer cannot become agreed state.
 - **I-010:** agreedOfferId references an immutable Offer.
-- **I-011:** `activeOfferId` is a required projection pointer to the currently applicable Offer. Snapshot, acceptance (I-027) and STABLE all use this field; it is not an optional hint. Rules for whether that Offer stays applicable after `validUntil` (and whether the pointer is cleared, kept, or replaced) are **OQ-009**, not part of I-011.
+- **I-011:** `activeOfferId` is a required projection pointer to the currently applicable Offer. Snapshot, acceptance (I-027) and STABLE all use this field; it is not an optional hint.
 - **I-027:** Only the active Offer may be accepted. Older Offers remain historical facts; a rollback is a new Offer.
+- **I-028:** An expired Offer (`validUntil` in the past) cannot be accepted. Validity is `isOfferValid`. Acceptance of an expired Offer is refused **before** any Acceptance is recorded.
+
+Offer expiration is three separate things:
+
+1. **Validity** — defined (`isOfferValid` / `validUntil`).
+2. **Acceptance of an expired Offer** — forbidden (I-028).
+3. **OQ-009 (OPEN)** — pointer/status after an **already agreed** Offer later expires and no replacement exists. The mock currently re-evaluates STABLE → WAITING_BUYER on clock advance; that is **observed experimental behavior**, not a closed domain decision.
 
 ## Substitution
 
@@ -50,5 +57,5 @@
 ## Boundaries
 
 - **I-024:** Fulfilled quantity is outside the central current Basket model.
-- **I-025:** Payment/Reservation/Allocation/Delivery are not introduced merely to solve current scenarios.
+- **I-025:** Payment/Reservation/Allocation/Delivery are not introduced merely to solve current scenarios. Concurrent over-claim is recorded as `stockConflicts` **detection events** (same race may appear at several checkpoints); it is not an Allocation entity.
 - **I-026:** New FSM states require experimental evidence.

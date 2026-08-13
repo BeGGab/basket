@@ -37,6 +37,7 @@ export function createBuyerEmulator(profile: BuyerProfileName): BuyerEmulator {
       const activeId = sp.activeOfferId;
       if (!activeId) return;
       const active = world.offerById(activeId);
+      if (!world.isOfferValid(active)) return;
 
       if (profile === "CounteringBuyer") {
         if (active.actor === "BUYER") return;

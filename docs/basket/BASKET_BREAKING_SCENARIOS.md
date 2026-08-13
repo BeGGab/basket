@@ -36,7 +36,7 @@ BUYER → SELLER → BUYER → SELLER → ...
 15 → 17 → 15.5 → 16 + 5% discount
 ```
 
-Every proposal is a new immutable Offer.
+Every proposal is a new immutable Offer. Earlier Offer objects (including nested `items`) must stay unchanged after later proposals.
 
 ## BS-006 — Automatic Time Discount
 
@@ -131,7 +131,7 @@ Two SellerPurchases change independently without state overwrite.
 
 ## BS-021 — Expired Active Offer + New Offer
 
-The pointer `activeOfferId` is required (I-011). This scenario checks what it points at after an Offer expires **and** a newer Offer is created. What to do when an Offer expires **without** a replacement is OQ-009 (applicability), not whether the pointer exists.
+The pointer `activeOfferId` is required (I-011). This scenario checks what it points at after an Offer expires **and** a newer Offer is created. I-028 forbids accepting the expired Offer. What to do with the pointer/status when an already-agreed Offer later expires **without** a replacement remains OQ-009.
 
 ## BS-022 — Silence After Expiration
 
@@ -139,7 +139,7 @@ Expired Offer plus no new seller response. Determine whether this is waiting, ex
 
 ## BS-023 — Conflicting Full Promises
 
-Same race as BS-011 (`stock=6`, A→4, B→3). Both SellerPurchases may still become STABLE. Do not introduce GUARANTEED/Reservation/Allocation; record the combined-claim conflict.
+Same race as BS-011 (`stock=6`, A→4, B→3). Both SellerPurchases may still become STABLE. `stockConflicts` is a **detection-event log** (the same race may be recorded at OFFER_CREATION, ACCEPTANCE and STABLE). Do not introduce GUARANTEED/Reservation/Allocation. Assertions must prove stock=6, combined=7, first checkpoint OFFER_CREATION, and independent STABLE.
 
 ## BS-024 — Accepted Offer Followed by New Offer
 
@@ -164,4 +164,4 @@ Expose Resolution policy explicitly.
 
 ## BS-028 — Partial Availability Before STABLE
 
-`PartialAvailabilitySeller` offers the in-stock quantity (e.g. 5 kg) instead of the requested 20 kg. Buyer may accept that reduced Offer; STABLE is possible on the reduced agreement. The case «agreed 20 / actual 5» is BS-014 (`mockFulfill`), not this profile.
+`PartialAvailabilitySeller` offers the in-stock quantity (e.g. 5 kg) instead of the requested 20 kg. Buyer may accept that reduced Offer; STABLE is possible on the reduced agreement. Assert `activeOffer.items[0].quantity === 5` and `agreedOffer.items[0].quantity === 5`, not only `status === STABLE`. The case «agreed 20 / actual 5» is BS-014 (`mockFulfill`), not this profile.

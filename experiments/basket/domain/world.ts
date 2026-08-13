@@ -71,6 +71,12 @@ export class BasketWorld {
     return created;
   }
 
+  /**
+   * Experimental helper, not a production purchase API.
+   * - `sellerIds` omitted: one SellerPurchase via deterministic `pickSeller` (lexicographic sellerId).
+   * - `sellerIds` provided: **fan-out** — one SellerPurchase per listed seller that has a catalog row.
+   * Passing sellerIds is therefore a multi-seller scenario mode, not merely a search filter.
+   */
   createPurchaseFromList(listId: string, policy: ResolutionPolicy, sellerIds?: string[]): Purchase {
     const list = this.requireList(listId);
     const purchase: Purchase = {
@@ -137,7 +143,6 @@ export class BasketWorld {
         status: "DRAFT",
         lastSellerActivity: null,
         waitingSince: this.nowIso(),
-        rejected: false,
       };
       this.sellerPurchases.set(sp.id, sp);
       purchase.sellerPurchaseIds.push(sp.id);
@@ -159,15 +164,15 @@ export class BasketWorld {
     validUntil?: string;
   }): Offer {
     const sp = this.requireSp(input.sellerPurchaseId);
-    const offer: Offer = {
+    const offer: Offer = Object.freeze({
       id: this.id("offer"),
       sellerPurchaseId: sp.id,
       actor: input.actor,
-      items: input.items.map((item) => ({ ...item })),
+      items: Object.freeze(input.items.map((item) => Object.freeze({ ...item }))),
       reason: input.reason,
       createdAt: this.nowIso(),
       validUntil: input.validUntil,
-    };
+    });
     this.offers.push(offer);
     sp.activeOfferId = offer.id;
     if (sp.status === "DRAFT" || sp.status === "STABLE") this.applyStatus(sp, "NEGOTIATING");
@@ -192,6 +197,9 @@ export class BasketWorld {
         `Cannot accept Offer ${offer.id}: only the active Offer (${sp.activeOfferId}) can be accepted (OQ-008 / I-027).`
       );
     }
+    if (!this.isOfferValid(offer)) {
+      throw new Error(`Cannot accept Offer ${offer.id}: offer is expired (I-028).`);
+    }
     const acceptance: Acceptance = {
       id: this.id("acc"),
       offerId: offer.id,
@@ -209,7 +217,6 @@ export class BasketWorld {
 
   rejectSellerPurchase(sellerPurchaseId: string): void {
     const sp = this.requireSp(sellerPurchaseId);
-    sp.rejected = true;
     this.applyStatus(sp, "REJECTED");
   }
 
@@ -320,8 +327,7 @@ export class BasketWorld {
   }
 
   private refreshStatus(sp: SellerPurchase): void {
-    if (sp.rejected) {
-      this.applyStatus(sp, "REJECTED");
+    if (sp.status === "REJECTED" || sp.status === "CANCELLED") {
       return;
     }
     const agreed = sp.agreedOfferId ? this.requireOffer(sp.agreedOfferId) : null;
@@ -343,6 +349,7 @@ export class BasketWorld {
       return;
     }
     if (agreed && !this.isOfferValid(agreed) && sp.status === "STABLE") {
+      // Observed experimental behavior (not a closed OQ-009 decision): clock re-eval drops STABLE.
       this.applyStatus(sp, "WAITING_BUYER");
     }
   }
@@ -350,7 +357,7 @@ export class BasketWorld {
   private claimedByOthers(sp: SellerPurchase, productId: string): number {
     let sum = 0;
     for (const other of this.sellerPurchases.values()) {
-      if (other.id === sp.id || other.sellerId !== sp.sellerId || other.rejected) continue;
+      if (other.id === sp.id || other.sellerId !== sp.sellerId || other.status === "REJECTED") continue;
       const offer = other.agreedOfferId
         ? this.requireOffer(other.agreedOfferId)
         : other.activeOfferId
@@ -364,6 +371,7 @@ export class BasketWorld {
     return sum;
   }
 
+  /** Append a detection event when combined claims exceed catalog stock. Same race may log at several checkpoints. */
   private recordStockConflict(sp: SellerPurchase, offer: Offer | null, point: StockConflict["detectedAt"]): void {
     const items = offer?.items ?? sp.items;
     for (const item of items) {

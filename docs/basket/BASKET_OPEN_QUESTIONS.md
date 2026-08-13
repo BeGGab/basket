@@ -17,7 +17,11 @@ These are hypotheses to resolve through experiments, not implementation requirem
 
 - **OQ-007:** RESOLVED (I-011 / I-027 / BS-021 / BS-024). `activeOfferId` is a required projection pointer, maintained by `proposeOffer`. `lastOffer()` is a convenience scan of history, not a substitute for the field.
 - **OQ-008:** RESOLVED (BS-017 / I-027). No. After a newer Offer exists, the older Offer cannot be accepted. Only `activeOfferId` is acceptable; history stays append-only.
-- **OQ-009:** OPEN. Given that `activeOfferId` **exists and is required** (OQ-007), what are the applicability rules when the pointed-at Offer expires (`validUntil` in the past) and no newer Offer is proposed? Keep the pointer? Clear it? Auto-transition status? This is **not** a reopening of whether the field is needed.
+- **OQ-009:** OPEN. Split from already-decided pieces:
+  - Offer **validity** (`isOfferValid` / `validUntil`) — defined.
+  - **Acceptance** of an expired Offer — forbidden (I-028).
+  - `activeOfferId` as a required pointer — closed (OQ-007).
+  - Still open: pointer/status when an **already agreed** Offer later expires and no replacement Offer is proposed (keep pointer? clear it? which status?). The mock’s `STABLE → WAITING_BUYER` on clock advance is experimental observation, not a closed answer.
 - **OQ-010:** Is a separate negotiation TTL necessary?
 
 ## Silence
@@ -57,4 +61,4 @@ These are hypotheses to resolve through experiments, not implementation requirem
 
 - **OQ-026:** Does any scenario force a new entity?
 - **OQ-027:** Does any entity become overloaded?
-- **OQ-028:** Does any implementation require duplicated state?
+- **OQ-028:** Does any implementation require duplicated state? SellerPurchase no longer has a parallel `rejected` flag; `status === "REJECTED"` is the sole lifecycle signal.

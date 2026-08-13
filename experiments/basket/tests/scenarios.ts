@@ -184,7 +184,19 @@ export function runAllScenarios(): ScenarioResult[] {
       assert.equal(o2.items[0].price, 17);
       assert.equal(o3.items[0].price, 15.5);
       assert.notEqual(o1.id, o2.id);
-      return pass("BS-005", "Each price is a new immutable Offer", `${o1.id}/${o2.id}/${o3.id}`, "I-006");
+      const originalQty = o1.items[0].quantity;
+      assert.equal(Object.isFrozen(o1), true);
+      assert.equal(Object.isFrozen(o1.items), true);
+      assert.equal(Object.isFrozen(o1.items[0]), true);
+      try {
+        (o1.items[0] as { quantity: number }).quantity = 99;
+      } catch {
+        /* freeze may throw in strict mode */
+      }
+      w.proposeOffer({ sellerPurchaseId: sp, actor: "SELLER", items: tomatoes(9, 20), reason: "PRICE_CHANGE" });
+      assert.equal(o1.items[0].quantity, originalQty);
+      assert.equal(o1.items[0].price, 15);
+      return pass("BS-005", "Each price is a new immutable Offer; earlier Offer items stay frozen", `${o1.id}/${o2.id}/${o3.id}`, "I-006");
     })
   );
 
@@ -360,23 +372,37 @@ export function runAllScenarios(): ScenarioResult[] {
       const list = w.createList("exp");
       w.addItem(list.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
       const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
-      const offer = w.proposeOffer({
+      const expired = w.proposeOffer({
         sellerPurchaseId: sp,
         actor: "SELLER",
         items: tomatoes(2, 15),
         reason: "PRICE_CHANGE",
         validUntil: "2026-01-01T00:00:01.000Z",
       });
-      w.acceptOffer(offer.id, "BUYER");
       w.advance(5_000);
-      assert.equal(w.isOfferValid(offer), false);
+      assert.equal(w.isOfferValid(expired), false);
+      assert.throws(() => w.acceptOffer(expired.id, "BUYER"), /expired/);
+      assert.equal(w.acceptances.length, 0);
+      assert.equal(w.requireSp(sp).agreedOfferId, null);
+
+      const live = w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 15),
+        reason: "PRICE_CHANGE",
+        validUntil: "2026-01-01T00:00:10.000Z",
+      });
+      w.acceptOffer(live.id, "BUYER");
+      assert.equal(w.requireSp(sp).status, "STABLE");
+      w.advance(5_000);
+      assert.equal(w.isOfferValid(live), false);
       assert.notEqual(w.requireSp(sp).status, "EXPIRED");
       assert.ok(w.sellerPurchases.has(sp));
       return pass(
         "BS-012",
-        "Offer expires; SellerPurchase remains (not auto-EXPIRED)",
-        w.requireSp(sp).status,
-        "I-026",
+        "Expired Offer cannot be accepted; after later expiry of an agreed Offer, SP is not auto-EXPIRED",
+        `no-accept-expired; later status=${w.requireSp(sp).status}`,
+        "I-026 I-028",
         "keep v0.1",
         "OPEN",
         "OQ-009"
@@ -587,11 +613,18 @@ export function runAllScenarios(): ScenarioResult[] {
       w.acceptOffer(o2.id, "BUYER");
       assert.equal(w.requireSp(p1.sellerPurchaseIds[0]).status, "STABLE");
       assert.equal(w.requireSp(p2.sellerPurchaseIds[0]).status, "STABLE");
-      assert.ok(w.stockConflicts.some((c) => c.combined > c.stock));
+      const first = w.stockConflicts.find((c) => c.detectedAt === "OFFER_CREATION");
+      assert.ok(first, "first detection at OFFER_CREATION");
+      assert.equal(first.stock, 6);
+      assert.equal(first.combined, 7);
+      assert.equal(o1.items[0].quantity, 4);
+      assert.equal(o2.items[0].quantity, 3);
+      assert.equal(first.requested, 3);
+      assert.equal(w.fulfillments.length, 0, "no Allocation/Reservation/fulfillment entity");
       return pass(
         "BS-023",
-        "Both STABLE on stock=6 with 4+3 claims; conflict recorded; no Reservation/Allocation",
-        `both STABLE, conflicts=${w.stockConflicts.length} first=${w.stockConflicts[0]?.detectedAt}`,
+        "stock=6 A=4 B=3 combined=7 at OFFER_CREATION; both STABLE; no Allocation",
+        `STABLE+STABLE first=${first.detectedAt} stock=${first.stock} combined=${first.combined} detections=${w.stockConflicts.length}`,
         "I-025"
       );
     })
@@ -714,10 +747,18 @@ export function runAllScenarios(): ScenarioResult[] {
       emu.respondToBuyerOffer(w, sp, tomatoes(20, 15));
       const offer = w.lastOffer(sp, "SELLER")!;
       w.acceptOffer(offer.id, "BUYER");
+      const after = w.requireSp(sp);
       assert.equal(offer.items[0].quantity, 5);
-      assert.equal(w.requireSp(sp).status, "STABLE");
-      assert.equal(w.requireSp(sp).items[0].quantity, 5);
-      return pass("BS-028", "PartialAvailabilitySeller offers 5 kg of requested 20; STABLE agreed=5", w.requireSp(sp).status, "I-017");
+      assert.equal(w.offerById(after.activeOfferId!).items[0].quantity, 5);
+      assert.equal(w.offerById(after.agreedOfferId!).items[0].quantity, 5);
+      assert.equal(after.status, "STABLE");
+      assert.equal(after.items[0].quantity, 5);
+      return pass(
+        "BS-028",
+        "PartialAvailabilitySeller offers 5 kg of requested 20; agreed and active are 5 kg STABLE",
+        `activeQty=${w.offerById(after.activeOfferId!).items[0].quantity} agreedQty=${w.offerById(after.agreedOfferId!).items[0].quantity} ${after.status}`,
+        "I-017"
+      );
     })
   );
 
@@ -846,7 +887,7 @@ export function formatResults(rows: ScenarioResult[]): string {
     "",
     "**Status:** Evidence from TZ-BASKET-001…004 mock run  ",
     "**Experiment version:** v0.1  ",
-    "**Model version:** v0.1.2 (review: partial availability, concurrent stock race, Impl vs Domain)",
+    "**Model version:** v0.1.3 (expired accept forbidden; rejected flag removed; stronger BS-023/028)",
     "",
     "## How to read results",
     "",
@@ -884,22 +925,24 @@ export function formatResults(rows: ScenarioResult[]): string {
   }
   lines.push("## Final decision", "");
   lines.push("```text");
-  lines.push("Model version: v0.1.2");
+  lines.push("Model version: v0.1.3");
   lines.push("Status: experiment implemented; production architecture not started");
   lines.push("");
   lines.push("Changes in this PR (already implemented and tested):");
   lines.push("- I-027: acceptOffer rejects non-active Offers");
+  lines.push("- I-028: acceptOffer rejects expired Offers");
   lines.push("- OQ-007 closed: activeOfferId is a required projection pointer");
   lines.push("- OQ-006 / OQ-008 closed");
   lines.push("- PartialAvailabilitySeller offers min(requested, stock)");
   lines.push("- Stock race records combined claims (stock=6, A→4, B→3) at OFFER_CREATION");
+  lines.push("- removed duplicate SellerPurchase.rejected; REJECTED is FSM status only");
   lines.push("");
   lines.push("Still open after this experiment (future domain work, not blockers for TZ-001…004):");
   lines.push("- OQ-001, OQ-002 — resolution / price policy");
-  lines.push("- OQ-009 — Offer applicability after expiration (pointer itself is required)");
+  lines.push("- OQ-009 — pointer/status when an *already agreed* Offer later expires without a replacement");
   lines.push("- OQ-011, OQ-012 — silence / waiting facts");
   lines.push("");
-  lines.push("Required model changes after experiment: none identified for the 001…004 ladder");
+  lines.push("No new domain concepts required. Existing model required several invariant/behavior corrections.");
   lines.push("Recommended next step: none in TZ-BASKET-001…004; remaining OQs are separate");
   lines.push("```");
   lines.push("");

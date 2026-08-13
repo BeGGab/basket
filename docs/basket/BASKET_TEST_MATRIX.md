@@ -17,7 +17,7 @@
 | BS-009 | Alternatives | ✓ | ✓ |  | resolution |
 | BS-010 | Expensive alternative | ✓ | ✓ |  | resolution policy |
 | BS-011 | Stock race | ✓ | ✓ |  | boundary |
-| BS-012 | Expiration | ✓ | ✓ |  | Offer validUntil |
+| BS-012 | Expiration | ✓ | ✓ |  | I-028 cannot accept expired; OQ-009 later agreed expiry |
 | BS-013 | Silence | ✓ | ✓ | ✓ | TZ002-SILENCE |
 | BS-014 | Partial fulfillment | ✓ | ✓ |  | STABLE/fulfillment |
 | BS-015 | List → multiple Purchases | ✓ |  |  | reuse |
@@ -28,12 +28,12 @@
 | BS-020 | Simultaneous seller changes | ✓ | ✓ | ✓ | TZ002-THREE-SELLERS |
 | BS-021 | Expired + new Offer | ✓ | ✓ |  | pointer vs applicability (OQ-009) |
 | BS-022 | Silence after expiration | ✓ | ✓ |  | TTL/state |
-| BS-023 | Conflicting promises | ✓ | ✓ |  | stock boundary |
+| BS-023 | Conflicting promises | ✓ | ✓ |  | stock=6 combined=7 OFFER_CREATION; both STABLE |
 | BS-024 | Accepted + new Offer | ✓ | ✓ | ✓ | TZ002-SNAPSHOT agreed ≠ current |
 | BS-025 | Accepted substitution + new Offer | ✓ | ✓ |  | history |
 | BS-026 | Silence while valid | ✓ | ✓ | ✓ | TZ002-SILENCE |
 | BS-027 | Unacceptable alternative price | ✓ | ✓ |  | policy |
-| BS-028 | Partial availability before STABLE | ✓ | ✓ |  | STABLE |
+| BS-028 | Partial availability before STABLE | ✓ | ✓ |  | agreed/active qty=5 |
 
 TZ-004 assistant demos on `/sim` (DISCOUNT / HIKE / SELLER) are training overlays, not rows in this BS matrix.
 

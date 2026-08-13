@@ -168,7 +168,9 @@ resolve(ListItem, context) → ResolutionResult
 
 `createPurchaseFromList(list, resolutionPolicy)` создаёт независимый Purchase; исходный List сохраняется. Purchase содержит один или несколько SellerPurchase.
 
-SellerPurchase — независимая единица lifecycle: `id`, `purchaseId`, `sellerId`, `items[]`, `agreedOfferId?`, `activeOfferId?`.
+Экспериментальный helper (не production API): без `sellerIds` выбирается один продавец (`pickSeller`); с `sellerIds` — **fan-out**, по одному SellerPurchase на каждого перечисленного продавца с строкой каталога. Это режим сценария, не «фильтр поиска».
+
+SellerPurchase — независимая единица lifecycle: `id`, `purchaseId`, `sellerId`, `items[]`, `agreedOfferId?`, `activeOfferId?`, `status`. Lifecycle — только `status` (в т.ч. `REJECTED`); отдельного флага `rejected` нет.
 
 Обязательно: A → STABLE, B → NEGOTIATING, C → REJECTED без взаимного блокирования.
 
@@ -219,6 +221,8 @@ STABLE =
   AND agreed offer is valid
 ```
 
+`acceptOffer()` не принимает просроченный Offer (I-028) — проверка `isOfferValid` до записи Acceptance.
+
 Запрещено добавлять `required quantity available` в условие STABLE. Не требуется reserved/paid/fulfilled/delivered.
 
 Сценарий `requested=20, agreed=20, actual=5` не делает STABLE недействительным. `fulfilledQuantity` не добавляется в центральную модель — исполнение моделируется внешним mock-сценарием.
@@ -235,7 +239,7 @@ STABLE =
 
 ## 27–28. Breaking / acceptance scenarios
 
-Автоматизировать минимум: BS-001…028. BS-017: принимать можно только active Offer (I-027). BS-019: Resolution до разбиения по продавцам, не per-seller product.
+Автоматизировать минимум: BS-001…028. BS-017: принимать можно только active Offer (I-027). BS-012: просроченный Offer нельзя принять (I-028). BS-019: Resolution до разбиения по продавцам, не per-seller product. BS-023: stock=6, A=4, B=3, combined=7, `detectedAt=OFFER_CREATION`, оба STABLE, без Allocation; `stockConflicts` — лог обнаружений. BS-028: `activeOffer` и `agreedOffer` quantity === 5, не только STABLE.
 
 Обязательные приёмочные: Independent sellers; SYSTEM price drop; Alternatives; Expensive alternative (без скрытой ценовой логики); Stock race (точка конфликта, не allocation); Expiration; Silence; Partial fulfillment; Snapshot; Accepted+new Offer; Partial availability before STABLE.
 

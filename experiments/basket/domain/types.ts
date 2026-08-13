@@ -91,7 +91,6 @@ export interface SellerPurchase {
   status: SellerPurchaseStatus;
   lastSellerActivity: string | null;
   waitingSince: string | null;
-  rejected: boolean;
 }
 
 export interface Purchase {
@@ -126,6 +125,7 @@ export interface ProductCatalog {
 
 export type StockConflictPoint = "OFFER_CREATION" | "ACCEPTANCE" | "STABLE" | "FULFILLMENT" | "NONE";
 
+/** Detection-event log entry, not a unique conflict state. The same race may appear at several checkpoints. */
 export interface StockConflict {
   productId: string;
   stock: number;
