@@ -219,7 +219,9 @@ activeOfferId → Offer #19
 
 This means Offer #18 is accepted while #19 is currently awaiting a decision.
 
-`activeOfferId` remains an experimental hypothesis and must be validated against expiration/silence.
+`activeOfferId` is a **required projection pointer** (I-011 / OQ-007 closed). The field is part of SellerPurchase; snapshot, acceptance and STABLE use it. `lastOffer()` is only a history scan helper.
+
+**Separate question (OQ-009, still open):** what happens to that pointer — and to Offer applicability — when the pointed-at Offer expires and no newer Offer exists. That is not a question of whether `activeOfferId` exists.
 
 ## Snapshot invariant
 

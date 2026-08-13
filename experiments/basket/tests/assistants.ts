@@ -93,11 +93,11 @@ export function runTz004(): void {
   for (const scenario of DEMO_SCENARIOS.filter((item) => item.name.startsWith("TZ004-"))) {
     const runtime = runScenario(scenario);
     assert.ok(
-      runtime.events.some((event) => event.kind === "assistantAdvice"),
+      runtime.events.some((event) => event.event === "assistantAdvice"),
       `${scenario.name} missing assistantAdvice`,
     );
     assert.ok(
-      runtime.events.some((event) => event.kind === "assistantApply"),
+      runtime.events.some((event) => event.event === "assistantApply"),
       `${scenario.name} missing assistantApply`,
     );
   }

@@ -131,7 +131,7 @@ Two SellerPurchases change independently without state overwrite.
 
 ## BS-021 — Expired Active Offer + New Offer
 
-Determine exact activeOfferId semantics.
+The pointer `activeOfferId` is required (I-011). This scenario checks what it points at after an Offer expires **and** a newer Offer is created. What to do when an Offer expires **without** a replacement is OQ-009 (applicability), not whether the pointer exists.
 
 ## BS-022 — Silence After Expiration
 

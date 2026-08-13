@@ -31,10 +31,11 @@ UI не доказывает модель (это ТЗ-001/002). Он тольк
 
 - маршрут `/sim`, изолированный от Platform Core ScreenId (browser-only, как `/product/:id`)
 - только компоненты Design System
-- список demo-сценариев ТЗ-002
+- список demo-сценариев (включая трёх продавцов)
 - Run all / Step / Reset
+- выбор SellerPurchase внутри Purchase (snapshot и ручные ходы относятся к выбранному)
 - ручные Buyer respond / Seller respond / Tick +1h
-- панель snapshot и event log
+- панель snapshot и структурированный event log (`at`, seller, event, input, result, offer, SellerPurchase)
 - не менять production `platform-core/basket` и `/cart`
 
 ## Вне scope
@@ -51,5 +52,6 @@ UI не доказывает модель (это ТЗ-001/002). Он тольк
 - [x] demo-сценарий STABLE / TIME_DISCOUNT / SNAPSHOT запускается с экрана
 - [x] шаг сценария двигает состояние без перезагрузки
 - [x] snapshot показывает agreed ≠ current при расхождении
+- [x] несколько SellerPurchase переключаются на `/sim` (TZ002-THREE-SELLERS)
 - [x] ТЗ-001/002 `npx tsx experiments/basket/tests/run.ts` зелёные
 - [x] `npm run build` проходит

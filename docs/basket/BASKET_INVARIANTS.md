@@ -17,7 +17,7 @@
 - **I-008:** Acceptance does not mutate Offer.
 - **I-009:** Unaccepted Offer cannot become agreed state.
 - **I-010:** agreedOfferId references an immutable Offer.
-- **I-011:** `activeOfferId` is a required projection pointer to the currently applicable Offer. Snapshot, acceptance (I-027) and STABLE all use this field; it is not an optional hint.
+- **I-011:** `activeOfferId` is a required projection pointer to the currently applicable Offer. Snapshot, acceptance (I-027) and STABLE all use this field; it is not an optional hint. Rules for whether that Offer stays applicable after `validUntil` (and whether the pointer is cleared, kept, or replaced) are **OQ-009**, not part of I-011.
 - **I-027:** Only the active Offer may be accepted. Older Offers remain historical facts; a rollback is a new Offer.
 
 ## Substitution

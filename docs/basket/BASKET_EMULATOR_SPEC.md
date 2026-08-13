@@ -87,17 +87,19 @@ It must expose the first layer at which combined claims exceed stock (Offer crea
 
 ## Observation
 
-Each emulator event should record:
+Each emulator / runtime event records:
 
 ```text
-timestamp
-seller
-event
-input
-result
-related Offer
-related SellerPurchase
+timestamp          → SimEvent.at
+seller             → SimEvent.seller
+event              → SimEvent.event
+input              → SimEvent.input
+result             → SimEvent.result
+related Offer      → SimEvent.offerId
+related SellerPurchase → SimEvent.sellerPurchaseId
 ```
+
+`input` / `result` are short deterministic strings, not full Offer dumps.
 
 ## Minimum profiles for first implementation
 

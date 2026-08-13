@@ -391,8 +391,19 @@ Record evidence from the mock domain and seller emulator.
 ```text
 Model version: v0.1.2
 Status: experiment implemented; production architecture not started
-Open questions: OQ-001, OQ-002, OQ-009, OQ-011, OQ-012
-Closed this run: OQ-006, OQ-007 (activeOfferId is required projection), OQ-008
-Required model changes: acceptOffer rejects non-active Offers (I-027); PartialAvailabilitySeller reduces qty; stock race sums concurrent claims
-Recommended next step: none in the TZ-BASKET-001…004 ladder
+
+Changes in this PR (already implemented and tested):
+- I-027: acceptOffer rejects non-active Offers
+- OQ-007 closed: activeOfferId is a required projection pointer
+- OQ-006 / OQ-008 closed
+- PartialAvailabilitySeller offers min(requested, stock)
+- Stock race records combined claims (stock=6, A→4, B→3) at OFFER_CREATION
+
+Still open after this experiment (future domain work, not blockers for TZ-001…004):
+- OQ-001, OQ-002 — resolution / price policy
+- OQ-009 — Offer applicability after expiration (pointer itself is required)
+- OQ-011, OQ-012 — silence / waiting facts
+
+Required model changes after experiment: none identified for the 001…004 ladder
+Recommended next step: none in TZ-BASKET-001…004; remaining OQs are separate
 ```

@@ -15,9 +15,9 @@ These are hypotheses to resolve through experiments, not implementation requirem
 
 ## Offers
 
-- **OQ-007:** RESOLVED (I-011 / I-027 / BS-021 / BS-024). `activeOfferId` is a required projection pointer, maintained by `proposeOffer`. `lastOffer()` is a convenience scan of history, not a substitute for the field. Remaining expiration behavior of that pointer is OQ-009.
+- **OQ-007:** RESOLVED (I-011 / I-027 / BS-021 / BS-024). `activeOfferId` is a required projection pointer, maintained by `proposeOffer`. `lastOffer()` is a convenience scan of history, not a substitute for the field.
 - **OQ-008:** RESOLVED (BS-017 / I-027). No. After a newer Offer exists, the older Offer cannot be accepted. Only `activeOfferId` is acceptable; history stays append-only.
-- **OQ-009:** What happens to activeOfferId on expiration?
+- **OQ-009:** OPEN. Given that `activeOfferId` **exists and is required** (OQ-007), what are the applicability rules when the pointed-at Offer expires (`validUntil` in the past) and no newer Offer is proposed? Keep the pointer? Clear it? Auto-transition status? This is **not** a reopening of whether the field is needed.
 - **OQ-010:** Is a separate negotiation TTL necessary?
 
 ## Silence

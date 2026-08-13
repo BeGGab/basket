@@ -12,6 +12,18 @@ function formatAdvice(advice: Advice): string {
   return `${advice.kind}${price}`;
 }
 
+function formatEventLine(event: { at: string; seller: string | null; event: string; input: string; result: string; offerId: string | null; sellerPurchaseId: string | null }): string {
+  return [
+    event.seller ? `seller=${event.seller}` : null,
+    event.input ? `in=${event.input}` : null,
+    event.result ? `→ ${event.result}` : null,
+    event.offerId ? `offer=${event.offerId}` : null,
+    event.sellerPurchaseId ? `sp=${event.sellerPurchaseId}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 function formatItems(items: { productId: string; quantity: number; unit: string; price?: number }[]): string {
   if (!items.length) return '—';
   return items
@@ -23,11 +35,12 @@ export function SimulationScreenView() {
   const [scenarioName, setScenarioName] = useState(DEMO_SCENARIOS[0].name);
   const scenario = DEMO_SCENARIOS.find((item) => item.name === scenarioName) ?? DEMO_SCENARIOS[0];
   const [player, setPlayer] = useState(() => new ScenarioPlayer(scenario));
+  const [selectedSpId, setSelectedSpId] = useState<string | null>(null);
   const [, bump] = useReducer((n: number) => n + 1, 0);
 
   const world = player.runtime.world;
   const sellerPurchases = [...world.sellerPurchases.values()];
-  const selected = sellerPurchases[0];
+  const selected = sellerPurchases.find((item) => item.id === selectedSpId) ?? sellerPurchases[0];
   const snapshot = selected ? world.snapshot(selected.id) : null;
   const buyerAdvice = selected ? adviseBuyer(world, selected.id) : null;
   const sellerAdvice = selected ? adviseSeller(world, selected.id) : null;
@@ -35,6 +48,7 @@ export function SimulationScreenView() {
   function load(next: Scenario) {
     setScenarioName(next.name);
     setPlayer(new ScenarioPlayer(next));
+    setSelectedSpId(null);
   }
 
   function act(fn: () => void) {
@@ -52,7 +66,8 @@ export function SimulationScreenView() {
           Симуляция закупки
         </Text>
         <Text tone="secondary">
-          Demo, training и советы ассистентов поверх List → Purchase → Offer. Экран «Корзина» (/cart) не затрагивается.
+          Demo и training всей Purchase: переключение SellerPurchase, snapshot и журнал. Экран «Корзина» (/cart) не
+          затрагивается. Приёмка BS-001…028 — программные тесты, не этот экран.
         </Text>
       </header>
 
@@ -81,7 +96,7 @@ export function SimulationScreenView() {
               <Button variant="secondary" onClick={() => act(() => player.step())} disabled={player.done || Boolean(player.error)}>
                 Step
               </Button>
-              <Button variant="ghost" onClick={() => act(() => player.reset())}>
+              <Button variant="ghost" onClick={() => act(() => { player.reset(); setSelectedSpId(null); })}>
                 Reset
               </Button>
             </Row>
@@ -128,6 +143,23 @@ export function SimulationScreenView() {
             </Text>
             {selected && buyerAdvice && sellerAdvice ? (
               <>
+                {sellerPurchases.length > 0 && (
+                  <Stack gap="xs">
+                    <Text variant="overline">SellerPurchase</Text>
+                    <Row gap="sm" wrap>
+                      {sellerPurchases.map((sp) => (
+                        <Button
+                          key={sp.id}
+                          variant={sp.id === selected.id ? 'primary' : 'secondary'}
+                          size="sm"
+                          onClick={() => setSelectedSpId(sp.id)}
+                        >
+                          {sp.sellerId} · {sp.status}
+                        </Button>
+                      ))}
+                    </Row>
+                  </Stack>
+                )}
                 <Row gap="sm" align="center">
                   <Badge tone={selected.status === 'STABLE' ? 'success' : 'neutral'}>{selected.status}</Badge>
                   <Text variant="caption" tone="secondary">
@@ -212,9 +244,9 @@ export function SimulationScreenView() {
                     {event.at.slice(11, 19)}
                   </Text>{' '}
                   <Text variant="bodyStrong" as="span">
-                    {event.kind}
+                    {event.event}
                   </Text>{' '}
-                  <Text as="span">{event.detail}</Text>
+                  <Text as="span">{formatEventLine(event)}</Text>
                 </li>
               ))}
             </ol>

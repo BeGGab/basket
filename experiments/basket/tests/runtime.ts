@@ -21,7 +21,19 @@ export function runTz002(): void {
 
   const runtime = new SimulationRuntime();
   runtime.bindBuyer("CounteringBuyer");
-  assert.equal(runtime.events.some((e) => e.kind === "bindBuyer"), true);
+  assert.equal(runtime.events.some((e) => e.event === "bindBuyer"), true);
+  const bind = runtime.events.find((e) => e.event === "bindBuyer");
+  assert.equal(bind?.input, "CounteringBuyer");
+  assert.equal(bind?.result, "bound");
+
+  const three = DEMO_SCENARIOS.find((item) => item.name === "TZ002-THREE-SELLERS");
+  assert.ok(three);
+  const triple = runScenario(three);
+  assert.equal(triple.world.sellerPurchases.size, 3);
+  const respond = triple.events.find((e) => e.event === "sellerRespond");
+  assert.ok(respond?.seller);
+  assert.ok(respond?.sellerPurchaseId);
+  assert.ok(respond?.result);
 
   console.log("TZ-BASKET-002 runtime: OK");
 }

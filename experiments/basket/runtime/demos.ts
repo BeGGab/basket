@@ -3,7 +3,11 @@ import type { Scenario } from "./engine";
 
 export const DEMO_CATALOG: ProductCatalog = {
   names: { tomatoes: "Tomatoes", tomato_a: "Tomato A", tomato_b: "Tomato B" },
-  availability: [{ sellerId: "seller-a", productId: "tomatoes", quantity: 20, unit: "kg", price: 15, stock: 100 }],
+  availability: [
+    { sellerId: "seller-a", productId: "tomatoes", quantity: 20, unit: "kg", price: 15, stock: 100 },
+    { sellerId: "seller-b", productId: "tomatoes", quantity: 20, unit: "kg", price: 16, stock: 100 },
+    { sellerId: "seller-c", productId: "tomatoes", quantity: 20, unit: "kg", price: 14, stock: 100 },
+  ],
 };
 
 export const DEMO_SCENARIOS: Scenario[] = [
@@ -71,6 +75,30 @@ export const DEMO_SCENARIOS: Scenario[] = [
       { op: "tick", ms: 86_400_000 },
       { op: "assertNotStatus", sellerIndex: 0, status: "EXPIRED" },
       { op: "assertStatus", sellerIndex: 0, status: "WAITING_SELLER" },
+    ],
+  },
+  {
+    name: "TZ002-THREE-SELLERS",
+    title: "Три продавца: STABLE / counter / silence",
+    steps: [
+      { op: "catalog", catalog: DEMO_CATALOG },
+      { op: "bindSeller", sellerId: "seller-a", profile: "CooperativeSeller" },
+      { op: "bindSeller", sellerId: "seller-b", profile: "NegotiatingSeller" },
+      { op: "bindSeller", sellerId: "seller-c", profile: "SlowSeller" },
+      { op: "bindBuyer", profile: "AcceptingBuyer" },
+      { op: "createList", name: "triple" },
+      { op: "addItem", productId: "tomatoes", quantity: 2, unit: "kg" },
+      { op: "createPurchase", policy: "PRIMARY_ONLY", sellerIds: ["seller-a", "seller-b", "seller-c"] },
+      { op: "buyerOffer", sellerIndex: 0, productId: "tomatoes", quantity: 2, unit: "kg", price: 15 },
+      { op: "buyerOffer", sellerIndex: 1, productId: "tomatoes", quantity: 2, unit: "kg", price: 16 },
+      { op: "buyerOffer", sellerIndex: 2, productId: "tomatoes", quantity: 2, unit: "kg", price: 14 },
+      { op: "sellerRespond", sellerIndex: 0 },
+      { op: "sellerRespond", sellerIndex: 1 },
+      { op: "sellerRespond", sellerIndex: 2 },
+      { op: "assertStatus", sellerIndex: 0, status: "STABLE" },
+      { op: "assertStatus", sellerIndex: 1, status: "WAITING_BUYER" },
+      { op: "assertNotStatus", sellerIndex: 2, status: "EXPIRED" },
+      { op: "assertStatus", sellerIndex: 2, status: "WAITING_SELLER" },
     ],
   },
   {
