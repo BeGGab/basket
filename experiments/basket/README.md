@@ -18,9 +18,10 @@ Writes evidence into `docs/basket/BASKET_EXPERIMENT_RESULTS.md`.
 
 ```text
 experiments/basket/
-  domain/     entities, resolution, projections, commands
-  emulator/   seller profiles + deterministic reactions
-  tests/      invariants + breaking scenarios
+  domain/     entities, resolution, FSM, projections, commands
+  emulator/   buyer + seller profiles
+  runtime/    Simulation Runtime + Scenario Engine
+  tests/      invariants + breaking scenarios + TZ-002 engine
 ```
 
 ## Domain mapping
@@ -33,6 +34,10 @@ experiments/basket/
 | Resolution | `domain/resolution.ts` |
 | Snapshot AGREED/CURRENT/PENDING | `BasketWorld.snapshot()` |
 | Clock | `domain/clock.ts` `DeterministicClock` |
+| FSM | `domain/fsm.ts` |
+| Simulation Runtime | `runtime/simulation.ts` |
+| Scenario Engine | `runtime/engine.ts` |
+| Buyer Emulator | `emulator/buyers.ts` |
 
 ## Seller profiles
 

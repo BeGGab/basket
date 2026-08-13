@@ -1,4 +1,5 @@
 import { DeterministicClock } from "./clock";
+import { transition } from "./fsm";
 import { resolve } from "./resolution";
 import type {
   Acceptance,
@@ -169,13 +170,13 @@ export class BasketWorld {
     };
     this.offers.push(offer);
     sp.activeOfferId = offer.id;
-    if (sp.status === "DRAFT" || sp.status === "STABLE") sp.status = "NEGOTIATING";
+    if (sp.status === "DRAFT" || sp.status === "STABLE") this.applyStatus(sp, "NEGOTIATING");
     if (input.actor === "SELLER" || input.actor === "SYSTEM") {
       sp.lastSellerActivity = this.nowIso();
       sp.waitingSince = this.nowIso();
-      sp.status = "WAITING_BUYER";
+      this.applyStatus(sp, "WAITING_BUYER");
     } else {
-      sp.status = "WAITING_SELLER";
+      this.applyStatus(sp, "WAITING_SELLER");
       sp.waitingSince = this.nowIso();
     }
     this.recordStockConflict(sp, offer, "OFFER_CREATION");
@@ -204,7 +205,7 @@ export class BasketWorld {
   rejectSellerPurchase(sellerPurchaseId: string): void {
     const sp = this.requireSp(sellerPurchaseId);
     sp.rejected = true;
-    sp.status = "REJECTED";
+    this.applyStatus(sp, "REJECTED");
   }
 
   proposeSubstitution(input: {
@@ -249,7 +250,9 @@ export class BasketWorld {
   markWaiting(sellerPurchaseId: string): void {
     const sp = this.requireSp(sellerPurchaseId);
     if (!sp.waitingSince) sp.waitingSince = this.nowIso();
-    if (sp.status !== "REJECTED" && sp.status !== "STABLE") sp.status = "WAITING_SELLER";
+    if (sp.status !== "REJECTED" && sp.status !== "STABLE" && sp.status !== "CANCELLED") {
+      this.applyStatus(sp, "WAITING_SELLER");
+    }
   }
 
   mockFulfill(sellerPurchaseId: string, actualQuantity: number): MockFulfillment {
@@ -307,9 +310,13 @@ export class BasketWorld {
     return this.substitutions.filter((s) => s.sellerPurchaseId === sp.id && s.status === "PROPOSED");
   }
 
+  private applyStatus(sp: SellerPurchase, next: SellerPurchase["status"]): void {
+    sp.status = transition(sp.status, next);
+  }
+
   private refreshStatus(sp: SellerPurchase): void {
     if (sp.rejected) {
-      sp.status = "REJECTED";
+      this.applyStatus(sp, "REJECTED");
       return;
     }
     const agreed = sp.agreedOfferId ? this.requireOffer(sp.agreedOfferId) : null;
@@ -321,18 +328,17 @@ export class BasketWorld {
       agreed.id === active.id &&
       pending.length === 0 &&
       this.isOfferValid(agreed);
-    // Intentionally NOT checking physical stock / required quantity available.
     if (stable) {
-      sp.status = "STABLE";
+      this.applyStatus(sp, "STABLE");
       this.recordStockConflict(sp, agreed, "STABLE");
       return;
     }
     if (agreed && active && agreed.id !== active.id) {
-      sp.status = active.actor === "BUYER" ? "WAITING_SELLER" : "WAITING_BUYER";
+      this.applyStatus(sp, active.actor === "BUYER" ? "WAITING_SELLER" : "WAITING_BUYER");
       return;
     }
     if (agreed && !this.isOfferValid(agreed) && sp.status === "STABLE") {
-      sp.status = "WAITING_BUYER";
+      this.applyStatus(sp, "WAITING_BUYER");
     }
   }
 

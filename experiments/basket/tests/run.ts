@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { BasketWorld } from "../domain/world";
 import { createSellerEmulator, buyerOffer } from "../emulator/sellers";
 import { formatResults, runAllScenarios } from "./scenarios";
+import { runTz002 } from "./runtime";
 
 function invariants() {
   const w = new BasketWorld();
@@ -44,6 +45,7 @@ function run() {
     process.exit(1);
   }
   console.log("TZ-BASKET-001 experiment: OK");
+  runTz002();
 }
 
 run();
