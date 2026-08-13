@@ -85,7 +85,7 @@ List
 Purchase
 ```
 
-Resolution chooses primary/alternative/unresolved.
+Resolution chooses primary/alternative/unresolved **before** seller partitioning (OQ-006). It does not pick a different product per seller.
 
 Initial experimental policies:
 
@@ -117,6 +117,8 @@ Purchase
 ## SellerPurchase
 
 The independent commercial lifecycle unit for one seller.
+
+Lifecycle truth is **`status` only**. There is no parallel `rejected` flag.
 
 Different SellerPurchases may simultaneously be:
 
@@ -219,7 +221,13 @@ activeOfferId → Offer #19
 
 This means Offer #18 is accepted while #19 is currently awaiting a decision.
 
-`activeOfferId` remains an experimental hypothesis and must be validated against expiration/silence.
+`activeOfferId` is a **required projection pointer** (I-011 / OQ-007 closed). The field is part of SellerPurchase; snapshot, acceptance and STABLE use it. `lastOffer()` is only a history scan helper.
+
+Expiration is split:
+
+1. **Validity** — `isOfferValid(offer)` from `validUntil`. Defined.
+2. **Acceptance** — expired Offer cannot be accepted (I-028). Defined.
+3. **OQ-009 (open)** — what happens to the pointer and SellerPurchase status when an already-agreed Offer later expires and no newer Offer exists. The domain does **not** auto-transition status on that expiry (STABLE may remain STABLE). That is deliberately not a closed decision.
 
 ## Snapshot invariant
 
@@ -260,11 +268,21 @@ AND agreed offer is valid
 
 STABLE does not mean payment, reservation, delivery, guaranteed physical availability, or guaranteed quantity.
 
+`acceptOffer()` refuses an expired Offer **before** recording Acceptance (I-028). STABLE’s “agreed offer is valid” is therefore not the only validity gate.
+
+## Stock conflict detections
+
+`stockConflicts` is a **detection-event log**, not a unique conflict state. The same race (e.g. stock=6, A→4, B→3, combined=7) may be recorded at `OFFER_CREATION`, `ACCEPTANCE` and `STABLE`. Multiple rows for one race are expected. There is no Allocation/Reservation in this experiment.
+
+For stock-conflict detection, a **claim** is the quantity represented by the SellerPurchase's current **valid active** commercial proposal (`activeOfferId` and `isOfferValid`). REJECTED, CANCELLED, and expired Offers are not claims. `agreedOfferId` is not used as the claim when a newer active Offer exists.
+
 ## Experimental SellerPurchase states
 
 Initial candidates:
 
 `DRAFT | NEGOTIATING | WAITING_SELLER | WAITING_BUYER | STABLE | REJECTED | CANCELLED | EXPIRED`
+
+`EXPIRED` is reserved in the experimental enum; the clock does **not** enter it automatically. Expiration is a derived Offer fact (`isOfferValid`). Whether it should be a lifecycle state is OQ-009 / OQ-011 — not closed here.
 
 States must be added only when evidence requires them.
 
@@ -303,3 +321,8 @@ These are outside the current experiment.
 11. Historical Offers/Acceptances remain inspectable.
 12. Alternatives are resolved before/while forming Purchase; Substitution is explicit.
 13. Future execution systems are not introduced merely to simplify this experiment.
+14. Only the active Offer may be accepted (I-027).
+15. An expired Offer cannot be accepted (I-028).
+16. State changes only through domain commands: the world hands out frozen projections of List, Purchase, SellerPurchase, Acceptance, Substitution, catalog and logs (I-033).
+17. Substitution is decided once: `PROPOSED → ACCEPTED | REJECTED` (I-032).
+18. Mock fulfillment records the delivered quantity, and `partialFulfillmentAllowed = false` refuses an under-delivery (I-019, I-024).

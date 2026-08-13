@@ -36,7 +36,7 @@ BUYER → SELLER → BUYER → SELLER → ...
 15 → 17 → 15.5 → 16 + 5% discount
 ```
 
-Every proposal is a new immutable Offer.
+Every proposal is a new immutable Offer. Earlier Offer objects (including nested `items`) must stay unchanged after later proposals.
 
 ## BS-006 — Automatic Time Discount
 
@@ -72,12 +72,14 @@ Primary unavailable; alternative exists but is far above referencePrice. Expose 
 ## BS-011 — Stock Race
 
 ```text
-Stock = 10 kg
-Purchase A → 20 kg
-Purchase B → 20 kg
+Stock = 6 kg
+Purchase A → 4 kg
+Purchase B → 3 kg
 ```
 
-Determine whether conflict appears at Offer creation, Acceptance, STABLE or fulfillment. Do not solve allocation in this experiment.
+Each request is individually within stock; together they are not. Record the first layer where the combined claim is detected (Offer creation, Acceptance, STABLE or fulfillment). Do not solve allocation in this experiment.
+
+For stock-conflict detection, a claim is the quantity represented by the SellerPurchase's current **valid** active commercial proposal. REJECTED, CANCELLED, and expired Offers do not compete.
 
 ## BS-012 — Offer Expiration
 
@@ -115,7 +117,7 @@ Mandatory consistency test.
 
 ## BS-017 — Accept Previous Offer
 
-Test acceptance of an older Offer when a newer one exists. If prohibited, make that prohibition explicit.
+Acceptance of an older Offer when a newer one exists is **prohibited**. Only the active Offer can be accepted (I-027). Older Offers remain in append-only history. To return to a previous price, the actor proposes a new Offer.
 
 ## BS-018 — Substitution Outside Alternatives
 
@@ -123,7 +125,7 @@ Buyer allows Black→White; seller proposes Baguette. Must be Substitution.
 
 ## BS-019 — Alternative Across Sellers
 
-Primary unavailable from Seller A but available from Seller B. Determine whether Resolution precedes seller partitioning.
+Primary unavailable from Seller A but available from Seller B. **Resolution precedes seller partitioning** and is not seller-specific: both sellers receive the globally resolved primary, not a private alternative on A.
 
 ## BS-020 — Simultaneous Seller Changes
 
@@ -131,7 +133,7 @@ Two SellerPurchases change independently without state overwrite.
 
 ## BS-021 — Expired Active Offer + New Offer
 
-Determine exact activeOfferId semantics.
+The pointer `activeOfferId` is required (I-011). This scenario checks what it points at after an Offer expires **and** a newer Offer is created. I-028 forbids accepting the expired Offer. What to do with the pointer/status when an already-agreed Offer later expires **without** a replacement remains OQ-009.
 
 ## BS-022 — Silence After Expiration
 
@@ -139,7 +141,9 @@ Expired Offer plus no new seller response. Determine whether this is waiting, ex
 
 ## BS-023 — Conflicting Full Promises
 
-Two SellerPurchases appear to promise the same limited stock. Do not introduce GUARANTEED/Reservation/Allocation automatically; record the boundary.
+Same race as BS-011 (`stock=6`, A→4, B→3). Both SellerPurchases may still become STABLE. `stockConflicts` is a **detection-event log** (the same race may be recorded at OFFER_CREATION, ACCEPTANCE and STABLE). Do not introduce GUARANTEED/Reservation/Allocation. Assertions must prove stock=6, combined=7, first checkpoint OFFER_CREATION, and independent STABLE.
+
+Claim = active Offer quantity. If A has agreed=4 and a newer active=7, B's 3 combines as 3+7=10, not 3+4=7.
 
 ## BS-024 — Accepted Offer Followed by New Offer
 
@@ -164,4 +168,6 @@ Expose Resolution policy explicitly.
 
 ## BS-028 — Partial Availability Before STABLE
 
-Seller can provide 5 kg while buyer agrees to 20 kg with partial fulfillment allowed. STABLE must remain possible.
+`PartialAvailabilitySeller` offers the in-stock quantity (e.g. 5 kg) instead of the requested 20 kg. Buyer may accept that reduced Offer; STABLE is possible on the reduced agreement. Assert `activeOffer.items[0].quantity === 5` and `agreedOffer.items[0].quantity === 5`, not only `status === STABLE`. The case «agreed 20 / actual 5» is BS-014 (`mockFulfill`), not this profile.
+
+`PartialAvailabilitySeller` observes catalog stock at Offer creation and on `tick()` if stock later drops. Cross-purchase allocation is outside this experiment. A zero-stock result does not create a quantity-0 Offer.

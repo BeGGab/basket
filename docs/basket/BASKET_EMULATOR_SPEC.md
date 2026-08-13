@@ -73,31 +73,37 @@ Seller C → Slow
 
 ## Concurrency
 
-The emulator must reproduce:
+The emulator must reproduce a true race, where each claim is individually within stock but the combination is not:
 
 ```text
-Stock = 10 kg
-Purchase A → 20 kg
-Purchase B → 20 kg
+Stock = 6 kg
+Purchase A → 4 kg
+Purchase B → 3 kg
 ```
 
 without silently solving allocation.
 
-It must expose where conflict is detected.
+It must expose the first layer at which combined claims exceed stock (Offer creation, Acceptance, STABLE or fulfillment).
+
+`stockConflicts` is a **detection-event log**: the same race may produce several rows (one per checkpoint). Do not treat `conflicts.length` as the number of unique races.
+
+For stock-conflict detection, a claim is the quantity represented by the SellerPurchase's current valid active commercial proposal. REJECTED, CANCELLED, and expired Offers are not claims.
 
 ## Observation
 
-Each emulator event should record:
+Each emulator / runtime event records:
 
 ```text
-timestamp
-seller
-event
-input
-result
-related Offer
-related SellerPurchase
+timestamp          → SimEvent.at
+seller             → SimEvent.seller
+event              → SimEvent.event
+input              → SimEvent.input
+result             → SimEvent.result
+related Offer      → SimEvent.offerId
+related SellerPurchase → SimEvent.sellerPurchaseId
 ```
+
+`input` / `result` are short deterministic strings, not full Offer dumps.
 
 ## Minimum profiles for first implementation
 
@@ -107,3 +113,9 @@ related SellerPurchase
 - Substitution
 - Slow
 - Partial Availability
+
+`PartialAvailabilitySeller` observes catalog stock at Offer time and on `tick()` if stock later drops; it does not create quantity-0 Offers. Cross-purchase allocation is outside this experiment.
+
+`TimeDiscountSeller` does not emit TIME_DISCOUNT against a STABLE SellerPurchase.
+
+On `tick()` both profiles only adjust their **own** active proposal (`SELLER`/`SYSTEM`). A buyer Offer is answered through `respondToBuyerOffer`, never rewritten into a seller-side Offer by a timer.

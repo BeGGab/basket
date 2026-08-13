@@ -1,0 +1,711 @@
+import { DeterministicClock } from "./clock";
+import { transition } from "./fsm";
+import { resolve } from "./resolution";
+import type {
+  Acceptance,
+  Actor,
+  CatalogOffer,
+  ListItem,
+  MockFulfillment,
+  Offer,
+  OfferReason,
+  ProductCatalog,
+  Purchase,
+  PurchaseItem,
+  ReadonlyAcceptance,
+  ReadonlyListItem,
+  ReadonlyMockFulfillment,
+  ReadonlyProductCatalog,
+  ReadonlyPurchase,
+  ReadonlySellerPurchase,
+  ReadonlyShoppingList,
+  ReadonlyStockConflict,
+  ReadonlySubstitution,
+  ResolutionPolicy,
+  SellerPurchase,
+  ShoppingList,
+  Snapshot,
+  StockConflict,
+  Substitution,
+} from "./types";
+
+function frozenItems(items: readonly PurchaseItem[]): readonly Readonly<PurchaseItem>[] {
+  return Object.freeze(items.map((item) => Object.freeze({ ...item })));
+}
+
+function frozenListItem(item: ListItem): ReadonlyListItem {
+  return Object.freeze({
+    ...item,
+    alternatives: Object.freeze(item.alternatives.map((alt) => Object.freeze({ ...alt }))),
+  });
+}
+
+function frozenList(list: ShoppingList): ReadonlyShoppingList {
+  return Object.freeze({ ...list, items: Object.freeze(list.items.map(frozenListItem)) });
+}
+
+function frozenSp(sp: SellerPurchase): ReadonlySellerPurchase {
+  return Object.freeze({ ...sp, items: frozenItems(sp.items) });
+}
+
+function frozenPurchase(purchase: Purchase): ReadonlyPurchase {
+  return Object.freeze({
+    ...purchase,
+    sellerPurchaseIds: Object.freeze([...purchase.sellerPurchaseIds]),
+    unresolvedItems: Object.freeze(purchase.unresolvedItems.map((row) => Object.freeze({ ...row }))),
+  });
+}
+
+function frozenSub(sub: Substitution): ReadonlySubstitution {
+  return Object.freeze({ ...sub });
+}
+
+function frozenCatalog(catalog: ProductCatalog): ReadonlyProductCatalog {
+  return Object.freeze({
+    names: Object.freeze({ ...catalog.names }),
+    availability: Object.freeze(catalog.availability.map((row) => Object.freeze({ ...row }))),
+  });
+}
+
+/**
+ * Mutable state is private: every read exits as a frozen copy, so FSM transitions and
+ * invariants cannot be bypassed by writing to a returned object (I-033).
+ */
+export class BasketWorld {
+  readonly clock: DeterministicClock;
+  /** Policy flag checked by `mockFulfill` (I-019). */
+  partialFulfillmentAllowed = true;
+
+  private readonly listById = new Map<string, ShoppingList>();
+  private readonly purchaseById = new Map<string, Purchase>();
+  private readonly spById = new Map<string, SellerPurchase>();
+  private readonly offerLog: Offer[] = [];
+  private readonly acceptanceLog: ReadonlyAcceptance[] = [];
+  private readonly substitutionLog: Substitution[] = [];
+  private readonly stockConflictLog: ReadonlyStockConflict[] = [];
+  private readonly fulfillmentLog: ReadonlyMockFulfillment[] = [];
+  private catalogState: ProductCatalog = { names: {}, availability: [] };
+
+  private seq = 0;
+
+  constructor(clock = new DeterministicClock()) {
+    this.clock = clock;
+  }
+
+  get lists(): ReadonlyMap<string, ReadonlyShoppingList> {
+    return new Map([...this.listById].map(([id, list]) => [id, frozenList(list)]));
+  }
+
+  get purchases(): ReadonlyMap<string, ReadonlyPurchase> {
+    return new Map([...this.purchaseById].map(([id, purchase]) => [id, frozenPurchase(purchase)]));
+  }
+
+  get sellerPurchases(): ReadonlyMap<string, ReadonlySellerPurchase> {
+    return new Map([...this.spById].map(([id, sp]) => [id, frozenSp(sp)]));
+  }
+
+  get offers(): readonly Offer[] {
+    return Object.freeze([...this.offerLog]);
+  }
+
+  get acceptances(): readonly ReadonlyAcceptance[] {
+    return Object.freeze([...this.acceptanceLog]);
+  }
+
+  get substitutions(): readonly ReadonlySubstitution[] {
+    return Object.freeze(this.substitutionLog.map(frozenSub));
+  }
+
+  get stockConflicts(): readonly ReadonlyStockConflict[] {
+    return Object.freeze([...this.stockConflictLog]);
+  }
+
+  get fulfillments(): readonly ReadonlyMockFulfillment[] {
+    return Object.freeze([...this.fulfillmentLog]);
+  }
+
+  get catalog(): ReadonlyProductCatalog {
+    return frozenCatalog(this.catalogState);
+  }
+
+  private id(prefix: string): string {
+    this.seq += 1;
+    return `${prefix}-${this.seq}`;
+  }
+
+  nowIso(): string {
+    return this.clock.now().toISOString();
+  }
+
+  /** Advance time and re-evaluate STABLE/validity without inventing EXPIRED as a silence state. */
+  advance(durationMs: number): void {
+    this.clock.advance(durationMs);
+    for (const sp of this.spById.values()) this.refreshStatus(sp);
+  }
+
+  /** Stores a defensive copy: catalog changes only happen through `setCatalog`/`setStock` (I-034). */
+  setCatalog(catalog: ProductCatalog): void {
+    this.assertCatalog(catalog);
+    this.catalogState = {
+      names: { ...catalog.names },
+      availability: catalog.availability.map((row) => ({ ...row })),
+    };
+  }
+
+  createList(name: string): ReadonlyShoppingList {
+    if (!name) throw new Error("List requires a name.");
+    const list: ShoppingList = { id: this.id("list"), name, items: [] };
+    this.listById.set(list.id, list);
+    return frozenList(list);
+  }
+
+  addItem(listId: string, item: Omit<ListItem, "id">): ReadonlyListItem {
+    const list = this.requireList(listId);
+    this.assertListItem(item);
+    const created: ListItem = {
+      ...item,
+      id: this.id("li"),
+      alternatives: item.alternatives.map((alt) => ({ ...alt })),
+    };
+    list.items.push(created);
+    return frozenListItem(created);
+  }
+
+  /**
+   * Experimental helper, not a production purchase API.
+   * - `sellerIds` omitted: one SellerPurchase via deterministic `pickSeller` (lexicographic sellerId).
+   * - `sellerIds` provided: **fan-out** — one SellerPurchase per listed seller that has a catalog row with stock > 0.
+   * Passing sellerIds is therefore a multi-seller scenario mode, not merely a search filter.
+   */
+  createPurchaseFromList(listId: string, policy: ResolutionPolicy, sellerIds?: string[]): ReadonlyPurchase {
+    const list = this.requireList(listId);
+    const purchase: Purchase = {
+      id: this.id("purchase"),
+      listId: list.id,
+      resolutionPolicy: policy,
+      sellerPurchaseIds: [],
+      unresolvedItems: [],
+    };
+
+    const bySeller = new Map<string, PurchaseItem[]>();
+    const allowed = sellerIds ? new Set(sellerIds) : null;
+
+    for (const item of list.items) {
+      const result = resolve(item, policy, this.catalogState);
+      if (result.kind === "UNRESOLVED" || !result.productId) {
+        purchase.unresolvedItems.push({
+          listItemId: item.id,
+          productId: item.productId,
+          reason: result.requiresBuyerDecision ? "ASK_BUYER" : "UNAVAILABLE",
+        });
+        continue;
+      }
+
+      const rows = this.catalogState.availability.filter((row) => {
+        if (row.productId !== result.productId) return false;
+        if (row.stock <= 0) return false;
+        if (allowed && !allowed.has(row.sellerId)) return false;
+        return true;
+      });
+
+      if (rows.length === 0) {
+        purchase.unresolvedItems.push({
+          listItemId: item.id,
+          productId: result.productId,
+          reason: "NO_SELLER",
+        });
+        continue;
+      }
+
+      const targets = allowed ? rows : [this.pickSeller(rows)];
+      for (const row of targets) {
+        const bucket = bySeller.get(row.sellerId) ?? [];
+        // (sellerId, productId) is unique inside a SellerPurchase: extra catalog rows of the
+        // same seller/product do not create a duplicate line (I-031).
+        if (bucket.some((existing) => existing.productId === result.productId)) continue;
+        bucket.push({
+          productId: result.productId,
+          quantity: item.quantity ?? row.quantity,
+          unit: item.unit ?? row.unit,
+          price: row.price,
+          resolvedFrom: result.resolvedFrom ?? item.productId,
+          alternativePriority: result.alternativePriority ?? 0,
+        });
+        bySeller.set(row.sellerId, bucket);
+      }
+    }
+
+    for (const [sellerId, items] of bySeller) {
+      const sp: SellerPurchase = {
+        id: this.id("sp"),
+        purchaseId: purchase.id,
+        sellerId,
+        items,
+        agreedOfferId: null,
+        activeOfferId: null,
+        status: "DRAFT",
+        lastSellerActivity: null,
+        waitingSince: this.nowIso(),
+      };
+      this.spById.set(sp.id, sp);
+      purchase.sellerPurchaseIds.push(sp.id);
+    }
+
+    this.purchaseById.set(purchase.id, purchase);
+    return frozenPurchase(purchase);
+  }
+
+  private pickSeller(rows: CatalogOffer[]): CatalogOffer {
+    return rows.slice().sort((a, b) => a.sellerId.localeCompare(b.sellerId))[0];
+  }
+
+  setStock(sellerId: string, productId: string, stock: number): void {
+    if (!Number.isFinite(stock) || stock < 0) {
+      throw new Error(`stock must be a finite number ≥ 0, got ${stock}`);
+    }
+    const row = this.catalogState.availability.find((item) => item.sellerId === sellerId && item.productId === productId);
+    if (!row) throw new Error(`No catalog row for ${sellerId}/${productId}`);
+    row.stock = stock;
+  }
+
+  cancelSellerPurchase(sellerPurchaseId: string): void {
+    this.applyStatus(this.mutableSp(sellerPurchaseId), "CANCELLED");
+  }
+
+  proposeOffer(input: {
+    sellerPurchaseId: string;
+    actor: Actor;
+    items: PurchaseItem[];
+    reason: OfferReason;
+    validUntil?: string;
+  }): Offer {
+    const sp = this.mutableSp(input.sellerPurchaseId);
+    this.assertOfferItems(input.items);
+    // I-035: a counter is a reply to a live proposal. Countering an expired Offer is forbidden —
+    // like acceptOffer (I-028); replacing an expired Offer requires an explicit new proposal
+    // with a non-counter reason (PRICE_CHANGE, TIME_DISCOUNT, ...).
+    if ((input.reason === "BUYER_CHANGE" || input.reason === "SELLER_COUNTEROFFER") && sp.activeOfferId) {
+      const active = this.requireOffer(sp.activeOfferId);
+      if (!this.isOfferValid(active)) {
+        throw new Error(
+          `Cannot counter Offer ${active.id}: it is expired (I-035). Propose a new Offer with a non-counter reason instead.`
+        );
+      }
+    }
+    const offer: Offer = Object.freeze({
+      id: this.id("offer"),
+      sellerPurchaseId: sp.id,
+      actor: input.actor,
+      items: frozenItems(input.items),
+      reason: input.reason,
+      createdAt: this.nowIso(),
+      validUntil: input.validUntil,
+    });
+    this.offerLog.push(offer);
+    sp.activeOfferId = offer.id;
+    if (sp.status === "DRAFT" || sp.status === "STABLE") this.applyStatus(sp, "NEGOTIATING");
+    if (input.actor === "SELLER" || input.actor === "SYSTEM") {
+      sp.lastSellerActivity = this.nowIso();
+      sp.waitingSince = this.nowIso();
+      this.applyStatus(sp, "WAITING_BUYER");
+    } else {
+      this.applyStatus(sp, "WAITING_SELLER");
+      sp.waitingSince = this.nowIso();
+    }
+    this.recordStockConflict(sp, offer.items, "OFFER_CREATION");
+    this.refreshStatus(sp);
+    return offer;
+  }
+
+  acceptOffer(offerId: string, actor: Actor): ReadonlyAcceptance {
+    const offer = this.requireOffer(offerId);
+    const sp = this.mutableSp(offer.sellerPurchaseId);
+    if (sp.activeOfferId !== offer.id) {
+      throw new Error(
+        `Cannot accept Offer ${offer.id}: only the active Offer (${sp.activeOfferId}) can be accepted (OQ-008 / I-027).`
+      );
+    }
+    if (!this.isOfferValid(offer)) {
+      throw new Error(`Cannot accept Offer ${offer.id}: offer is expired (I-028).`);
+    }
+    this.assertAcceptanceActor(offer, actor);
+    const acceptance: ReadonlyAcceptance = Object.freeze<Acceptance>({
+      id: this.id("acc"),
+      offerId: offer.id,
+      actor,
+      createdAt: this.nowIso(),
+    });
+    this.acceptanceLog.push(acceptance);
+    sp.agreedOfferId = offer.id;
+    sp.items = offer.items.map((item) => ({ ...item }));
+    if (actor === "SELLER" || actor === "SYSTEM") sp.lastSellerActivity = this.nowIso();
+    this.recordStockConflict(sp, offer.items, "ACCEPTANCE");
+    this.refreshStatus(sp);
+    return acceptance;
+  }
+
+  rejectSellerPurchase(sellerPurchaseId: string): void {
+    this.applyStatus(this.mutableSp(sellerPurchaseId), "REJECTED");
+  }
+
+  proposeSubstitution(input: {
+    sellerPurchaseId: string;
+    originalProductId: string;
+    replacementProductId: string;
+    proposedBy: Actor;
+    reason?: string;
+  }): ReadonlySubstitution {
+    const sp = this.mutableSp(input.sellerPurchaseId);
+    if (!input.originalProductId || !input.replacementProductId) {
+      throw new Error("Substitution requires originalProductId and replacementProductId.");
+    }
+    const sub: Substitution = {
+      id: this.id("sub"),
+      sellerPurchaseId: sp.id,
+      originalProductId: input.originalProductId,
+      replacementProductId: input.replacementProductId,
+      proposedBy: input.proposedBy,
+      reason: input.reason,
+      status: "PROPOSED",
+      createdAt: this.nowIso(),
+    };
+    this.substitutionLog.push(sub);
+    if (input.proposedBy === "SELLER") sp.lastSellerActivity = this.nowIso();
+    this.refreshStatus(sp);
+    return frozenSub(sub);
+  }
+
+  acceptSubstitution(substitutionId: string): ReadonlySubstitution {
+    const sub = this.requireSub(substitutionId);
+    this.assertSubstitutionPending(sub, "accept");
+    sub.status = "ACCEPTED";
+    this.refreshStatus(this.mutableSp(sub.sellerPurchaseId));
+    return frozenSub(sub);
+  }
+
+  rejectSubstitution(substitutionId: string): ReadonlySubstitution {
+    const sub = this.requireSub(substitutionId);
+    this.assertSubstitutionPending(sub, "reject");
+    sub.status = "REJECTED";
+    this.refreshStatus(this.mutableSp(sub.sellerPurchaseId));
+    return frozenSub(sub);
+  }
+
+  markWaiting(sellerPurchaseId: string): void {
+    const sp = this.mutableSp(sellerPurchaseId);
+    if (!sp.waitingSince) sp.waitingSince = this.nowIso();
+    if (sp.status !== "REJECTED" && sp.status !== "STABLE" && sp.status !== "CANCELLED") {
+      this.applyStatus(sp, "WAITING_SELLER");
+    }
+  }
+
+  /**
+   * Mock delivery. `actual` is the delivered quantity (single-line SellerPurchase) or a
+   * per-product map; the FULFILLMENT checkpoint is evaluated on those delivered quantities.
+   */
+  mockFulfill(sellerPurchaseId: string, actual: number | Record<string, number>): ReadonlyMockFulfillment {
+    const sp = this.mutableSp(sellerPurchaseId);
+    const delivered = this.deliveredItems(sp, actual);
+    const total = delivered.reduce((sum, item) => sum + item.quantity, 0);
+    const agreed = sp.items.reduce((sum, item) => sum + item.quantity, 0);
+    if (!this.partialFulfillmentAllowed && total < agreed) {
+      throw new Error(
+        `Partial fulfillment is disabled: delivered ${total} < agreed ${agreed} on ${sp.id} (I-019).`
+      );
+    }
+    const rec: ReadonlyMockFulfillment = Object.freeze<MockFulfillment>({
+      sellerPurchaseId,
+      actualQuantity: total,
+      recordedAt: this.nowIso(),
+    });
+    this.fulfillmentLog.push(rec);
+    this.recordStockConflict(
+      sp,
+      delivered.filter((item) => item.quantity > 0),
+      "FULFILLMENT"
+    );
+    return rec;
+  }
+
+  private deliveredItems(sp: SellerPurchase, actual: number | Record<string, number>): PurchaseItem[] {
+    const check = (productId: string, quantity: number) => {
+      if (!Number.isFinite(quantity) || quantity < 0) {
+        throw new Error(`Fulfilled quantity for ${productId} must be a finite number ≥ 0, got ${quantity}.`);
+      }
+    };
+    if (typeof actual === "number") {
+      if (sp.items.length !== 1) {
+        throw new Error(
+          `mockFulfill(number) needs a single-line SellerPurchase; ${sp.id} has ${sp.items.length} lines — pass a per-product map.`
+        );
+      }
+      check(sp.items[0].productId, actual);
+      return [{ ...sp.items[0], quantity: actual }];
+    }
+    return sp.items.map((item) => {
+      const quantity = actual[item.productId] ?? 0;
+      check(item.productId, quantity);
+      return { ...item, quantity };
+    });
+  }
+
+  snapshot(sellerPurchaseId: string): Snapshot {
+    const sp = this.mutableSp(sellerPurchaseId);
+    const agreed = sp.agreedOfferId ? this.requireOffer(sp.agreedOfferId) : null;
+    const current = sp.activeOfferId ? this.requireOffer(sp.activeOfferId) : null;
+    return {
+      agreed: { offerId: agreed?.id ?? null, items: agreed ? frozenItems(agreed.items) : [] },
+      current: { offerId: current?.id ?? null, items: current ? frozenItems(current.items) : [] },
+      pendingSubstitutions: Object.freeze(this.pendingMandatorySubs(sp).map(frozenSub)),
+    };
+  }
+
+  isOfferValid(offer: Offer): boolean {
+    if (!offer.validUntil) return true;
+    return Date.parse(offer.validUntil) > this.clock.now().getTime();
+  }
+
+  isStable(sellerPurchaseId: string): boolean {
+    return this.mutableSp(sellerPurchaseId).status === "STABLE";
+  }
+
+  derivedPurchaseStatus(purchaseId: string): string {
+    const purchase = this.requirePurchase(purchaseId);
+    const states = purchase.sellerPurchaseIds.map((id) => this.mutableSp(id).status);
+    if (states.length === 0) return "EMPTY";
+    if (states.every((s) => s === "STABLE")) return "STABLE";
+    if (states.every((s) => s === "REJECTED")) return "REJECTED";
+    if (states.some((s) => s === "STABLE") && states.some((s) => s !== "STABLE")) return "MIXED";
+    return "IN_PROGRESS";
+  }
+
+  offerById(id: string): Offer {
+    return this.requireOffer(id);
+  }
+
+  lastOffer(sellerPurchaseId: string, actor?: Actor): Offer | null {
+    const list = this.offerLog.filter(
+      (offer) => offer.sellerPurchaseId === sellerPurchaseId && (actor === undefined || offer.actor === actor)
+    );
+    return list.length ? list[list.length - 1] : null;
+  }
+
+  private pendingMandatorySubs(sp: SellerPurchase): Substitution[] {
+    return this.substitutionLog.filter((s) => s.sellerPurchaseId === sp.id && s.status === "PROPOSED");
+  }
+
+  private applyStatus(sp: SellerPurchase, next: SellerPurchase["status"]): void {
+    sp.status = transition(sp.status, next);
+  }
+
+  private refreshStatus(sp: SellerPurchase): void {
+    if (sp.status === "REJECTED" || sp.status === "CANCELLED") {
+      return;
+    }
+    const agreed = sp.agreedOfferId ? this.requireOffer(sp.agreedOfferId) : null;
+    const active = sp.activeOfferId ? this.requireOffer(sp.activeOfferId) : null;
+    const pending = this.pendingMandatorySubs(sp);
+    const stable =
+      agreed !== null &&
+      active !== null &&
+      agreed.id === active.id &&
+      pending.length === 0 &&
+      this.isOfferValid(agreed);
+    if (stable) {
+      this.applyStatus(sp, "STABLE");
+      this.recordStockConflict(sp, agreed.items, "STABLE");
+      return;
+    }
+    if (agreed && active && agreed.id !== active.id) {
+      this.applyStatus(sp, active.actor === "BUYER" ? "WAITING_SELLER" : "WAITING_BUYER");
+    }
+    // OQ-009 remains OPEN: an already-agreed Offer that later expires does not
+    // auto-change SellerPurchase status. Validity only prevents *entering* STABLE.
+  }
+
+  /**
+   * Competing claim = quantity on the other SellerPurchase's **valid active** commercial proposal.
+   * REJECTED and CANCELLED are ignored. Expired Offers (`isOfferValid` = false) are not claims.
+   */
+  private claimedByOthers(sp: SellerPurchase, productId: string): number {
+    let sum = 0;
+    for (const other of this.spById.values()) {
+      if (other.id === sp.id || other.sellerId !== sp.sellerId) continue;
+      if (other.status === "REJECTED" || other.status === "CANCELLED") continue;
+      if (!other.activeOfferId) continue;
+      const offer = this.requireOffer(other.activeOfferId);
+      if (!this.isOfferValid(offer)) continue;
+      for (const item of offer.items) {
+        if (item.productId === productId) sum += item.quantity;
+      }
+    }
+    return sum;
+  }
+
+  private assertOfferItems(items: PurchaseItem[]): void {
+    if (items.length === 0) {
+      throw new Error("Offer must contain at least one item.");
+    }
+    for (const item of items) {
+      if (!item.productId) {
+        throw new Error("Offer item requires productId.");
+      }
+      if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
+        throw new Error(`Offer quantity must be a finite number > 0, got ${item.quantity}.`);
+      }
+      if (!item.unit) {
+        throw new Error("Offer item requires unit.");
+      }
+      if (item.price !== undefined && (!Number.isFinite(item.price) || item.price < 0)) {
+        throw new Error(`Offer price must be a finite number ≥ 0, got ${item.price}.`);
+      }
+      if (item.discount !== undefined && !Number.isFinite(item.discount)) {
+        throw new Error(`Offer discount must be a finite number, got ${item.discount}.`);
+      }
+    }
+  }
+
+  /** Same numeric guarantees as Offer items, applied at the List boundary (I-030). */
+  private assertListItem(item: Omit<ListItem, "id">): void {
+    if (!item.productId) {
+      throw new Error("List item requires productId.");
+    }
+    if (item.quantity !== undefined && (!Number.isFinite(item.quantity) || item.quantity <= 0)) {
+      throw new Error(`List item quantity must be a finite number > 0, got ${item.quantity}.`);
+    }
+    if (item.unit !== undefined && !item.unit) {
+      throw new Error("List item unit must not be empty.");
+    }
+    if (
+      item.referencePrice !== undefined &&
+      (!Number.isFinite(item.referencePrice) || item.referencePrice < 0)
+    ) {
+      throw new Error(`List item referencePrice must be a finite number ≥ 0, got ${item.referencePrice}.`);
+    }
+    for (const alt of item.alternatives) {
+      if (!alt.productId) {
+        throw new Error("Alternative requires productId.");
+      }
+      if (!Number.isFinite(alt.alternativePriority) || alt.alternativePriority < 0) {
+        throw new Error(
+          `Alternative priority must be a finite number ≥ 0, got ${alt.alternativePriority}.`
+        );
+      }
+    }
+  }
+
+  /** Same numeric guarantees at the catalog boundary (I-030). */
+  private assertCatalog(catalog: ProductCatalog): void {
+    if (!catalog || !Array.isArray(catalog.availability)) {
+      throw new Error("Catalog requires an availability array.");
+    }
+    for (const row of catalog.availability) {
+      if (!row.sellerId || !row.productId) {
+        throw new Error("Catalog row requires sellerId and productId.");
+      }
+      if (!row.unit) {
+        throw new Error(`Catalog row ${row.sellerId}/${row.productId} requires unit.`);
+      }
+      if (!Number.isFinite(row.quantity) || row.quantity <= 0) {
+        throw new Error(
+          `Catalog quantity must be a finite number > 0 (${row.sellerId}/${row.productId}), got ${row.quantity}.`
+        );
+      }
+      if (!Number.isFinite(row.price) || row.price < 0) {
+        throw new Error(
+          `Catalog price must be a finite number ≥ 0 (${row.sellerId}/${row.productId}), got ${row.price}.`
+        );
+      }
+      if (!Number.isFinite(row.stock) || row.stock < 0) {
+        throw new Error(
+          `Catalog stock must be a finite number ≥ 0 (${row.sellerId}/${row.productId}), got ${row.stock}.`
+        );
+      }
+    }
+  }
+
+  /** BUYER accepts SELLER/SYSTEM; SELLER accepts BUYER; nobody accepts their own Offer. */
+  private assertAcceptanceActor(offer: Offer, actor: Actor): void {
+    if (actor === "SYSTEM") {
+      throw new Error(`SYSTEM cannot accept Offers (I-029).`);
+    }
+    if (actor === offer.actor) {
+      throw new Error(`Cannot accept own Offer ${offer.id} (I-029).`);
+    }
+    if (offer.actor === "BUYER" && actor !== "SELLER") {
+      throw new Error(`Only SELLER may accept a BUYER Offer (I-029).`);
+    }
+    if ((offer.actor === "SELLER" || offer.actor === "SYSTEM") && actor !== "BUYER") {
+      throw new Error(`Only BUYER may accept a ${offer.actor} Offer (I-029).`);
+    }
+  }
+
+  /** PROPOSED → ACCEPTED | REJECTED is one-way; a decided Substitution stays a historical fact (I-032). */
+  private assertSubstitutionPending(sub: Substitution, action: "accept" | "reject"): void {
+    if (sub.status !== "PROPOSED") {
+      throw new Error(`Cannot ${action} Substitution ${sub.id}: already ${sub.status} (I-032).`);
+    }
+  }
+
+  /** Append a detection event when combined claims exceed catalog stock. Same race may log at several checkpoints. */
+  private recordStockConflict(
+    sp: SellerPurchase,
+    items: readonly PurchaseItem[],
+    point: StockConflict["detectedAt"]
+  ): void {
+    for (const item of items) {
+      const stock = this.catalogState.availability
+        .filter((row) => row.sellerId === sp.sellerId && row.productId === item.productId)
+        .reduce((sum, row) => sum + row.stock, 0);
+      const competing = this.claimedByOthers(sp, item.productId);
+      const combined = item.quantity + competing;
+      if (combined > stock) {
+        this.stockConflictLog.push(
+          Object.freeze<StockConflict>({
+            productId: item.productId,
+            stock,
+            requested: item.quantity,
+            combined,
+            detectedAt: point,
+            purchaseId: sp.purchaseId,
+          })
+        );
+      }
+    }
+  }
+
+  private requireList(id: string): ShoppingList {
+    const list = this.listById.get(id);
+    if (!list) throw new Error(`List not found: ${id}`);
+    return list;
+  }
+
+  private requirePurchase(id: string): Purchase {
+    const purchase = this.purchaseById.get(id);
+    if (!purchase) throw new Error(`Purchase not found: ${id}`);
+    return purchase;
+  }
+
+  /** Read-only projection; state changes only through domain commands (I-033). */
+  requireSp(id: string): ReadonlySellerPurchase {
+    return frozenSp(this.mutableSp(id));
+  }
+
+  private mutableSp(id: string): SellerPurchase {
+    const sp = this.spById.get(id);
+    if (!sp) throw new Error(`SellerPurchase not found: ${id}`);
+    return sp;
+  }
+
+  private requireOffer(id: string): Offer {
+    const offer = this.offerLog.find((o) => o.id === id);
+    if (!offer) throw new Error(`Offer not found: ${id}`);
+    return offer;
+  }
+
+  private requireSub(id: string): Substitution {
+    const sub = this.substitutionLog.find((s) => s.id === id);
+    if (!sub) throw new Error(`Substitution not found: ${id}`);
+    return sub;
+  }
+}
