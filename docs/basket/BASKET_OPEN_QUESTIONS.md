@@ -1,0 +1,60 @@
+# GreenMarket — Basket Open Questions
+
+**Status:** Experimental Baseline v0.1
+
+These are hypotheses to resolve through experiments, not implementation requirements.
+
+## Resolution
+
+- **OQ-001:** Which policies are sufficient: PRIMARY_ONLY, FIRST_AVAILABLE, ASK_BUYER?
+- **OQ-002:** Should alternative selection consider price?
+- **OQ-003:** If yes, should referencePrice participate?
+- **OQ-004:** Does each alternative need its own expected price/range?
+- **OQ-005:** Is ANY_ACCEPTABLE required?
+- **OQ-006:** Does Resolution happen before seller partitioning or consider seller-specific offers?
+
+## Offers
+
+- **OQ-007:** Is activeOfferId required or derivable?
+- **OQ-008:** Can an older Offer be accepted after a newer Offer exists?
+- **OQ-009:** What happens to activeOfferId on expiration?
+- **OQ-010:** Is a separate negotiation TTL necessary?
+
+## Silence
+
+- **OQ-011:** Are lastSellerActivity and waitingSince sufficient?
+- **OQ-012:** Is SELLER_UNRESPONSIVE a real domain state or only a derived UI signal?
+
+## Substitution
+
+- **OQ-013:** Does accepted substitution update the projection directly or produce a new Offer first?
+- **OQ-014:** Can buyer initiate a Substitution?
+
+## Stock and fulfillment
+
+- **OQ-015:** At what point does limited stock become a commercial conflict: Offer, Acceptance, STABLE or fulfillment?
+- **OQ-016:** Does the future domain need Allocation?
+- **OQ-017:** Does the future domain need Reservation?
+
+## Purchase state
+
+- **OQ-018:** What is the minimum Purchase-level status set?
+- **OQ-019:** Is PARTIALLY_STABLE needed or derivable?
+- **OQ-020:** Is READY meaningful before downstream execution exists?
+
+## History
+
+- **OQ-021:** Are Offer + Acceptance sufficient for audit history?
+- **OQ-022:** Does any scenario require another historical fact entity?
+
+## Future boundary
+
+- **OQ-023:** What event starts Payment?
+- **OQ-024:** Can each SellerPurchase independently start Reservation/Delivery?
+- **OQ-025:** When does an Order become necessary?
+
+## Model discipline
+
+- **OQ-026:** Does any scenario force a new entity?
+- **OQ-027:** Does any entity become overloaded?
+- **OQ-028:** Does any implementation require duplicated state?
