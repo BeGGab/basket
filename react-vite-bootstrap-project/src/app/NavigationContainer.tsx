@@ -4,7 +4,6 @@ import { MapScreenView } from '@/screens/map/MapScreenView';
 import { SellerListScreenView } from '@/screens/seller-list/SellerListScreenView';
 import { SellerCardScreenView } from '@/screens/seller-card/SellerCardScreenView';
 import { CartScreenView } from '@/screens/cart/CartScreenView';
-import { SimulationScreenView } from '@/screens/sim/SimulationScreenView';
 import { Header, Page, Row } from '@/layout';
 import { Text } from '@/design-system/components';
 import '@/buyer_mvp/buyer_mvp.css';
@@ -16,7 +15,6 @@ const navItems = [
   { to: '/catalog', label: 'Каталог' },
   { to: '/map', label: 'Карта' },
   { to: '/cart', label: 'Корзина' },
-  { to: '/sim', label: 'Симуляция' },
   { to: '/profile', label: 'Профиль' },
 ];
 
@@ -75,7 +73,6 @@ export function NavigationContainer() {
             <Route path="/catalog" element={<CatalogScreen />} />
             <Route path="/product/:productId" element={<ProductScreen />} />
             <Route path="/cart" element={<CartScreenView />} />
-            <Route path="/sim" element={<SimulationScreenView />} />
             <Route path="/profile" element={<PlaceholderScreen name="Профиль" />} />
             <Route path="*" element={<PlaceholderScreen name="Страница не найдена" />} />
           </Routes>

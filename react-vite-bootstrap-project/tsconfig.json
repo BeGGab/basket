@@ -20,13 +20,11 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "basket-experiment/*": ["../experiments/basket/*"]
+      "@/*": ["src/*"]
     }
   },
-  "include": ["src", "../experiments/basket/**/*.ts"],
+  "include": ["src"],
   "exclude": [
-    "src/**/__tests__/**",
-    "../experiments/basket/tests/**"
+    "src/**/__tests__/**"
   ]
 }
