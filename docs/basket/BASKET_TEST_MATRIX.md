@@ -2,7 +2,7 @@
 
 **Status:** Experimental Baseline v0.1
 
-`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…028. All 28 scenarios are proven by `npx tsx experiments/basket/tests/run.ts` (Model column). The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
+`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…028. All 28 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
 
 | ID | Scenario | Model | Emulator | /sim demo | Main check |
 |---|---|:---:|:---:|:---:|---|
@@ -39,7 +39,7 @@ TZ-004 assistant demos on `/sim` (DISCOUNT / HIKE / SELLER) are training overlay
 
 ## Mandatory acceptance scenarios
 
-Proven in the Model column (programmatic), not by `/sim`:
+Exercised in the Model column (programmatic), not by `/sim`:
 
 1. BS-003
 2. BS-006

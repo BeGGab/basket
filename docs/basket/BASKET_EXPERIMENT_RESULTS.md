@@ -2,7 +2,7 @@
 
 **Status:** Evidence from TZ-BASKET-001…004 mock run  
 **Experiment version:** v0.1  
-**Model version:** v0.1.3 (expired accept forbidden; rejected flag removed; stronger BS-023/028)
+**Model version:** v0.1.4 (stock claim = active Offer; 28 scenarios exercised)
 
 ## How to read results
 
@@ -10,6 +10,7 @@
 - **Domain `CONFIRMED`** — the scenario closes or supports a domain hypothesis.
 - **Domain `OPEN`** — implementation is deterministic, but the business semantics are still an open question (see `openQuestion`).
 - Do not treat Impl PASS as confirmation of an unresolved OQ.
+- All 28 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped.
 
 ## Purpose
 
@@ -316,8 +317,8 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-023 — Impl PASS / Domain CONFIRMED
 
-- Expected: stock=6 A=4 B=3 combined=7 at OFFER_CREATION; both STABLE; no Allocation
-- Actual: STABLE+STABLE first=OFFER_CREATION stock=6 combined=7 detections=5
+- Expected: stock=6 A=4 B=3 combined=7 at OFFER_CREATION; both STABLE; claim follows active Offer (3+7=10)
+- Actual: STABLE+STABLE first=OFFER_CREATION stock=6 combined=7 detections=5; later activeClaim combined=10
 - Invariant: I-025
 - Hypothesis: CONFIRMED
 - Open question: none
@@ -389,7 +390,7 @@ Record evidence from the mock domain and seller emulator.
 ## Final decision
 
 ```text
-Model version: v0.1.3
+Model version: v0.1.4
 Status: experiment implemented; production architecture not started
 
 Changes in this PR (already implemented and tested):
@@ -399,6 +400,7 @@ Changes in this PR (already implemented and tested):
 - OQ-006 / OQ-008 closed
 - PartialAvailabilitySeller offers min(requested, stock)
 - Stock race records combined claims (stock=6, A→4, B→3) at OFFER_CREATION
+- stock claim = active Offer quantity, not agreed-when-present
 - removed duplicate SellerPurchase.rejected; REJECTED is FSM status only
 
 Still open after this experiment (future domain work, not blockers for TZ-001…004):

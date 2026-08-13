@@ -87,6 +87,8 @@ It must expose the first layer at which combined claims exceed stock (Offer crea
 
 `stockConflicts` is a **detection-event log**: the same race may produce several rows (one per checkpoint). Do not treat `conflicts.length` as the number of unique races.
 
+For stock-conflict detection, a claim is the quantity represented by the SellerPurchase's current active commercial proposal.
+
 ## Observation
 
 Each emulator / runtime event records:
@@ -111,3 +113,5 @@ related SellerPurchase → SimEvent.sellerPurchaseId
 - Substitution
 - Slow
 - Partial Availability
+
+`PartialAvailabilitySeller` observes catalog stock only; cross-purchase allocation is outside this experiment.

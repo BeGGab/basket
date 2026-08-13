@@ -354,16 +354,16 @@ export class BasketWorld {
     }
   }
 
+  /**
+   * Competing claim = quantity on the other SellerPurchase's **active** commercial proposal.
+   * `agreedOfferId` is not used: after a new Offer the current request is `activeOfferId`.
+   */
   private claimedByOthers(sp: SellerPurchase, productId: string): number {
     let sum = 0;
     for (const other of this.sellerPurchases.values()) {
       if (other.id === sp.id || other.sellerId !== sp.sellerId || other.status === "REJECTED") continue;
-      const offer = other.agreedOfferId
-        ? this.requireOffer(other.agreedOfferId)
-        : other.activeOfferId
-          ? this.requireOffer(other.activeOfferId)
-          : null;
-      if (!offer) continue;
+      if (!other.activeOfferId) continue;
+      const offer = this.requireOffer(other.activeOfferId);
       for (const item of offer.items) {
         if (item.productId === productId) sum += item.quantity;
       }

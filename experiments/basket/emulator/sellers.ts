@@ -58,6 +58,7 @@ export function createSellerEmulator(sellerId: string, profile: SellerProfileNam
       }
 
       if (profile === "PartialAvailabilitySeller") {
+        // Catalog stock only. Cross-purchase competing claims / allocation are outside this experiment.
         const reduced = buyerOfferItems.map((item) => {
           const stock = world.catalog.availability
             .filter((row) => row.sellerId === sellerId && row.productId === item.productId)

@@ -621,10 +621,45 @@ export function runAllScenarios(): ScenarioResult[] {
       assert.equal(o2.items[0].quantity, 3);
       assert.equal(first.requested, 3);
       assert.equal(w.fulfillments.length, 0, "no Allocation/Reservation/fulfillment entity");
+
+      const w2 = new BasketWorld();
+      w2.setCatalog(race);
+      const listA2 = w2.createList("claim-a");
+      w2.addItem(listA2.id, { productId: "tomatoes", quantity: 4, unit: "kg", alternatives: [] });
+      const listB2 = w2.createList("claim-b");
+      w2.addItem(listB2.id, { productId: "tomatoes", quantity: 3, unit: "kg", alternatives: [] });
+      const aSp = w2.createPurchaseFromList(listA2.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      const bSp = w2.createPurchaseFromList(listB2.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      const agreed4 = w2.proposeOffer({
+        sellerPurchaseId: aSp,
+        actor: "SELLER",
+        items: tomatoes(4, 15),
+        reason: "SELLER_COUNTEROFFER",
+      });
+      w2.acceptOffer(agreed4.id, "BUYER");
+      w2.proposeOffer({
+        sellerPurchaseId: aSp,
+        actor: "SELLER",
+        items: tomatoes(7, 15),
+        reason: "SELLER_COUNTEROFFER",
+      });
+      assert.equal(w2.requireSp(aSp).agreedOfferId, agreed4.id);
+      assert.notEqual(w2.requireSp(aSp).activeOfferId, agreed4.id);
+      w2.proposeOffer({
+        sellerPurchaseId: bSp,
+        actor: "SELLER",
+        items: tomatoes(3, 15),
+        reason: "SELLER_COUNTEROFFER",
+      });
+      const againstActive = w2.stockConflicts.find((c) => c.detectedAt === "OFFER_CREATION" && c.combined === 10);
+      assert.ok(againstActive, "claim is active qty 7, not agreed qty 4: 3+7=10");
+      assert.equal(againstActive.stock, 6);
+      assert.equal(againstActive.requested, 3);
+
       return pass(
         "BS-023",
-        "stock=6 A=4 B=3 combined=7 at OFFER_CREATION; both STABLE; no Allocation",
-        `STABLE+STABLE first=${first.detectedAt} stock=${first.stock} combined=${first.combined} detections=${w.stockConflicts.length}`,
+        "stock=6 A=4 B=3 combined=7 at OFFER_CREATION; both STABLE; claim follows active Offer (3+7=10)",
+        `STABLE+STABLE first=${first.detectedAt} stock=${first.stock} combined=${first.combined} detections=${w.stockConflicts.length}; later activeClaim combined=${againstActive.combined}`,
         "I-025"
       );
     })
@@ -887,7 +922,7 @@ export function formatResults(rows: ScenarioResult[]): string {
     "",
     "**Status:** Evidence from TZ-BASKET-001…004 mock run  ",
     "**Experiment version:** v0.1  ",
-    "**Model version:** v0.1.3 (expired accept forbidden; rejected flag removed; stronger BS-023/028)",
+    "**Model version:** v0.1.4 (stock claim = active Offer; 28 scenarios exercised)",
     "",
     "## How to read results",
     "",
@@ -895,6 +930,7 @@ export function formatResults(rows: ScenarioResult[]): string {
     "- **Domain `CONFIRMED`** — the scenario closes or supports a domain hypothesis.",
     "- **Domain `OPEN`** — implementation is deterministic, but the business semantics are still an open question (see `openQuestion`).",
     "- Do not treat Impl PASS as confirmation of an unresolved OQ.",
+    "- All 28 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped.",
     "",
     "## Purpose",
     "",
@@ -925,7 +961,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   }
   lines.push("## Final decision", "");
   lines.push("```text");
-  lines.push("Model version: v0.1.3");
+  lines.push("Model version: v0.1.4");
   lines.push("Status: experiment implemented; production architecture not started");
   lines.push("");
   lines.push("Changes in this PR (already implemented and tested):");
@@ -935,6 +971,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("- OQ-006 / OQ-008 closed");
   lines.push("- PartialAvailabilitySeller offers min(requested, stock)");
   lines.push("- Stock race records combined claims (stock=6, A→4, B→3) at OFFER_CREATION");
+  lines.push("- stock claim = active Offer quantity, not agreed-when-present");
   lines.push("- removed duplicate SellerPurchase.rejected; REJECTED is FSM status only");
   lines.push("");
   lines.push("Still open after this experiment (future domain work, not blockers for TZ-001…004):");

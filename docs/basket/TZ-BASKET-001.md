@@ -233,13 +233,13 @@ STABLE =
 
 Поведенческий actor, не production seller service. Минимум профилей: Cooperative, Negotiating, TimeDiscount, Substitution, Slow, PartialAvailability.
 
-Детерминированный запуск: контролируемое время, фиксированные решения, цены, availability. Не вводить автоматически `SELLER_UNRESPONSIVE`. Stock race не решать скрытой allocation.
+Детерминированный запуск: контролируемое время, фиксированные решения, цены, availability. Не вводить автоматически `SELLER_UNRESPONSIVE`. Stock race не решать скрытой allocation. Claim для stock-conflict = quantity **active** Offer, не agreed. `PartialAvailabilitySeller` смотрит только catalog stock; competing claims / allocation вне эксперимента.
 
 ---
 
 ## 27–28. Breaking / acceptance scenarios
 
-Автоматизировать минимум: BS-001…028. BS-017: принимать можно только active Offer (I-027). BS-012: просроченный Offer нельзя принять (I-028). BS-019: Resolution до разбиения по продавцам, не per-seller product. BS-023: stock=6, A=4, B=3, combined=7, `detectedAt=OFFER_CREATION`, оба STABLE, без Allocation; `stockConflicts` — лог обнаружений. BS-028: `activeOffer` и `agreedOffer` quantity === 5, не только STABLE.
+Автоматизировать минимум: BS-001…028 (programmatically exercised; Domain OPEN не значит «не гонялся»). BS-017: принимать можно только active Offer (I-027). BS-012: просроченный Offer нельзя принять (I-028). BS-019: Resolution до разбиения по продавцам, не per-seller product. BS-023: stock=6, A=4, B=3, combined=7, `detectedAt=OFFER_CREATION`, оба STABLE, без Allocation; `stockConflicts` — лог обнаружений; claim = active Offer (agreed=4 + active=7 → B's 3 combines as 10). BS-028: `activeOffer` и `agreedOffer` quantity === 5, не только STABLE.
 
 Обязательные приёмочные: Independent sellers; SYSTEM price drop; Alternatives; Expensive alternative (без скрытой ценовой логики); Stock race (точка конфликта, не allocation); Expiration; Silence; Partial fulfillment; Snapshot; Accepted+new Offer; Partial availability before STABLE.
 

@@ -79,6 +79,8 @@ Purchase B → 3 kg
 
 Each request is individually within stock; together they are not. Record the first layer where the combined claim is detected (Offer creation, Acceptance, STABLE or fulfillment). Do not solve allocation in this experiment.
 
+For stock-conflict detection, a claim is the quantity represented by the SellerPurchase's current active commercial proposal.
+
 ## BS-012 — Offer Expiration
 
 Offer expires while SellerPurchase remains.
@@ -141,6 +143,8 @@ Expired Offer plus no new seller response. Determine whether this is waiting, ex
 
 Same race as BS-011 (`stock=6`, A→4, B→3). Both SellerPurchases may still become STABLE. `stockConflicts` is a **detection-event log** (the same race may be recorded at OFFER_CREATION, ACCEPTANCE and STABLE). Do not introduce GUARANTEED/Reservation/Allocation. Assertions must prove stock=6, combined=7, first checkpoint OFFER_CREATION, and independent STABLE.
 
+Claim = active Offer quantity. If A has agreed=4 and a newer active=7, B's 3 combines as 3+7=10, not 3+4=7.
+
 ## BS-024 — Accepted Offer Followed by New Offer
 
 Expected:
@@ -165,3 +169,5 @@ Expose Resolution policy explicitly.
 ## BS-028 — Partial Availability Before STABLE
 
 `PartialAvailabilitySeller` offers the in-stock quantity (e.g. 5 kg) instead of the requested 20 kg. Buyer may accept that reduced Offer; STABLE is possible on the reduced agreement. Assert `activeOffer.items[0].quantity === 5` and `agreedOffer.items[0].quantity === 5`, not only `status === STABLE`. The case «agreed 20 / actual 5» is BS-014 (`mockFulfill`), not this profile.
+
+`PartialAvailabilitySeller` observes catalog stock only; cross-purchase allocation is outside this experiment.

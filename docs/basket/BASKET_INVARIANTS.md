@@ -57,5 +57,5 @@ Offer expiration is three separate things:
 ## Boundaries
 
 - **I-024:** Fulfilled quantity is outside the central current Basket model.
-- **I-025:** Payment/Reservation/Allocation/Delivery are not introduced merely to solve current scenarios. Concurrent over-claim is recorded as `stockConflicts` **detection events** (same race may appear at several checkpoints); it is not an Allocation entity.
+- **I-025:** Payment/Reservation/Allocation/Delivery are not introduced merely to solve current scenarios. Concurrent over-claim is recorded as `stockConflicts` **detection events** (same race may appear at several checkpoints); it is not an Allocation entity. For detection, a claim is the quantity on the SellerPurchase's **active** commercial proposal.
 - **I-026:** New FSM states require experimental evidence.

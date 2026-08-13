@@ -274,11 +274,15 @@ STABLE does not mean payment, reservation, delivery, guaranteed physical availab
 
 `stockConflicts` is a **detection-event log**, not a unique conflict state. The same race (e.g. stock=6, A→4, B→3, combined=7) may be recorded at `OFFER_CREATION`, `ACCEPTANCE` and `STABLE`. Multiple rows for one race are expected. There is no Allocation/Reservation in this experiment.
 
+For stock-conflict detection, a **claim** is the quantity represented by the SellerPurchase's current **active** commercial proposal (`activeOfferId`). `agreedOfferId` is not used as the claim when a newer active Offer exists.
+
 ## Experimental SellerPurchase states
 
 Initial candidates:
 
 `DRAFT | NEGOTIATING | WAITING_SELLER | WAITING_BUYER | STABLE | REJECTED | CANCELLED | EXPIRED`
+
+`EXPIRED` is reserved in the experimental enum; the clock does **not** enter it automatically. Expiration is a derived Offer fact (`isOfferValid`). Whether it should be a lifecycle state is OQ-009 / OQ-011 — not closed here.
 
 States must be added only when evidence requires them.
 
