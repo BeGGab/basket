@@ -3,13 +3,13 @@
 **Проект:** GreenMarket  
 **Основание:** ТЗ-BASKET-001, пояснение владельца задачи (очередность ТЗ-001 → 002 → 003 → 004+)  
 **Приёмка:** программные сценарии, без обязательного UI  
-**Статус:** Draft for implementation
+**Статус:** Implemented
 
 ## Цель
 
 Собрать поверх доменного эксперимента ТЗ-001 **runtime симуляции**: акторы (Buyer Emulator + Seller Emulator) живут в одном детерминированном цикле, переходы SellerPurchase идут через явную FSM, сценарии описываются декларативно (Scenario Engine), а не только императивными тестами.
 
-Вопрос этого PR: «Можно ли прогнать закупку как симуляцию акторов с воспроизводимым FSM, не подключая человека и не трогая production UI?»
+Вопрос этого PR: «Можно ли прогнать закупку как симуляцию акторов с воспроизводимым FSM, программно и детерминированно, не трогая production UI?»
 
 ## Контур
 
@@ -73,10 +73,10 @@ Purchase-level статус по-прежнему **производный** (I-
 
 ## Критерии приёмки
 
-- [ ] эксперимент по-прежнему изолирован (`experiments/basket/`)
-- [ ] ТЗ-001 suite не сломан
-- [ ] минимум один breaking-сценарий (happy-path STABLE + TIME_DISCOUNT + snapshot) прогоняется через Scenario Engine
-- [ ] Buyer Emulator и Seller Emulator вызываются runtime, а не копипастой в тесте
-- [ ] FSM отклоняет REJECTED → STABLE
-- [ ] tick при SlowSeller не создаёт состояние EXPIRED
-- [ ] UI не требуется для приёмки
+- [x] эксперимент по-прежнему изолирован (`experiments/basket/`)
+- [x] ТЗ-001 suite не сломан
+- [x] минимум один breaking-сценарий (happy-path STABLE + TIME_DISCOUNT + snapshot) прогоняется через Scenario Engine
+- [x] Buyer Emulator и Seller Emulator вызываются runtime, а не копипастой в тесте
+- [x] FSM отклоняет REJECTED → STABLE
+- [x] tick при SlowSeller не создаёт состояние EXPIRED
+- [x] UI не требуется для приёмки

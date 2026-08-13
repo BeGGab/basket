@@ -2,7 +2,7 @@
 
 **Status:** Evidence from TZ-BASKET-001 mock run  
 **Experiment version:** v0.1  
-**Model version:** v0.1 (unchanged)
+**Model version:** v0.1.1 (OQ-006 / OQ-008 closed)
 
 ## Purpose
 
@@ -28,9 +28,9 @@ Record evidence from the mock domain and seller emulator.
 | BS-014 | PASS | none | keep v0.1 |
 | BS-015 | PASS | none | keep v0.1 |
 | BS-016 | PASS | none | keep v0.1 |
-| BS-017 | OPEN | none yet | leave to OQ-008 |
+| BS-017 | PASS | none | close OQ-008: only active Offer is acceptable |
 | BS-018 | PASS | none | keep v0.1 |
-| BS-019 | OPEN | none yet | leave to OQ-006 |
+| BS-019 | PASS | none | close OQ-006: Resolution before seller partitioning |
 | BS-020 | PASS | none | keep v0.1 |
 | BS-021 | PASS | none | keep v0.1 |
 | BS-022 | PASS | none | keep v0.1 |
@@ -203,15 +203,15 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: keep v0.1
 
-### BS-017 — OPEN
+### BS-017 — PASS
 
-- Expected: Policy: may buyer accept an older Offer after a newer one exists?
-- Actual: not automated — exploratory (TZ §27)
-- Invariant: I-009 I-010
-- Model violation: none yet
-- New concept: possibly explicit accept-previous rule
+- Expected: Older Offer cannot be accepted once a newer Offer is active; history stays immutable
+- Actual: rejected offer-5; agreed=offer-6
+- Invariant: I-007 I-011 I-027
+- Model violation: none
+- New concept: none
 - Workaround: none
-- Decision: leave to OQ-008
+- Decision: close OQ-008: only active Offer is acceptable
 
 ### BS-018 — PASS
 
@@ -223,15 +223,15 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: keep v0.1
 
-### BS-019 — OPEN
+### BS-019 — PASS
 
-- Expected: Resolution vs seller partitioning order
-- Actual: not automated — exploratory (TZ §27)
+- Expected: Resolution is catalog-global and precedes partitioning; not per-seller product choice
+- Actual: A=black_bread B=black_bread kind=PRIMARY
 - Invariant: I-015
-- Model violation: none yet
-- New concept: possibly seller-aware Resolution
+- Model violation: none
+- New concept: none
 - Workaround: none
-- Decision: leave to OQ-006
+- Decision: close OQ-006: Resolution before seller partitioning
 
 ### BS-020 — PASS
 
@@ -326,9 +326,10 @@ Record evidence from the mock domain and seller emulator.
 ## Final decision
 
 ```text
-Model version: v0.1
+Model version: v0.1.1
 Status: experiment implemented; production architecture not started
-Open questions: OQ-002, OQ-006, OQ-008, OQ-009, OQ-011, OQ-012
-Required model changes: none in this PR
-Recommended next step: TZ-002 Actor / Simulation Runtime
+Open questions: OQ-002, OQ-009, OQ-011, OQ-012
+Closed this run: OQ-006 (resolution before partition), OQ-008 (active Offer only)
+Required model changes: acceptOffer rejects non-active Offers (I-027)
+Recommended next step: none in the TZ-BASKET-001…004 ladder
 ```

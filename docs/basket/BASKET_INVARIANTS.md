@@ -18,6 +18,7 @@
 - **I-009:** Unaccepted Offer cannot become agreed state.
 - **I-010:** agreedOfferId references an immutable Offer.
 - **I-011:** If activeOfferId exists, it references a currently applicable Offer.
+- **I-027:** Only the active Offer may be accepted. Older Offers remain historical facts; a rollback is a new Offer.
 
 ## Substitution
 

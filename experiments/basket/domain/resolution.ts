@@ -26,7 +26,9 @@ export function cheapestAvailable(catalog: ProductCatalog, productId: string): C
 }
 
 /**
- * Resolution is independent of SellerPurchase negotiation.
+ * Resolution is independent of SellerPurchase negotiation and runs *before*
+ * seller partitioning (OQ-006 / I-015): one ListItem → one productId for the
+ * whole Purchase. Availability is catalog-global (any seller with stock).
  * Price is NOT used as a hidden threshold — expensive alternatives still resolve if available.
  */
 export function resolve(item: ListItem, policy: ResolutionPolicy, catalog: ProductCatalog): ResolutionResult {
