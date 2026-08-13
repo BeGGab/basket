@@ -72,12 +72,12 @@ Primary unavailable; alternative exists but is far above referencePrice. Expose 
 ## BS-011 — Stock Race
 
 ```text
-Stock = 10 kg
-Purchase A → 20 kg
-Purchase B → 20 kg
+Stock = 6 kg
+Purchase A → 4 kg
+Purchase B → 3 kg
 ```
 
-Determine whether conflict appears at Offer creation, Acceptance, STABLE or fulfillment. Do not solve allocation in this experiment.
+Each request is individually within stock; together they are not. Record the first layer where the combined claim is detected (Offer creation, Acceptance, STABLE or fulfillment). Do not solve allocation in this experiment.
 
 ## BS-012 — Offer Expiration
 
@@ -139,7 +139,7 @@ Expired Offer plus no new seller response. Determine whether this is waiting, ex
 
 ## BS-023 — Conflicting Full Promises
 
-Two SellerPurchases appear to promise the same limited stock. Do not introduce GUARANTEED/Reservation/Allocation automatically; record the boundary.
+Same race as BS-011 (`stock=6`, A→4, B→3). Both SellerPurchases may still become STABLE. Do not introduce GUARANTEED/Reservation/Allocation; record the combined-claim conflict.
 
 ## BS-024 — Accepted Offer Followed by New Offer
 
@@ -164,4 +164,4 @@ Expose Resolution policy explicitly.
 
 ## BS-028 — Partial Availability Before STABLE
 
-Seller can provide 5 kg while buyer agrees to 20 kg with partial fulfillment allowed. STABLE must remain possible.
+`PartialAvailabilitySeller` offers the in-stock quantity (e.g. 5 kg) instead of the requested 20 kg. Buyer may accept that reduced Offer; STABLE is possible on the reduced agreement. The case «agreed 20 / actual 5» is BS-014 (`mockFulfill`), not this profile.

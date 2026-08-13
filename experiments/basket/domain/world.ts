@@ -347,17 +347,37 @@ export class BasketWorld {
     }
   }
 
+  private claimedByOthers(sp: SellerPurchase, productId: string): number {
+    let sum = 0;
+    for (const other of this.sellerPurchases.values()) {
+      if (other.id === sp.id || other.sellerId !== sp.sellerId || other.rejected) continue;
+      const offer = other.agreedOfferId
+        ? this.requireOffer(other.agreedOfferId)
+        : other.activeOfferId
+          ? this.requireOffer(other.activeOfferId)
+          : null;
+      if (!offer) continue;
+      for (const item of offer.items) {
+        if (item.productId === productId) sum += item.quantity;
+      }
+    }
+    return sum;
+  }
+
   private recordStockConflict(sp: SellerPurchase, offer: Offer | null, point: StockConflict["detectedAt"]): void {
     const items = offer?.items ?? sp.items;
     for (const item of items) {
       const stock = this.catalog.availability
         .filter((row) => row.sellerId === sp.sellerId && row.productId === item.productId)
         .reduce((sum, row) => sum + row.stock, 0);
-      if (item.quantity > stock) {
+      const competing = this.claimedByOthers(sp, item.productId);
+      const combined = item.quantity + competing;
+      if (combined > stock) {
         this.stockConflicts.push({
           productId: item.productId,
           stock,
           requested: item.quantity,
+          combined,
           detectedAt: point,
           purchaseId: sp.purchaseId,
         });

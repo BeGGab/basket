@@ -130,6 +130,8 @@ export interface StockConflict {
   productId: string;
   stock: number;
   requested: number;
+  /** Sum of this request plus claims from other SellerPurchases of the same seller/product. */
+  combined: number;
   detectedAt: StockConflictPoint;
   purchaseId: string;
 }

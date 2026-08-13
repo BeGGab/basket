@@ -38,11 +38,7 @@ export function SimulationScreenView() {
   }
 
   function act(fn: () => void) {
-    try {
-      fn();
-    } catch (err) {
-      player.error = err instanceof Error ? err.message : String(err);
-    }
+    player.run(fn);
     bump();
   }
 

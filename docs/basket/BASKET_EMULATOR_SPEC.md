@@ -73,17 +73,17 @@ Seller C → Slow
 
 ## Concurrency
 
-The emulator must reproduce:
+The emulator must reproduce a true race, where each claim is individually within stock but the combination is not:
 
 ```text
-Stock = 10 kg
-Purchase A → 20 kg
-Purchase B → 20 kg
+Stock = 6 kg
+Purchase A → 4 kg
+Purchase B → 3 kg
 ```
 
 without silently solving allocation.
 
-It must expose where conflict is detected.
+It must expose the first layer at which combined claims exceed stock (Offer creation, Acceptance, STABLE or fulfillment).
 
 ## Observation
 

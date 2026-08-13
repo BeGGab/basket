@@ -6,7 +6,9 @@ import { resolve } from "../domain/resolution";
 
 export type ScenarioResult = {
   id: string;
-  result: "PASS" | "FAIL" | "MODEL GAP" | "WORKAROUND" | "OPEN";
+  result: "PASS" | "FAIL" | "MODEL GAP" | "WORKAROUND";
+  hypothesis: "CONFIRMED" | "OPEN";
+  openQuestion: string;
   expected: string;
   actual: string;
   invariant: string;
@@ -46,10 +48,20 @@ function tomatoes(qty: number, price: number): PurchaseItem[] {
   return [{ productId: "tomatoes", quantity: qty, unit: "kg", price }];
 }
 
-function pass(id: string, expected: string, actual: string, invariant: string, decision = "keep v0.1"): ScenarioResult {
+function pass(
+  id: string,
+  expected: string,
+  actual: string,
+  invariant: string,
+  decision = "keep v0.1",
+  hypothesis: "CONFIRMED" | "OPEN" = "CONFIRMED",
+  openQuestion = "none"
+): ScenarioResult {
   return {
     id,
     result: "PASS",
+    hypothesis,
+    openQuestion,
     expected,
     actual,
     invariant,
@@ -67,6 +79,8 @@ function run(id: string, fn: () => ScenarioResult): ScenarioResult {
     return {
       id,
       result: "FAIL",
+      hypothesis: "OPEN",
+      openQuestion: "n/a",
       expected: "scenario completes",
       actual: err instanceof Error ? err.message : String(err),
       invariant: "n/a",
@@ -289,41 +303,51 @@ export function runAllScenarios(): ScenarioResult[] {
         "BS-010",
         "Expensive alternative still selected; no hidden price threshold",
         `${result.productId} price=999 vs referencePrice=10`,
-        "I-014; OQ-002 OPEN"
+        "I-014",
+        "keep v0.1",
+        "OPEN",
+        "OQ-002"
       );
     })
   );
 
   results.push(
     run("BS-011", () => {
-      const tight: ProductCatalog = {
+      const race: ProductCatalog = {
         names: { tomatoes: "Tomatoes" },
-        availability: [{ sellerId: "seller-a", productId: "tomatoes", quantity: 20, unit: "kg", price: 15, stock: 10 }],
+        availability: [{ sellerId: "seller-a", productId: "tomatoes", quantity: 6, unit: "kg", price: 15, stock: 6 }],
       };
       const w = new BasketWorld();
-      w.setCatalog(tight);
-      const list = w.createList("race");
-      w.addItem(list.id, { productId: "tomatoes", quantity: 20, unit: "kg", alternatives: [] });
-      const pa = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]);
-      const pb = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]);
+      w.setCatalog(race);
+      const listA = w.createList("race-a");
+      w.addItem(listA.id, { productId: "tomatoes", quantity: 4, unit: "kg", alternatives: [] });
+      const listB = w.createList("race-b");
+      w.addItem(listB.id, { productId: "tomatoes", quantity: 3, unit: "kg", alternatives: [] });
+      const pa = w.createPurchaseFromList(listA.id, "PRIMARY_ONLY", ["seller-a"]);
+      const pb = w.createPurchaseFromList(listB.id, "PRIMARY_ONLY", ["seller-a"]);
       w.proposeOffer({
         sellerPurchaseId: pa.sellerPurchaseIds[0],
         actor: "BUYER",
-        items: tomatoes(20, 15),
+        items: tomatoes(4, 15),
         reason: "BUYER_CHANGE",
       });
+      assert.equal(w.stockConflicts.length, 0, "4 kg alone is within stock=6");
       w.proposeOffer({
         sellerPurchaseId: pb.sellerPurchaseIds[0],
         actor: "BUYER",
-        items: tomatoes(20, 15),
+        items: tomatoes(3, 15),
         reason: "BUYER_CHANGE",
       });
-      assert.ok(w.stockConflicts.some((c) => c.detectedAt === "OFFER_CREATION"));
+      const first = w.stockConflicts[0];
+      assert.ok(first, "4+3 exceeds stock=6");
+      assert.equal(first.detectedAt, "OFFER_CREATION");
+      assert.equal(first.combined, 7);
+      assert.equal(first.stock, 6);
       assert.equal(w.purchases.size, 2);
       return pass(
         "BS-011",
-        "Conflict observed at Offer creation; no allocation",
-        `conflicts=${w.stockConflicts.length} detectedAt=OFFER_CREATION`,
+        "True race stock=6 A→4 B→3: first conflict at second Offer creation; no allocation",
+        `first=${first.detectedAt} combined=${first.combined} vs stock=${first.stock}`,
         "I-025"
       );
     })
@@ -348,7 +372,15 @@ export function runAllScenarios(): ScenarioResult[] {
       assert.equal(w.isOfferValid(offer), false);
       assert.notEqual(w.requireSp(sp).status, "EXPIRED");
       assert.ok(w.sellerPurchases.has(sp));
-      return pass("BS-012", "Offer expires; SellerPurchase remains (not auto-EXPIRED)", w.requireSp(sp).status, "I-011 I-026");
+      return pass(
+        "BS-012",
+        "Offer expires; SellerPurchase remains (not auto-EXPIRED)",
+        w.requireSp(sp).status,
+        "I-026",
+        "keep v0.1",
+        "OPEN",
+        "OQ-009"
+      );
     })
   );
 
@@ -367,7 +399,15 @@ export function runAllScenarios(): ScenarioResult[] {
       assert.ok(s.waitingSince);
       assert.notEqual(s.status, "REJECTED");
       assert.notEqual(s.status, "EXPIRED");
-      return pass("BS-013", "Silence recorded as waitingSince, not new FSM state", `${s.status} waitingSince=${s.waitingSince}`, "I-026 OQ-012");
+      return pass(
+        "BS-013",
+        "Silence recorded as waitingSince, not new FSM state",
+        `${s.status} waitingSince=${s.waitingSince}`,
+        "I-026",
+        "keep v0.1",
+        "OPEN",
+        "OQ-012"
+      );
     })
   );
 
@@ -505,43 +545,53 @@ export function runAllScenarios(): ScenarioResult[] {
       assert.equal(w.requireSp(sp).activeOfferId, neu.id);
       assert.equal(w.isOfferValid(old), false);
       assert.equal(w.isOfferValid(neu), true);
-      return pass("BS-021", "activeOfferId points at currently applicable Offer", `${old.id} expired; active=${neu.id}`, "I-011; OQ-009 OPEN");
+      return pass(
+        "BS-021",
+        "activeOfferId points at currently applicable Offer",
+        `${old.id} expired; active=${neu.id}`,
+        "I-011",
+        "keep v0.1",
+        "OPEN",
+        "OQ-009"
+      );
     })
   );
 
   results.push(
     run("BS-023", () => {
-      const tight: ProductCatalog = {
+      const race: ProductCatalog = {
         names: { tomatoes: "Tomatoes" },
-        availability: [{ sellerId: "seller-a", productId: "tomatoes", quantity: 20, unit: "kg", price: 15, stock: 10 }],
+        availability: [{ sellerId: "seller-a", productId: "tomatoes", quantity: 6, unit: "kg", price: 15, stock: 6 }],
       };
       const w = new BasketWorld();
-      w.setCatalog(tight);
-      const list = w.createList("prom");
-      w.addItem(list.id, { productId: "tomatoes", quantity: 20, unit: "kg", alternatives: [] });
-      const p1 = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]);
-      const p2 = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]);
+      w.setCatalog(race);
+      const listA = w.createList("prom-a");
+      w.addItem(listA.id, { productId: "tomatoes", quantity: 4, unit: "kg", alternatives: [] });
+      const listB = w.createList("prom-b");
+      w.addItem(listB.id, { productId: "tomatoes", quantity: 3, unit: "kg", alternatives: [] });
+      const p1 = w.createPurchaseFromList(listA.id, "PRIMARY_ONLY", ["seller-a"]);
+      const p2 = w.createPurchaseFromList(listB.id, "PRIMARY_ONLY", ["seller-a"]);
       const o1 = w.proposeOffer({
         sellerPurchaseId: p1.sellerPurchaseIds[0],
         actor: "SELLER",
-        items: tomatoes(20, 15),
+        items: tomatoes(4, 15),
         reason: "SELLER_COUNTEROFFER",
       });
       const o2 = w.proposeOffer({
         sellerPurchaseId: p2.sellerPurchaseIds[0],
         actor: "SELLER",
-        items: tomatoes(20, 15),
+        items: tomatoes(3, 15),
         reason: "SELLER_COUNTEROFFER",
       });
       w.acceptOffer(o1.id, "BUYER");
       w.acceptOffer(o2.id, "BUYER");
       assert.equal(w.requireSp(p1.sellerPurchaseIds[0]).status, "STABLE");
       assert.equal(w.requireSp(p2.sellerPurchaseIds[0]).status, "STABLE");
-      assert.ok(w.stockConflicts.length > 0);
+      assert.ok(w.stockConflicts.some((c) => c.combined > c.stock));
       return pass(
         "BS-023",
-        "Both can STABLE; conflict recorded; no Reservation/Allocation",
-        `both STABLE, conflicts=${w.stockConflicts.length}`,
+        "Both STABLE on stock=6 with 4+3 claims; conflict recorded; no Reservation/Allocation",
+        `both STABLE, conflicts=${w.stockConflicts.length} first=${w.stockConflicts[0]?.detectedAt}`,
         "I-025"
       );
     })
@@ -639,7 +689,10 @@ export function runAllScenarios(): ScenarioResult[] {
         "BS-027",
         "FIRST_AVAILABLE picks expensive alt; ASK_BUYER does not auto-pick",
         `FIRST=${first.kind} ASK_BUYER decision=${ask.requiresBuyerDecision}`,
-        "OQ-001 OPEN"
+        "I-014",
+        "keep v0.1",
+        "OPEN",
+        "OQ-001"
       );
     })
   );
@@ -661,9 +714,10 @@ export function runAllScenarios(): ScenarioResult[] {
       emu.respondToBuyerOffer(w, sp, tomatoes(20, 15));
       const offer = w.lastOffer(sp, "SELLER")!;
       w.acceptOffer(offer.id, "BUYER");
+      assert.equal(offer.items[0].quantity, 5);
       assert.equal(w.requireSp(sp).status, "STABLE");
-      assert.equal(w.requireSp(sp).items[0].quantity, 20);
-      return pass("BS-028", "available=5 agreed=20 still STABLE", w.requireSp(sp).status, "I-017 I-018");
+      assert.equal(w.requireSp(sp).items[0].quantity, 5);
+      return pass("BS-028", "PartialAvailabilitySeller offers 5 kg of requested 20; STABLE agreed=5", w.requireSp(sp).status, "I-017");
     })
   );
 
@@ -775,7 +829,10 @@ export function runAllScenarios(): ScenarioResult[] {
         "BS-022",
         "Expired offer + silence is waiting facts, not auto EXPIRED state",
         `${s.status} offerValid=false`,
-        "OQ-011 OPEN"
+        "I-026",
+        "keep v0.1",
+        "OPEN",
+        "OQ-011"
       );
     })
   );
@@ -787,9 +844,16 @@ export function formatResults(rows: ScenarioResult[]): string {
   const lines = [
     "# GreenMarket — Basket Experiment Results",
     "",
-    "**Status:** Evidence from TZ-BASKET-001 mock run  ",
+    "**Status:** Evidence from TZ-BASKET-001…004 mock run  ",
     "**Experiment version:** v0.1  ",
-    "**Model version:** v0.1.1 (OQ-006 / OQ-008 closed)",
+    "**Model version:** v0.1.2 (review: partial availability, concurrent stock race, Impl vs Domain)",
+    "",
+    "## How to read results",
+    "",
+    "- **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).",
+    "- **Domain `CONFIRMED`** — the scenario closes or supports a domain hypothesis.",
+    "- **Domain `OPEN`** — implementation is deterministic, but the business semantics are still an open question (see `openQuestion`).",
+    "- Do not treat Impl PASS as confirmation of an unresolved OQ.",
     "",
     "## Purpose",
     "",
@@ -797,18 +861,22 @@ export function formatResults(rows: ScenarioResult[]): string {
     "",
     "## Scenario results",
     "",
-    "| Scenario | Result | Model issue | Decision |",
-    "|---|---|---|---|",
+    "| Scenario | Impl | Domain | Model issue | Decision |",
+    "|---|---|---|---|---|",
   ];
   for (const row of rows.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))) {
-    lines.push(`| ${row.id} | ${row.result} | ${row.modelViolation} | ${row.decision} |`);
+    const domain = row.hypothesis === "OPEN" ? `OPEN (${row.openQuestion})` : "CONFIRMED";
+    lines.push(`| ${row.id} | ${row.result} | ${domain} | ${row.modelViolation} | ${row.decision} |`);
   }
   lines.push("", "## Scenario records", "");
   for (const row of rows.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))) {
-    lines.push(`### ${row.id} — ${row.result}`, "");
+    const domain = row.hypothesis === "OPEN" ? `OPEN (${row.openQuestion})` : "CONFIRMED";
+    lines.push(`### ${row.id} — Impl ${row.result} / Domain ${domain}`, "");
     lines.push(`- Expected: ${row.expected}`);
     lines.push(`- Actual: ${row.actual}`);
     lines.push(`- Invariant: ${row.invariant}`);
+    lines.push(`- Hypothesis: ${row.hypothesis}`);
+    lines.push(`- Open question: ${row.openQuestion}`);
     lines.push(`- Model violation: ${row.modelViolation}`);
     lines.push(`- New concept: ${row.newConcept}`);
     lines.push(`- Workaround: ${row.workaround}`);
@@ -816,11 +884,11 @@ export function formatResults(rows: ScenarioResult[]): string {
   }
   lines.push("## Final decision", "");
   lines.push("```text");
-  lines.push("Model version: v0.1.1");
+  lines.push("Model version: v0.1.2");
   lines.push("Status: experiment implemented; production architecture not started");
-  lines.push("Open questions: OQ-002, OQ-009, OQ-011, OQ-012");
-  lines.push("Closed this run: OQ-006 (resolution before partition), OQ-008 (active Offer only)");
-  lines.push("Required model changes: acceptOffer rejects non-active Offers (I-027)");
+  lines.push("Open questions: OQ-001, OQ-002, OQ-009, OQ-011, OQ-012");
+  lines.push("Closed this run: OQ-006, OQ-007 (activeOfferId is required projection), OQ-008");
+  lines.push("Required model changes: acceptOffer rejects non-active Offers (I-027); PartialAvailabilitySeller reduces qty; stock race sums concurrent claims");
   lines.push("Recommended next step: none in the TZ-BASKET-001…004 ladder");
   lines.push("```");
   lines.push("");

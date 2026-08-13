@@ -58,10 +58,16 @@ export function createSellerEmulator(sellerId: string, profile: SellerProfileNam
       }
 
       if (profile === "PartialAvailabilitySeller") {
+        const reduced = buyerOfferItems.map((item) => {
+          const stock = world.catalog.availability
+            .filter((row) => row.sellerId === sellerId && row.productId === item.productId)
+            .reduce((sum, row) => sum + row.stock, 0);
+          return { ...item, quantity: Math.min(item.quantity, Math.max(0, stock)) };
+        });
         world.proposeOffer({
           sellerPurchaseId,
           actor: "SELLER",
-          items: buyerOfferItems.map((item) => ({ ...item })),
+          items: reduced,
           reason: "AVAILABILITY_CHANGE",
         });
         return;
