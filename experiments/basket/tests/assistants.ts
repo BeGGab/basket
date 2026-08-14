@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { adviseBuyer, adviseSeller, applyAdvice, captureAdviceBasis, catalogReferencePrice } from "../assistants";
 import { BasketWorld } from "../domain/world";
+import { DEMO_SCENARIOS } from "../runtime/demos";
+import { runScenario } from "../runtime/engine";
+import { SimulationRuntime } from "../runtime/simulation";
 
 function tomatoesWorld(): { world: BasketWorld; spId: string } {
   const world = new BasketWorld();
@@ -284,6 +287,44 @@ export function runTz004(): void {
       }),
     /invalid command/
   );
+
+  // --- TZ004 demo scenarios: assertions run inside the scenarios; here we also check that every
+  //     assistantApply executed exactly the advice that was displayed for the same SellerPurchase. ---
+  for (const scenario of DEMO_SCENARIOS.filter((item) => item.name.startsWith("TZ004-"))) {
+    const runtime = runScenario(scenario);
+    const adviceEvents = runtime.events.filter((event) => event.event === "assistantAdvice");
+    const applyEvents = runtime.events.filter((event) => event.event === "assistantApply");
+    assert.ok(adviceEvents.length > 0, `${scenario.name} missing assistantAdvice`);
+    assert.ok(applyEvents.length > 0, `${scenario.name} missing assistantApply`);
+    for (const applied of applyEvents) {
+      const kind = applied.input.split(" ")[1];
+      assert.ok(
+        adviceEvents.some(
+          (event) => event.sellerPurchaseId === applied.sellerPurchaseId && event.result.startsWith(`${kind}:`)
+        ),
+        `${scenario.name}: applied ${applied.input} without a matching displayed advice`
+      );
+    }
+  }
+
+  // --- Runtime and UI share one execution path (applyDisplayedAdvice). ---
+  const runtime = new SimulationRuntime();
+  runtime.setCatalog({
+    names: { tomatoes: "Tomatoes" },
+    availability: [{ sellerId: "seller-a", productId: "tomatoes", quantity: 2, unit: "kg", price: 15, stock: 100 }],
+  });
+  const list = runtime.world.createList("rt");
+  runtime.world.addItem(list.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+  const purchase = runtime.world.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]);
+  const spId = purchase.sellerPurchaseIds[0];
+  runtime.world.proposeOffer({
+    sellerPurchaseId: spId,
+    actor: "BUYER",
+    items: [{ productId: "tomatoes", quantity: 2, unit: "kg", price: 15 }],
+    reason: "BUYER_CHANGE",
+  });
+  runtime.applySellerAdvice(spId);
+  assert.equal(runtime.world.requireSp(spId).status, "STABLE");
 
   // --- Staleness: pointer change. ---
   const stale = tomatoesWorld();
