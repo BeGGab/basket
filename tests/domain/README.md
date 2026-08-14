@@ -1,0 +1,29 @@
+# Executable domain scenarios
+
+Reserved location for domain-level executable scenarios of
+[`docs/domain/GREENMARKET_DOMAIN_SPEC.md`](../../docs/domain/GREENMARKET_DOMAIN_SPEC.md).
+
+Do **not** migrate the whole specification here. New confirmed rules get a scenario as they appear.
+Until a dedicated runner lives in this folder, the Stage 1 basket experiment is the executable
+evidence:
+
+```
+npx tsx experiments/basket/tests/run.ts
+```
+
+## Mapping (SPEC §44 → current tests)
+
+| Scenario id | Rule | Current evidence |
+| --- | --- | --- |
+| `CATALOG-UNIT-001` | same product + different unit → independent catalog lines | `experiments/basket/tests/run.ts` unit-aware resolution (kg ListItem vs pcs catalog → `UNAVAILABLE`) |
+| `PURCHASE-ITEM-UNIT-001` | same product + different unit → independent PurchaseItems | `run.ts` two-units SellerPurchase (`kg` + `pcs` both kept) |
+| `CATALOG-AMBIGUOUS-001` | same seller+product+unit, different prices → ambiguous | `run.ts` `AMBIGUOUS_PRICE` (no SellerPurchase; array order is not a price policy) |
+| `STOCK-UNIT-001` | same product + different units → independent stock lines | `run.ts` PartialAvailabilitySeller: kg stock=2, pcs stock=100, 5 kg request → offer 2 kg |
+| `STOCK-RACE-001` | stock=6, A=4, B=3 → conflict detected, no allocation | `experiments/basket/tests/scenarios.ts` BS-011 / BS-023 |
+| `ADVICE-STALE-OFFER-001` | same Offer id + changed content → stale | `experiments/basket/tests/assistants.ts` basis fingerprint |
+| `ADVICE-STALE-TIME-001` | Advice → clock advances → apply → stale | `assistants.ts` time-race |
+| `COUNTER-MULTI-001` | multi-item counter → every line validated | `experiments/basket/runtime/demos.ts` `TZ004-MULTI-COUNTER` |
+| `PARTIAL-FULFILLMENT-001` | agreed 20 → fulfilled 5 when policy permits | `run.ts` I-019 mockFulfill |
+| *(SPEC OQ-003)* | duplicate ListItems of same `(productId, unit)` | `run.ts` `DUPLICATE_LINE` (explicit, not silent collapse) |
+
+A PR that confirms a new domain rule MUST add or update a row here **and** the executable test.

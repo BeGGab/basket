@@ -37,7 +37,18 @@ interface AdviceBase {
  */
 export type Advice =
   | (AdviceBase & { kind: "WAIT"; waitReason: WaitReason })
-  | (AdviceBase & { kind: "REJECT"; rejectReason: RejectReason })
+  | (AdviceBase & {
+      kind: "REJECT";
+      rejectReason: RejectReason;
+      /**
+       * The counterparty Offer being declined — REQUIRED for PRICE_UNACCEPTABLE and
+       * POLICY_DECLINED so a refusal names the concrete standing proposal it rejects instead of
+       * being a free enum. applyAdvice re-verifies it is the active counterparty Offer.
+       */
+      offerId?: string;
+      /** The counterparty substitution proven impossible — REQUIRED for SUBSTITUTION_IMPOSSIBLE. */
+      substitutionId?: string;
+    })
   | (AdviceBase & { kind: "ACCEPT_ACTIVE"; offerId: string })
   | (AdviceBase & { kind: "ACCEPT_SUBSTITUTION"; substitutionId: string })
   | (AdviceBase & {

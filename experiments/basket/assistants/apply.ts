@@ -1,6 +1,7 @@
 import type { BasketWorld } from "../domain/world";
 import type { PurchaseItem } from "../domain/types";
 import { adviceIsStale } from "./basis";
+import { catalogLineAvailable } from "./catalog";
 import type { Advice } from "./types";
 
 /**
@@ -72,41 +73,62 @@ export function applyAdvice(world: BasketWorld, sellerPurchaseId: string, advice
           `Assistant produced an invalid command: cannot REJECT a ${sp.status} SellerPurchase (rejection is a negotiation decision).`
         );
       }
-      // The rejectReason must be semantically valid against the world, not just well-typed:
-      // an executable command may not claim a ground that does not exist.
+      // A REJECT is not a free enum: every rejectReason must name and prove its ground against
+      // the current world, so an executable refusal cannot claim a basis that does not exist.
       switch (advice.rejectReason) {
-        case "PRICE_UNACCEPTABLE": {
-          if (!sp.activeOfferId) {
+        case "PRICE_UNACCEPTABLE":
+        case "POLICY_DECLINED": {
+          // Declines the standing counterparty proposal — must name that exact active Offer.
+          if (!advice.offerId) {
             throw new Error(
-              "Assistant produced an invalid command: REJECT(PRICE_UNACCEPTABLE) requires an active Offer whose price is being judged."
+              `Assistant produced an invalid command: REJECT(${advice.rejectReason}) must name the declined Offer (offerId).`
             );
           }
+          const offer = world.offerById(advice.offerId);
+          assertTargetOwnership(offer.sellerPurchaseId, sellerPurchaseId, offer.id);
+          if (sp.activeOfferId !== advice.offerId) {
+            throw new Error(
+              `Assistant produced an invalid command: REJECT(${advice.rejectReason}) declines ${advice.offerId}, but the active Offer is ${sp.activeOfferId}.`
+            );
+          }
+          assertCounterparty(advice.actor, offer.actor);
           break;
         }
         case "SUBSTITUTION_IMPOSSIBLE": {
-          if (world.snapshot(sellerPurchaseId).pendingSubstitutions.length === 0) {
+          // Declines a counterparty substitution as impossible — must name that pending one.
+          if (!advice.substitutionId) {
             throw new Error(
-              "Assistant produced an invalid command: REJECT(SUBSTITUTION_IMPOSSIBLE) requires a pending substitution to be impossible."
+              "Assistant produced an invalid command: REJECT(SUBSTITUTION_IMPOSSIBLE) must name the impossible substitution (substitutionId)."
+            );
+          }
+          const sub = world
+            .snapshot(sellerPurchaseId)
+            .pendingSubstitutions.find((item) => item.id === advice.substitutionId);
+          if (!sub) {
+            throw new Error(
+              `Assistant produced an invalid command: substitution ${advice.substitutionId} is not pending on ${sellerPurchaseId}.`
+            );
+          }
+          if (sub.proposedBy === advice.actor) {
+            throw new Error(
+              `Assistant produced an invalid command: ${advice.actor} cannot reject a substitution it proposed itself.`
             );
           }
           break;
         }
         case "PRODUCT_UNAVAILABLE": {
-          const unavailable = sp.items.some((item) => {
-            const rows = world.catalog.availability.filter(
-              (row) => row.sellerId === sp.sellerId && row.productId === item.productId
-            );
-            return rows.length === 0 || rows.every((row) => row.stock === 0);
-          });
+          // At least one negotiated line must be provably unbuyable under the SAME
+          // (seller, product, unit, quantity, stock) comparability the reference price uses.
+          const unavailable = sp.items.some(
+            (item) => !catalogLineAvailable(world, sp.sellerId, item.productId, item.unit)
+          );
           if (!unavailable) {
             throw new Error(
-              "Assistant produced an invalid command: REJECT(PRODUCT_UNAVAILABLE) requires a SellerPurchase line without catalog availability."
+              "Assistant produced an invalid command: REJECT(PRODUCT_UNAVAILABLE) requires a negotiated line with no comparable in-stock catalog row (unit/quantity aware)."
             );
           }
           break;
         }
-        case "POLICY_DECLINED":
-          break;
       }
       world.rejectSellerPurchase(sellerPurchaseId);
       return;

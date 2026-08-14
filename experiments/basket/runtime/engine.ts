@@ -27,6 +27,12 @@ export type ScenarioStep =
       price: number;
       reason?: OfferReason;
     }
+  | {
+      op: "sellerOfferItems";
+      sellerIndex: number;
+      items: { productId: string; quantity: number; unit: string; price: number }[];
+      reason?: OfferReason;
+    }
   | { op: "acceptActive"; sellerIndex: number; actor: Actor }
   | { op: "proposeSubstitution"; sellerIndex: number; originalProductId: string; replacementProductId: string }
   | { op: "sellerRespond"; sellerIndex: number }
@@ -44,6 +50,12 @@ export type ScenarioStep =
       kind: string;
       /** For a SINGLE-LINE COUNTER: expected unit price of its only item. */
       price?: number;
+      /**
+       * For a MULTI-LINE COUNTER: the full expected item list. Every line is matched by
+       * (productId, unit, quantity) and its price checked, so a wrong price on a non-first line
+       * (e.g. cucumbers = 999) cannot pass as long as kind stays COUNTER.
+       */
+      items?: { productId: string; unit: string; quantity: number; price: number }[];
       /** For ACCEPT_ACTIVE: the advice must target exactly the current active Offer. */
       targetsActiveOffer?: boolean;
       /** For WAIT: expected machine-readable reason. */
@@ -133,6 +145,14 @@ export function executeStep(ctx: ScenarioContext, step: ScenarioStep): void {
         reason: step.reason ?? "SELLER_COUNTEROFFER",
       });
       break;
+    case "sellerOfferItems":
+      runtime.world.proposeOffer({
+        sellerPurchaseId: spAt(ctx, step.sellerIndex),
+        actor: "SELLER",
+        items: step.items.map((item) => ({ ...item })),
+        reason: step.reason ?? "SELLER_COUNTEROFFER",
+      });
+      break;
     case "acceptActive": {
       const sp = runtime.world.requireSp(spAt(ctx, step.sellerIndex));
       if (!sp.activeOfferId) throw new Error(`${ctx.scenarioName}: no active offer`);
@@ -204,6 +224,28 @@ export function executeStep(ctx: ScenarioContext, step: ScenarioStep): void {
           advice.kind === "COUNTER" && advice.items.length === 1 ? advice.items[0]?.price : undefined;
         if (actualPrice !== step.price) {
           throw new Error(`${ctx.scenarioName}: advice price ${actualPrice} != ${step.price}`);
+        }
+      }
+      if (step.items !== undefined) {
+        if (advice.kind !== "COUNTER") {
+          throw new Error(`${ctx.scenarioName}: expected COUNTER with items, got ${advice.kind}`);
+        }
+        // Match the FULL proposed list per line — a wrong price on any line must fail even though
+        // the kind is COUNTER (the contract prices every position, not only items[0]).
+        const key = (i: { productId: string; unit: string; quantity: number }) => `${i.productId}|${i.unit}|${i.quantity}`;
+        const actualByKey = new Map(advice.items.map((i) => [key(i), i.price]));
+        if (advice.items.length !== step.items.length) {
+          throw new Error(
+            `${ctx.scenarioName}: COUNTER has ${advice.items.length} line(s), expected ${step.items.length}`
+          );
+        }
+        for (const expected of step.items) {
+          const actualPrice = actualByKey.get(key(expected));
+          if (actualPrice !== expected.price) {
+            throw new Error(
+              `${ctx.scenarioName}: COUNTER ${key(expected)} price ${actualPrice} != ${expected.price}`
+            );
+          }
         }
       }
       if (step.targetsActiveOffer) {

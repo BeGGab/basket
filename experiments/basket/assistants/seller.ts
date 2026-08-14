@@ -56,7 +56,7 @@ export function adviseSeller(
   // Evaluate EVERY item of the buyer Offer, not just items[0].
   const evaluations: { productId: string; buyerPrice: number | null; listPrice: number }[] = [];
   for (const item of active.items) {
-    const listPrice = catalogReferencePrice(world, sp.sellerId, item.productId, item.unit, item.quantity);
+    const listPrice = catalogReferencePrice(world, sp.sellerId, item.productId, item.unit);
     if (listPrice == null) {
       return wait(world, sellerPurchaseId, policy, "NO_CATALOG_PRICE", `No comparable catalog price for ${item.productId} (${item.unit}); cannot evaluate the offer.`);
     }
@@ -75,6 +75,7 @@ export function adviseSeller(
       actor: "SELLER",
       kind: "REJECT",
       rejectReason: "PRICE_UNACCEPTABLE",
+      offerId: active.id,
       rationale: `Buyer price is below the reject threshold on: ${detail}; give up on this SellerPurchase.`,
       basis: captureAdviceBasis(world, sellerPurchaseId, { actor: "SELLER", ...policy }),
     };
@@ -97,7 +98,7 @@ export function adviseSeller(
 
   const items = active.items.map((item) => ({
     ...item,
-    price: catalogReferencePrice(world, sp.sellerId, item.productId, item.unit, item.quantity) ?? item.price,
+    price: catalogReferencePrice(world, sp.sellerId, item.productId, item.unit) ?? item.price,
   }));
   const detail = belowTolerance
     .map((ev) => `${ev.productId} ${ev.buyerPrice ?? "unpriced"}<${ev.listPrice - policy.acceptBelowCatalog}`)

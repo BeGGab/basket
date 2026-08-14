@@ -5,6 +5,18 @@
 **Приёмка:** demo/training экран; production `/cart` не заменяется  
 **Статус:** Implemented
 
+## Domain Contract
+
+Before implementation, the executor MUST read:
+
+`docs/domain/GREENMARKET_DOMAIN_SPEC.md`
+
+The implementation MUST comply with the current version of this specification.
+
+If the task conflicts with the specification, do not resolve the conflict implicitly in code. Report the conflict and update the domain specification first.
+
+See `AGENTS.md` for the mandatory AI workflow.
+
 ## Решение после ТЗ-002
 
 Существующий Customer UI **не** является интерфейсом симуляции: `/cart` — Stage 1 корзина (`BasketStore` / `ADD_TO_BASKET`), а эксперимент — List → Purchase → SellerPurchase → Offer. Смешивать их нельзя.
@@ -30,7 +42,7 @@ UI не доказывает модель (это ТЗ-001/002). Он тольк
 ## В scope
 
 - маршрут `/sim`, изолированный от Platform Core ScreenId (browser-only, как `/product/:id`); **не** пункт Customer UI nav — только прямой URL
-- только компоненты Design System
+- интерактивные контролы и контент — **только** компоненты Design System (`Button`, `Card`, `Badge`, `Text`, `Row`/`Stack`); допустимы layout/container-обёртки (`div`, `header`, `ol`, `li`) и один scoped-файл `sim.css` для раскладки экспериментального viewer'а — это не production acceptance-слой, а инструмент наблюдения
 - список demo-сценариев (включая трёх продавцов)
 - Run all / Step / Reset
 - выбор SellerPurchase внутри Purchase (snapshot и ручные ходы относятся к выбранному)

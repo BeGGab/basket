@@ -98,20 +98,82 @@ function invariants() {
     /stock/
   );
 
-  // I-031: duplicate catalog rows of one seller/product do not duplicate the SellerPurchase line.
+  // I-031: duplicate catalog rows of one seller/product/unit that AGREE on price do not duplicate
+  // the SellerPurchase line. (Rows that disagree on price are ambiguous — covered separately.)
   const dup = new BasketWorld();
   dup.setCatalog({
     names: { tomatoes: "Tomatoes" },
     availability: [
       { sellerId: "seller-a", productId: "tomatoes", quantity: 20, unit: "kg", price: 15, stock: 50 },
-      { sellerId: "seller-a", productId: "tomatoes", quantity: 20, unit: "kg", price: 14, stock: 50 },
+      { sellerId: "seller-a", productId: "tomatoes", quantity: 20, unit: "kg", price: 15, stock: 50 },
     ],
   });
   const dupList = dup.createList("dup");
   dup.addItem(dupList.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
   const dupPurchase = dup.createPurchaseFromList(dupList.id, "PRIMARY_ONLY", ["seller-a"]);
   assert.equal(dupPurchase.sellerPurchaseIds.length, 1);
-  assert.equal(dup.requireSp(dupPurchase.sellerPurchaseIds[0]).items.length, 1, "I-031 one line per (seller, product)");
+  assert.equal(dup.requireSp(dupPurchase.sellerPurchaseIds[0]).items.length, 1, "I-031 one line per (seller, product, unit)");
+
+  // Domain ambiguity guard: rows on the same (seller, product, unit) line that DISAGREE on price
+  // must NOT silently pick one by array order — the item is unresolved (AMBIGUOUS_PRICE), no SP.
+  const ambig = new BasketWorld();
+  ambig.setCatalog({
+    names: { tomatoes: "Tomatoes" },
+    availability: [
+      { sellerId: "seller-a", productId: "tomatoes", quantity: 20, unit: "kg", price: 15, stock: 50 },
+      { sellerId: "seller-a", productId: "tomatoes", quantity: 20, unit: "kg", price: 14, stock: 50 },
+    ],
+  });
+  const ambigList = ambig.createList("ambig");
+  ambig.addItem(ambigList.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+  const ambigPurchase = ambig.createPurchaseFromList(ambigList.id, "PRIMARY_ONLY", ["seller-a"]);
+  assert.equal(ambigPurchase.sellerPurchaseIds.length, 0, "ambiguous price yields no SellerPurchase");
+  assert.equal(ambigPurchase.unresolvedItems[0]?.reason, "AMBIGUOUS_PRICE");
+
+  // Unit-aware resolution: a kg ListItem is NOT satisfied by a pcs-only catalog (reviewer P1).
+  const unitAware = new BasketWorld();
+  unitAware.setCatalog({
+    names: { tomatoes: "Tomatoes" },
+    availability: [{ sellerId: "seller-a", productId: "tomatoes", quantity: 1, unit: "pcs", price: 3, stock: 100 }],
+  });
+  const uaList = unitAware.createList("ua");
+  unitAware.addItem(uaList.id, { productId: "tomatoes", quantity: 10, unit: "kg", alternatives: [] });
+  const uaPurchase = unitAware.createPurchaseFromList(uaList.id, "PRIMARY_ONLY", ["seller-a"]);
+  assert.equal(uaPurchase.sellerPurchaseIds.length, 0, "a kg request is not resolved by a pcs-only catalog");
+  assert.equal(uaPurchase.unresolvedItems[0]?.reason, "UNAVAILABLE");
+
+  // I-031/I-036: same product in DIFFERENT units are two independent SellerPurchase lines — the
+  // (productId, unit) identity of CatalogLine propagates into SellerPurchase (reviewer pr_11 P1).
+  const twoUnits = new BasketWorld();
+  twoUnits.setCatalog({
+    names: { tomatoes: "Tomatoes" },
+    availability: [
+      { sellerId: "seller-a", productId: "tomatoes", quantity: 2, unit: "kg", price: 15, stock: 100 },
+      { sellerId: "seller-a", productId: "tomatoes", quantity: 5, unit: "pcs", price: 3, stock: 100 },
+    ],
+  });
+  const tuList = twoUnits.createList("two-units");
+  twoUnits.addItem(tuList.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+  twoUnits.addItem(tuList.id, { productId: "tomatoes", quantity: 5, unit: "pcs", alternatives: [] });
+  const tuPurchase = twoUnits.createPurchaseFromList(tuList.id, "PRIMARY_ONLY", ["seller-a"]);
+  assert.equal(tuPurchase.sellerPurchaseIds.length, 1, "one seller → one SellerPurchase");
+  const tuItems = twoUnits.requireSp(tuPurchase.sellerPurchaseIds[0]).items;
+  assert.equal(tuItems.length, 2, "kg and pcs are two independent lines, neither is silently dropped");
+  assert.deepEqual(tuItems.map((i) => i.unit).sort(), ["kg", "pcs"]);
+
+  // OQ-003 (SPEC): two ListItems collapsing to the SAME (productId, unit) are NOT silently merged — the
+  // duplicate is surfaced explicitly (DUPLICATE_LINE) while the first line still resolves.
+  const dupLine = new BasketWorld();
+  dupLine.setCatalog({
+    names: { tomatoes: "Tomatoes" },
+    availability: [{ sellerId: "seller-a", productId: "tomatoes", quantity: 2, unit: "kg", price: 15, stock: 100 }],
+  });
+  const dlList = dupLine.createList("dup-line");
+  dupLine.addItem(dlList.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+  dupLine.addItem(dlList.id, { productId: "tomatoes", quantity: 5, unit: "kg", alternatives: [] });
+  const dlPurchase = dupLine.createPurchaseFromList(dlList.id, "PRIMARY_ONLY", ["seller-a"]);
+  assert.equal(dupLine.requireSp(dlPurchase.sellerPurchaseIds[0]).items.length, 1, "same (product, unit) is not duplicated");
+  assert.equal(dlPurchase.unresolvedItems[0]?.reason, "DUPLICATE_LINE", "the duplicate is explicit, not silently dropped");
 
   // I-032: a decided Substitution cannot be flipped back.
   const subWorld = new BasketWorld();
@@ -147,7 +209,7 @@ function invariants() {
     reason: "SELLER_COUNTEROFFER",
   });
   fulfil.acceptOffer(fulfilOffer.id, "BUYER");
-  fulfil.setStock("seller-a", "tomatoes", 1);
+  fulfil.setStock("seller-a", "tomatoes", "kg", 1);
   fulfil.mockFulfill(fulfilSp, 1);
   assert.equal(fulfil.fulfillments[0].actualQuantity, 1);
   assert.equal(
@@ -157,6 +219,26 @@ function invariants() {
   );
   fulfil.partialFulfillmentAllowed = false;
   assert.throws(() => fulfil.mockFulfill(fulfilSp, 1), /Partial fulfillment is disabled/);
+
+  // Emulator stock is unit-aware: a pcs row is not kg stock, so PartialAvailabilitySeller cannot
+  // generate a false-positive availability proof (reviewer pr_11 P1). kg stock = 2, pcs stock = 100;
+  // a 5 kg request must be reduced to 2 kg, not accepted as available against the pcs pool.
+  const unitStock = new BasketWorld();
+  unitStock.setCatalog({
+    names: { tomatoes: "Tomatoes" },
+    availability: [
+      { sellerId: "seller-a", productId: "tomatoes", quantity: 5, unit: "kg", price: 15, stock: 2 },
+      { sellerId: "seller-a", productId: "tomatoes", quantity: 5, unit: "pcs", price: 3, stock: 100 },
+    ],
+  });
+  const usList = unitStock.createList("unit-stock");
+  unitStock.addItem(usList.id, { productId: "tomatoes", quantity: 5, unit: "kg", alternatives: [] });
+  const usSp = unitStock.createPurchaseFromList(usList.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+  const usEmu = createSellerEmulator("seller-a", "PartialAvailabilitySeller");
+  buyerOffer(unitStock, usSp, [{ productId: "tomatoes", quantity: 5, unit: "kg", price: 15 }]);
+  usEmu.respondToBuyerOffer(unitStock, usSp, [{ productId: "tomatoes", quantity: 5, unit: "kg", price: 15 }]);
+  const usOffer = unitStock.lastOffer(usSp, "SELLER");
+  assert.equal(usOffer?.items[0]?.quantity, 2, "kg stock (2) bounds the offer; the pcs pool (100) is not kg stock");
 
   // Seller emulators never rewrite a buyer proposal on tick().
   const tickWorld = new BasketWorld();

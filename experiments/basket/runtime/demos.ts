@@ -149,4 +149,56 @@ export const DEMO_SCENARIOS: Scenario[] = [
       { op: "assertStatus", sellerIndex: 0, status: "STABLE" },
     ],
   },
+  {
+    name: "TZ004-MULTI-COUNTER",
+    title: "Assistant: multi-line COUNTER проверяется по всем позициям",
+    steps: [
+      {
+        op: "catalog",
+        catalog: {
+          names: { tomatoes: "Tomatoes", cucumbers: "Cucumbers" },
+          availability: [
+            { sellerId: "seller-a", productId: "tomatoes", quantity: 2, unit: "kg", price: 15, stock: 100 },
+            { sellerId: "seller-a", productId: "cucumbers", quantity: 3, unit: "kg", price: 10, stock: 100 },
+          ],
+        },
+      },
+      { op: "createList", name: "tz004-multi" },
+      { op: "addItem", productId: "tomatoes", quantity: 2, unit: "kg" },
+      { op: "addItem", productId: "cucumbers", quantity: 3, unit: "kg" },
+      { op: "createPurchase", policy: "PRIMARY_ONLY", sellerIds: ["seller-a"] },
+      {
+        op: "sellerOfferItems",
+        sellerIndex: 0,
+        items: [
+          { productId: "tomatoes", quantity: 2, unit: "kg", price: 15 },
+          { productId: "cucumbers", quantity: 3, unit: "kg", price: 10 },
+        ],
+      },
+      { op: "acceptActive", sellerIndex: 0, actor: "BUYER" },
+      {
+        op: "sellerOfferItems",
+        sellerIndex: 0,
+        reason: "PRICE_CHANGE",
+        items: [
+          { productId: "tomatoes", quantity: 2, unit: "kg", price: 15 },
+          { productId: "cucumbers", quantity: 3, unit: "kg", price: 13 },
+        ],
+      },
+      // Only cucumbers rose: the counter must re-price cucumbers back to 10 AND keep tomatoes at 15.
+      // Asserting the full item list catches a wrong price on any line, not just items[0].
+      {
+        op: "assertAdvice",
+        sellerIndex: 0,
+        actor: "BUYER",
+        kind: "COUNTER",
+        items: [
+          { productId: "tomatoes", quantity: 2, unit: "kg", price: 15 },
+          { productId: "cucumbers", quantity: 3, unit: "kg", price: 10 },
+        ],
+      },
+      { op: "applyBuyerAdvice", sellerIndex: 0 },
+      { op: "assertStatus", sellerIndex: 0, status: "WAITING_SELLER" },
+    ],
+  },
 ];

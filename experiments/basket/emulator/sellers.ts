@@ -1,3 +1,4 @@
+import { comparableRows } from "../domain/catalog";
 import type { BasketWorld } from "../domain/world";
 import type { Actor, OfferReason, PurchaseItem } from "../domain/types";
 
@@ -16,17 +17,20 @@ export interface SellerEmulator {
   tick(world: BasketWorld, sellerPurchaseId: string): void;
 }
 
-function catalogStock(world: BasketWorld, sellerId: string, productId: string): number {
-  return world.catalog.availability
-    .filter((row) => row.sellerId === sellerId && row.productId === productId)
-    .reduce((sum, row) => sum + row.stock, 0);
+/**
+ * Stock uses the SHARED commercial identity `(sellerId, productId, unit)` from `domain/catalog` —
+ * a `pcs` row is not stock for a `kg` line, so the emulator cannot generate a false-positive
+ * availability proof (reviewer pr_11 P1).
+ */
+function catalogStock(world: BasketWorld, sellerId: string, productId: string, unit: string): number {
+  return comparableRows(world.catalog, { sellerId, productId, unit }).reduce((sum, row) => sum + row.stock, 0);
 }
 
 function reduceToStock(world: BasketWorld, sellerId: string, items: readonly PurchaseItem[]): PurchaseItem[] {
   return items
     .map((item) => ({
       ...item,
-      quantity: Math.min(item.quantity, Math.max(0, catalogStock(world, sellerId, item.productId))),
+      quantity: Math.min(item.quantity, Math.max(0, catalogStock(world, sellerId, item.productId, item.unit))),
     }))
     .filter((item) => item.quantity > 0);
 }

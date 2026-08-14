@@ -2,7 +2,7 @@
 
 **Status:** Evidence from TZ-BASKET-001…004 mock run  
 **Experiment version:** v0.1  
-**Model version:** v0.1.10 (substitution content + policy in basis; semantic rejectReason validation; full-field COUNTER guard; matrix verifies apply end state; OQ-009 assumption pinned)
+**Model version:** v0.1.13 (CatalogLine identity (sellerId, productId, unit) propagates into SellerPurchase; duplicate ListItems of the same line are DUPLICATE_LINE not silent collapse; PartialAvailabilitySeller stock is unit-aware; cheapestAvailable removed; package-quantity unit-price assumption recorded; GREENMARKET_DOMAIN_SPEC v0.2 + AGENTS.md)
 
 ## How to read results
 
@@ -391,7 +391,7 @@ Record evidence from the mock domain and seller emulator.
 ## Final decision
 
 ```text
-Model version: v0.1.10
+Model version: v0.1.13
 Status: experiment implemented; production architecture not started
 
 Scope of this evidence: every CONFIRMED below confirms a SPECIFIC experimental behavior
@@ -404,14 +404,28 @@ Changes in this PR (already implemented and tested):
 - I-030: List and catalog inputs validated like Offer items (finite, > 0 / ≥ 0)
 - I-032: Substitution lifecycle PROPOSED → ACCEPTED|REJECTED is one-way
 - I-034: setCatalog stores a defensive copy; stock changes go through setStock
-- I-031: (sellerId, productId) unique inside a SellerPurchase
+- I-031: SellerPurchase line unique per (sellerId, productId, unit) — tomatoes/kg and tomatoes/pcs are independent; a second ListItem of the same line is DUPLICATE_LINE (SPEC OQ-003), never silently dropped
 - I-019: mockFulfill checks delivered quantity and honours partialFulfillmentAllowed
 - Advice is a discriminated union naming its exact target (offerId / substitutionId / counterOfferId + items)
 - AdviceBasis is time-aware (active Offer validity) and covers Offer content + catalog rows of the negotiated products (canonical JSON)
 - WAIT and REJECT both carry machine-readable reasons
 - COUNTER is admissible only against the still-valid countered Offer and may change prices, not lines
 - every Offer named by an Advice must belong to the target SellerPurchase (checked at the assistant boundary, and inside basis fingerprints)
+- I-036: ONE catalog-line identity (sellerId, productId, unit) lives in domain/catalog and is shared by resolve, createPurchaseFromList, setStock, stock-conflict detection AND the assistants — the domain is no longer laxer than the assistant layer
+- price is the UNIT price (per one unit); the catalog quantity is a reference/package size, not part of the line identity and not a price multiplier — the earlier 'whole-line price' wording is corrected
+- resolve() is unit-aware: a kg ListItem is not satisfied by a pcs-only catalog (fixed at the List -> Resolution boundary, before seller partitioning)
+- createPurchaseFromList() prices lines through the shared matcher: a seller whose rows disagree on price/unit is reported AMBIGUOUS_PRICE and gets NO SellerPurchase — the array order is never a hidden price policy
+- setStock(sellerId, productId, unit, stock) keys on the commercial line and requires a unique row, throwing on ambiguity instead of editing the first match
+- stock-conflict claims compete only within (productId, unit) — a pcs claim is not a kg stock pool
 - catalog reference / baseline is a lookup, not a price policy: ambiguous rows (same line, different prices) yield NO reference instead of the cheapest one
+- REJECT is not a free enum: each reason must NAME and PROVE its ground at apply (PRICE_UNACCEPTABLE/POLICY_DECLINED name the declined active counterparty Offer; SUBSTITUTION_IMPOSSIBLE names a pending substitution; PRODUCT_UNAVAILABLE needs a line unbuyable under the SAME (seller, product, unit, stock) matcher as the reference price), one negative test per reason
+- catalog availability and reference price are thin adapters over the domain matcher (catalogLineAvailable / catalogReferencePrice -> isCatalogLineAvailable / catalogUnitPrice); a row in another unit is not availability
+- agreed baseline reuses the agreed price only for the identical (product, unit, quantity) line; a changed quantity defers to the catalog unit reference (both are per-unit prices of the same unit)
+- basis stores the FULL immutable Offer metadata (actor/reason/createdAt/validUntil + items) under activeOfferFingerprint/agreedOfferFingerprint, not just the commercial items
+- decision tests (world -> expected Advice) are separated from execution tests (Advice -> domain change); the policy's choice of kind/reason is pinned by its own table
+- runtime determinism test: re-running each demo scenario from a fresh runtime reproduces the event stream AND a canonical snapshot of the WHOLE observable world (offers, acceptances, substitutions, catalog, stock conflicts, fulfillments, SellerPurchases, purchases)
+- the scenario engine deeply checks a multi-line COUNTER (every item price by (productId, unit, quantity)), so a wrong price on a non-first line cannot pass as long as kind stays COUNTER
+- model tech debt recorded: two identical PurchaseItem lines differing only in price are multiset-equal (no lineId) — acceptable now, would need an explicit lineId if such lines ever diverge commercially
 - REJECT is generated by the assistants themselves via policy thresholds (rejectOverReference / rejectBelowCatalog), not only crafted by hand
 - the positive substitution-vs-offer choice is a policy parameter (substitutionPreference), both branches tested
 - AdviceBasis fingerprints pending substitutions with CONTENT (not only IDs) and records the effective policy as an audit fact
@@ -421,14 +435,17 @@ Changes in this PR (already implemented and tested):
 - combination matrix test: multi-item x missing catalog x substitution x expired x offer author x advisor — kind invariants, determinism, and the SEMANTIC end state after apply for every combination
 - ACCEPT_SUBSTITUTION requires the accepting actor to be the counterparty of proposedBy
 - I-035: countering an expired Offer is forbidden in the domain (symmetric with I-028)
-- Buyer/Seller assistants evaluate EVERY Offer item; baselines and catalog references are per (product, unit, quantity) line
+- Buyer/Seller assistants evaluate EVERY Offer item; catalog references are per (seller, product, unit) unit price and agreed baselines per exact (product, unit, quantity) line
 - Policies are injected parameters, not fixed behavior
 - Seller emulators only rewrite their own proposals, never a buyer Offer
 - I-027: acceptOffer rejects non-active Offers
 - I-028: acceptOffer rejects expired Offers
 - OQ-007 closed: activeOfferId is a required projection pointer
 - OQ-006 / OQ-008 closed
-- PartialAvailabilitySeller offers min(requested, stock)
+- PartialAvailabilitySeller offers min(requested, stock) of the SAME CatalogLine (sellerId, productId, unit) — a pcs pool is not kg stock
+- cheapestAvailable() removed from domain catalog semantics (ambiguous ≠ cheapest); catalogUnitPrice returns null on disagreement
+- Stage-1 ASSUMPTION recorded (SPEC OQ-002): package/reference quantity never changes unit price — not a proven domain truth
+- GREENMARKET_DOMAIN_SPEC v0.2 is the canonical domain contract (docs/domain); AGENTS.md requires AI executors to read it before any domain change
 - Stock race records combined claims (stock=6, A→4, B→3) at OFFER_CREATION
 - stock claim = valid active Offer quantity; REJECTED/CANCELLED/expired excluded
 - I-029: only the counterparty may accept an Offer

@@ -7,6 +7,18 @@
 **Статус:** Implemented 
 **Основание:** `BASKET_DOMAIN_MODEL.md`, `BASKET_EXPERIMENT.md`, `BASKET_INVARIANTS.md`, `BASKET_BREAKING_SCENARIOS.md`
 
+## Domain Contract
+
+Before implementation, the executor MUST read:
+
+`docs/domain/GREENMARKET_DOMAIN_SPEC.md`
+
+The implementation MUST comply with the current version of this specification.
+
+If the task conflicts with the specification, do not resolve the conflict implicitly in code. Report the conflict and update the domain specification first.
+
+See `AGENTS.md` for the mandatory AI workflow.
+
 Уточнение scope (владелец задачи): UI **не входит в обязательный scope** ТЗ-001. Все сценарии должны выполняться **программно и детерминированно**. Debug/demo viewer допустим как помощь разработчику, но PR не принимается и не отклоняется по наличию или качеству UI. Не формулировать требование как «без участия человека».
 
 Последовательность следующих ТЗ (вне обязательного scope ТЗ-001 как отдельного PR): ТЗ-001 Domain Experiment → ТЗ-002 Actor/Simulation Runtime → ТЗ-003 Human-facing Simulation UI → ТЗ-004 Buyer/Seller AI Assistants. В текущем GitHub PR лестница 001…004 собрана сознательно в один reviewable unit.
@@ -243,7 +255,7 @@ STABLE =
 
 ## 27–28. Breaking / acceptance scenarios
 
-Автоматизировать минимум: BS-001…028 (programmatically exercised; Domain OPEN не значит «не гонялся»). BS-017: принимать можно только active Offer (I-027). BS-012: просроченный Offer нельзя принять (I-028). Acceptance только counterparty (I-029). Offer quantity > 0 (I-030), те же проверки на границах `addItem()` и `setCatalog()`. Позиция в SellerPurchase уникальна по `(sellerId, productId)` (I-031). BS-019: Resolution до разбиения по продавцам; SellerPurchase только при stock > 0. BS-023: detection log, Domain OPEN (OQ-016). BS-028: qty 5 и реакция tick() на падение stock.
+Автоматизировать минимум: BS-001…028 (programmatically exercised; Domain OPEN не значит «не гонялся»). BS-017: принимать можно только active Offer (I-027). BS-012: просроченный Offer нельзя принять (I-028). Acceptance только counterparty (I-029). Offer quantity > 0 (I-030), те же проверки на границах `addItem()` и `setCatalog()`. Позиция в SellerPurchase уникальна по коммерческой идентичности `(sellerId, productId, unit)` (I-031 / I-036) — `kg` и `pcs` одного товара независимы; повтор `(productId, unit)` в List не схлопывается молча, а помечается `DUPLICATE_LINE` (SPEC OQ-003). BS-019: Resolution до разбиения по продавцам; SellerPurchase только при stock > 0. BS-023: detection log, Domain OPEN (OQ-016). BS-028: qty 5 и реакция tick() на падение stock.
 
 Обязательные приёмочные: Independent sellers; SYSTEM price drop; Alternatives; Expensive alternative (без скрытой ценовой логики); Stock race (точка конфликта, не allocation); Expiration; Silence; Partial fulfillment; Snapshot; Accepted+new Offer; Partial availability before STABLE.
 

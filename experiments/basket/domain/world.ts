@@ -1,10 +1,10 @@
+import { comparableRows, priceableSellerLines } from "./catalog";
 import { DeterministicClock } from "./clock";
 import { transition } from "./fsm";
 import { resolve } from "./resolution";
 import type {
   Acceptance,
   Actor,
-  CatalogOffer,
   ListItem,
   MockFulfillment,
   Offer,
@@ -201,37 +201,59 @@ export class BasketWorld {
         continue;
       }
 
-      const rows = this.catalogState.availability.filter((row) => {
-        if (row.productId !== result.productId) return false;
-        if (row.stock <= 0) return false;
-        if (allowed && !allowed.has(row.sellerId)) return false;
-        return true;
-      });
+      // Seller lines come from the shared commercial matcher (domain/catalog): unit-aware and
+      // ambiguity-aware. A seller whose catalog rows disagree on unit/price is NOT silently priced
+      // by array order — it is reported as ambiguous and never becomes a SellerPurchase line.
+      const { lines, ambiguousSellers } = priceableSellerLines(
+        this.catalogState,
+        result.productId,
+        item.unit,
+        allowed
+      );
 
-      if (rows.length === 0) {
+      if (lines.length === 0) {
         purchase.unresolvedItems.push({
           listItemId: item.id,
           productId: result.productId,
-          reason: "NO_SELLER",
+          reason: ambiguousSellers.length > 0 ? "AMBIGUOUS_PRICE" : "NO_SELLER",
         });
         continue;
       }
 
-      const targets = allowed ? rows : [this.pickSeller(rows)];
-      for (const row of targets) {
-        const bucket = bySeller.get(row.sellerId) ?? [];
-        // (sellerId, productId) is unique inside a SellerPurchase: extra catalog rows of the
-        // same seller/product do not create a duplicate line (I-031).
-        if (bucket.some((existing) => existing.productId === result.productId)) continue;
+      // Single mode: the lexicographically first priceable seller (lines are pre-sorted).
+      const targets = allowed ? lines : [lines[0]];
+      let duplicated = false;
+      for (const line of targets) {
+        const bucket = bySeller.get(line.sellerId) ?? [];
+        // A SellerPurchase line is unique per COMMERCIAL identity (productId, unit) — the same
+        // identity as CatalogLine (I-031/I-036). tomatoes/kg and tomatoes/pcs are two lines; a
+        // second ListItem collapsing to the SAME (productId, unit) is the domain-undefined
+        // duplicate case (SPEC OQ-003) and is surfaced explicitly, never silently dropped.
+        if (bucket.some((existing) => existing.productId === result.productId && existing.unit === line.unit)) {
+          duplicated = true;
+          continue;
+        }
+        const fallbackQuantity = comparableRows(this.catalogState, {
+          sellerId: line.sellerId,
+          productId: result.productId,
+          unit: line.unit,
+        })[0]?.quantity;
         bucket.push({
           productId: result.productId,
-          quantity: item.quantity ?? row.quantity,
-          unit: item.unit ?? row.unit,
-          price: row.price,
+          quantity: item.quantity ?? fallbackQuantity ?? 1,
+          unit: line.unit,
+          price: line.price,
           resolvedFrom: result.resolvedFrom ?? item.productId,
           alternativePriority: result.alternativePriority ?? 0,
         });
-        bySeller.set(row.sellerId, bucket);
+        bySeller.set(line.sellerId, bucket);
+      }
+      if (duplicated) {
+        purchase.unresolvedItems.push({
+          listItemId: item.id,
+          productId: result.productId,
+          reason: "DUPLICATE_LINE",
+        });
       }
     }
 
@@ -255,17 +277,26 @@ export class BasketWorld {
     return frozenPurchase(purchase);
   }
 
-  private pickSeller(rows: CatalogOffer[]): CatalogOffer {
-    return rows.slice().sort((a, b) => a.sellerId.localeCompare(b.sellerId))[0];
-  }
-
-  setStock(sellerId: string, productId: string, stock: number): void {
+  /**
+   * Stock is set on one commercial line `(sellerId, productId, unit)`. Because the PR intentionally
+   * allows several catalog rows for the same seller/product (to exercise ambiguity), the unit is a
+   * required key and the target row must be unique — an ambiguous or missing match throws instead
+   * of silently editing the first row (I-034).
+   */
+  setStock(sellerId: string, productId: string, unit: string, stock: number): void {
     if (!Number.isFinite(stock) || stock < 0) {
       throw new Error(`stock must be a finite number ≥ 0, got ${stock}`);
     }
-    const row = this.catalogState.availability.find((item) => item.sellerId === sellerId && item.productId === productId);
-    if (!row) throw new Error(`No catalog row for ${sellerId}/${productId}`);
-    row.stock = stock;
+    const rows = this.catalogState.availability.filter(
+      (item) => item.sellerId === sellerId && item.productId === productId && item.unit === unit
+    );
+    if (rows.length === 0) throw new Error(`No catalog row for ${sellerId}/${productId}/${unit}`);
+    if (rows.length > 1) {
+      throw new Error(
+        `Ambiguous setStock: ${rows.length} rows for ${sellerId}/${productId}/${unit}; catalog line identity is (sellerId, productId, unit).`
+      );
+    }
+    rows[0].stock = stock;
   }
 
   cancelSellerPurchase(sellerPurchaseId: string): void {
@@ -527,7 +558,7 @@ export class BasketWorld {
    * Competing claim = quantity on the other SellerPurchase's **valid active** commercial proposal.
    * REJECTED and CANCELLED are ignored. Expired Offers (`isOfferValid` = false) are not claims.
    */
-  private claimedByOthers(sp: SellerPurchase, productId: string): number {
+  private claimedByOthers(sp: SellerPurchase, productId: string, unit: string): number {
     let sum = 0;
     for (const other of this.spById.values()) {
       if (other.id === sp.id || other.sellerId !== sp.sellerId) continue;
@@ -536,7 +567,9 @@ export class BasketWorld {
       const offer = this.requireOffer(other.activeOfferId);
       if (!this.isOfferValid(offer)) continue;
       for (const item of offer.items) {
-        if (item.productId === productId) sum += item.quantity;
+        // Claims compete only within the same commercial line: tomatoes/kg and tomatoes/pcs
+        // draw on different stock pools (identity is (productId, unit)).
+        if (item.productId === productId && item.unit === unit) sum += item.quantity;
       }
     }
     return sum;
@@ -654,10 +687,12 @@ export class BasketWorld {
     point: StockConflict["detectedAt"]
   ): void {
     for (const item of items) {
+      // Stock pool is the same commercial line (sellerId, productId, unit) — a pcs listing is not
+      // stock for a kg claim.
       const stock = this.catalogState.availability
-        .filter((row) => row.sellerId === sp.sellerId && row.productId === item.productId)
+        .filter((row) => row.sellerId === sp.sellerId && row.productId === item.productId && row.unit === item.unit)
         .reduce((sum, row) => sum + row.stock, 0);
-      const competing = this.claimedByOthers(sp, item.productId);
+      const competing = this.claimedByOthers(sp, item.productId, item.unit);
       const combined = item.quantity + competing;
       if (combined > stock) {
         this.stockConflictLog.push(

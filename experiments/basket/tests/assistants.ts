@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { adviseBuyer, adviseSeller, applyAdvice, captureAdviceBasis, catalogReferencePrice } from "../assistants";
+import { adviseBuyer, adviseSeller, applyAdvice, captureAdviceBasis, catalogReferencePrice, catalogLineAvailable } from "../assistants";
 import { BasketWorld } from "../domain/world";
 import { DEMO_SCENARIOS } from "../runtime/demos";
 import { runScenario } from "../runtime/engine";
@@ -380,7 +380,7 @@ export function runTz004(): void {
   });
   const pricedAdvice = adviseSeller(priced.world, priced.spId);
   assert.equal(pricedAdvice.kind, "COUNTER");
-  priced.world.setStock("seller-a", "tomatoes", 3);
+  priced.world.setStock("seller-a", "tomatoes", "kg", 3);
   assert.throws(() => applyAdvice(priced.world, priced.spId, pricedAdvice), /catalog facts/);
 
   // --- Staleness: the time race. advise on a live Offer → clock passes validUntil → apply must fail,
@@ -416,6 +416,7 @@ export function runTz004(): void {
     actor: "BUYER",
     kind: "REJECT",
     rejectReason: "PRICE_UNACCEPTABLE",
+    offerId: rejecting.world.requireSp(rejecting.spId).activeOfferId!,
     rationale: "manual reject",
     basis: captureAdviceBasis(rejecting.world, rejecting.spId),
   });
@@ -428,13 +429,15 @@ export function runTz004(): void {
     items: [{ productId: "tomatoes", quantity: 2, unit: "kg", price: 15 }],
     reason: "PRICE_CHANGE",
   });
-  stableSp.world.acceptOffer(stableSp.world.requireSp(stableSp.spId).activeOfferId!, "BUYER");
+  const stableOfferId = stableSp.world.requireSp(stableSp.spId).activeOfferId!;
+  stableSp.world.acceptOffer(stableOfferId, "BUYER");
   assert.throws(
     () =>
       applyAdvice(stableSp.world, stableSp.spId, {
         actor: "BUYER",
         kind: "REJECT",
         rejectReason: "POLICY_DECLINED",
+        offerId: stableOfferId,
         rationale: "crafted",
         basis: captureAdviceBasis(stableSp.world, stableSp.spId),
       }),
@@ -523,33 +526,41 @@ export function runTz004(): void {
     "COUNTER naming a foreign Offer must fail at the assistant boundary"
   );
 
-  // --- Catalog reference is a lookup, not a price policy: two identical (seller, product, unit,
-  //     quantity) rows with DIFFERENT prices are ambiguous → no reference → WAIT, never "cheapest". ---
-  const ambiguous = new BasketWorld();
-  ambiguous.setCatalog({
+  // --- Catalog line identity is (seller, product, unit); price is the unit price. Two rows sharing
+  //     that line with DIFFERENT prices are ambiguous → NO reference (never "cheapest"). This is now
+  //     caught in the DOMAIN at Purchase creation, not only in the assistants. ---
+  const ambiguousCatalog = {
     names: { tomatoes: "Tomatoes" },
     availability: [
       { sellerId: "seller-a", productId: "tomatoes", quantity: 2, unit: "kg", price: 15, stock: 100 },
       { sellerId: "seller-a", productId: "tomatoes", quantity: 2, unit: "kg", price: 14, stock: 50 },
     ],
-  });
-  const ambiguousList = ambiguous.createList("ambiguous");
-  ambiguous.addItem(ambiguousList.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
-  const ambiguousSp = ambiguous.createPurchaseFromList(ambiguousList.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
-  ambiguous.proposeOffer({
-    sellerPurchaseId: ambiguousSp,
+  };
+  // (a) Ambiguity at creation: the domain refuses to price the line and creates NO SellerPurchase.
+  const ambiguousAtCreation = new BasketWorld();
+  ambiguousAtCreation.setCatalog(ambiguousCatalog);
+  const acList = ambiguousAtCreation.createList("ambiguous");
+  ambiguousAtCreation.addItem(acList.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+  const acPurchase = ambiguousAtCreation.createPurchaseFromList(acList.id, "PRIMARY_ONLY", ["seller-a"]);
+  assert.equal(acPurchase.sellerPurchaseIds.length, 0, "ambiguous price must not silently create a SellerPurchase");
+  assert.equal(acPurchase.unresolvedItems[0]?.reason, "AMBIGUOUS_PRICE", "the ambiguous line is reported, not guessed");
+  assert.equal(catalogReferencePrice(ambiguousAtCreation, "seller-a", "tomatoes", "kg"), null);
+
+  // (b) Ambiguity introduced AFTER creation: an existing SP whose catalog becomes ambiguous → the
+  //     seller assistant cannot reference a price and WAITs (NO_CATALOG_PRICE), never the cheapest.
+  const ambiguous = tomatoesWorld();
+  ambiguous.world.proposeOffer({
+    sellerPurchaseId: ambiguous.spId,
     actor: "BUYER",
     items: [{ productId: "tomatoes", quantity: 2, unit: "kg", price: 14 }],
     reason: "BUYER_CHANGE",
   });
-  const ambiguousAdvice = adviseSeller(ambiguous, ambiguousSp);
+  ambiguous.world.setCatalog(ambiguousCatalog);
+  const ambiguousAdvice = adviseSeller(ambiguous.world, ambiguous.spId);
   assert(ambiguousAdvice.kind === "WAIT", "ambiguous catalog rows must not silently become the cheapest reference");
   assert.equal(ambiguousAdvice.waitReason, "NO_CATALOG_PRICE");
-  // Direct unit evidence: the ambiguous pool yields NO reference (no cheapest-of pick), while an
-  // unambiguous line still resolves.
-  assert.equal(catalogReferencePrice(ambiguous, "seller-a", "tomatoes", "kg", 2), null);
   const unambiguous = tomatoesWorld();
-  assert.equal(catalogReferencePrice(unambiguous.world, "seller-a", "tomatoes", "kg", 20), 15);
+  assert.equal(catalogReferencePrice(unambiguous.world, "seller-a", "tomatoes", "kg"), 15);
 
   // --- REJECT is generated by the assistants themselves, not only crafted by hand. ---
   const buyerGivesUp = tomatoesWorld();
@@ -587,7 +598,8 @@ export function runTz004(): void {
   });
   assert.equal(adviseSeller(tolerant.world, tolerant.spId, { rejectBelowCatalog: 20 }).kind, "COUNTER");
 
-  // --- rejectReason is validated semantically at apply, not only as a typed field. ---
+  // --- rejectReason is validated semantically at apply: each reason must NAME and PROVE its
+  //     ground against the world; a REJECT is not a free enum. One negative test per reason. ---
   const reasonWorld = tomatoesWorld();
   reasonWorld.world.proposeOffer({
     sellerPurchaseId: reasonWorld.spId,
@@ -595,6 +607,44 @@ export function runTz004(): void {
     items: [{ productId: "tomatoes", quantity: 2, unit: "kg", price: 15 }],
     reason: "PRICE_CHANGE",
   });
+  const reasonOfferId = reasonWorld.world.requireSp(reasonWorld.spId).activeOfferId!;
+  // PRICE_UNACCEPTABLE / POLICY_DECLINED without an offerId target → refused.
+  for (const reason of ["PRICE_UNACCEPTABLE", "POLICY_DECLINED"] as const) {
+    assert.throws(
+      () =>
+        applyAdvice(reasonWorld.world, reasonWorld.spId, {
+          actor: "BUYER",
+          kind: "REJECT",
+          rejectReason: reason,
+          rationale: "crafted: no declined Offer named",
+          basis: captureAdviceBasis(reasonWorld.world, reasonWorld.spId),
+        }),
+      /invalid command.*must name the declined Offer/,
+      `REJECT(${reason}) without offerId must be refused`
+    );
+  }
+  // POLICY_DECLINED that names its own (buyer) Offer is not a decline of a counterparty proposal.
+  const ownProposal = tomatoesWorld();
+  ownProposal.world.proposeOffer({
+    sellerPurchaseId: ownProposal.spId,
+    actor: "BUYER",
+    items: [{ productId: "tomatoes", quantity: 2, unit: "kg", price: 15 }],
+    reason: "BUYER_CHANGE",
+  });
+  assert.throws(
+    () =>
+      applyAdvice(ownProposal.world, ownProposal.spId, {
+        actor: "BUYER",
+        kind: "REJECT",
+        rejectReason: "POLICY_DECLINED",
+        offerId: ownProposal.world.requireSp(ownProposal.spId).activeOfferId!,
+        rationale: "crafted: declining my own proposal",
+        basis: captureAdviceBasis(ownProposal.world, ownProposal.spId),
+      }),
+    /invalid command.*cannot act on/,
+    "REJECT(POLICY_DECLINED) may only decline a counterparty Offer"
+  );
+  // SUBSTITUTION_IMPOSSIBLE without naming a pending substitution → refused.
   assert.throws(
     () =>
       applyAdvice(reasonWorld.world, reasonWorld.spId, {
@@ -604,34 +654,79 @@ export function runTz004(): void {
         rationale: "crafted: no substitution exists",
         basis: captureAdviceBasis(reasonWorld.world, reasonWorld.spId),
       }),
-    /invalid command.*SUBSTITUTION_IMPOSSIBLE/,
-    "REJECT(SUBSTITUTION_IMPOSSIBLE) without any pending substitution must be refused"
+    /invalid command.*must name the impossible substitution/,
+    "REJECT(SUBSTITUTION_IMPOSSIBLE) without a substitutionId must be refused"
   );
+  // PRODUCT_UNAVAILABLE while every line has a comparable in-stock row → refused.
   assert.throws(
     () =>
       applyAdvice(reasonWorld.world, reasonWorld.spId, {
         actor: "BUYER",
         kind: "REJECT",
         rejectReason: "PRODUCT_UNAVAILABLE",
+        offerId: reasonOfferId,
         rationale: "crafted: the product is in stock",
         basis: captureAdviceBasis(reasonWorld.world, reasonWorld.spId),
       }),
     /invalid command.*PRODUCT_UNAVAILABLE/,
-    "REJECT(PRODUCT_UNAVAILABLE) while every line has catalog availability must be refused"
+    "REJECT(PRODUCT_UNAVAILABLE) while every line is available must be refused"
   );
-  const noOfferReject = tomatoesWorld();
-  assert.throws(
-    () =>
-      applyAdvice(noOfferReject.world, noOfferReject.spId, {
-        actor: "BUYER",
-        kind: "REJECT",
-        rejectReason: "PRICE_UNACCEPTABLE",
-        rationale: "crafted: no offer to judge",
-        basis: captureAdviceBasis(noOfferReject.world, noOfferReject.spId),
-      }),
-    /invalid command.*PRICE_UNACCEPTABLE/,
-    "REJECT(PRICE_UNACCEPTABLE) without an active Offer must be refused"
-  );
+
+  // --- rejectReason positives: each reason applies once its ground genuinely holds. ---
+  // SUBSTITUTION_IMPOSSIBLE: a counterparty substitution is pending → REJECT succeeds.
+  const subImpossible = tomatoesWorld();
+  subImpossible.world.proposeOffer({
+    sellerPurchaseId: subImpossible.spId,
+    actor: "SELLER",
+    items: [{ productId: "tomatoes", quantity: 2, unit: "kg", price: 15 }],
+    reason: "PRICE_CHANGE",
+  });
+  const impossibleSub = subImpossible.world.proposeSubstitution({
+    sellerPurchaseId: subImpossible.spId,
+    originalProductId: "tomato_a",
+    replacementProductId: "tomato_b",
+    proposedBy: "SELLER",
+  });
+  applyAdvice(subImpossible.world, subImpossible.spId, {
+    actor: "BUYER",
+    kind: "REJECT",
+    rejectReason: "SUBSTITUTION_IMPOSSIBLE",
+    substitutionId: impossibleSub.id,
+    rationale: "the only substitute is itself unavailable",
+    basis: captureAdviceBasis(subImpossible.world, subImpossible.spId),
+  });
+  assert.equal(subImpossible.world.requireSp(subImpossible.spId).status, "REJECTED");
+
+  // PRODUCT_UNAVAILABLE, unit-aware: a kg line becomes unbuyable when its only comparable (kg) row
+  // runs out of stock; a pcs row of the same product does NOT rescue it → REJECT succeeds.
+  const unavailable = new BasketWorld();
+  unavailable.setCatalog({
+    names: { tomatoes: "Tomatoes" },
+    availability: [
+      { sellerId: "seller-a", productId: "tomatoes", quantity: 10, unit: "kg", price: 15, stock: 100 },
+      { sellerId: "seller-a", productId: "tomatoes", quantity: 1, unit: "pcs", price: 3, stock: 100 },
+    ],
+  });
+  const uList = unavailable.createList("um");
+  unavailable.addItem(uList.id, { productId: "tomatoes", quantity: 10, unit: "kg", alternatives: [] });
+  const uSp = unavailable.createPurchaseFromList(uList.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+  unavailable.proposeOffer({
+    sellerPurchaseId: uSp,
+    actor: "SELLER",
+    items: [{ productId: "tomatoes", quantity: 10, unit: "kg", price: 15 }],
+    reason: "PRICE_CHANGE",
+  });
+  unavailable.setStock("seller-a", "tomatoes", "kg", 0); // the kg line is now out of stock
+  assert.equal(catalogLineAvailable(unavailable, "seller-a", "tomatoes", "kg"), false, "a pcs row is not availability for a kg line");
+  applyAdvice(unavailable, uSp, {
+    actor: "BUYER",
+    kind: "REJECT",
+    rejectReason: "PRODUCT_UNAVAILABLE",
+    offerId: unavailable.requireSp(uSp).activeOfferId!,
+    rationale: "the kg line is out of stock; the pcs row does not satisfy a kg request",
+    basis: captureAdviceBasis(unavailable, uSp),
+  });
+  assert.equal(unavailable.requireSp(uSp).status, "REJECTED");
 
   // --- OQ-009 assumption, pinned: the agreed baseline SURVIVES the agreed Offer's expiration.
   //     The agreement is a negotiation fact; validUntil gates acceptance of the ACTIVE Offer only.
@@ -686,9 +781,94 @@ export function runTz004(): void {
   // The domain still refuses STABLE while a mandatory substitution is pending (I-032 family).
   assert.notEqual(choiceSp.status, "STABLE");
 
+  runDecisionTable();
   runAdviceMatrix();
 
   console.log("TZ-BASKET-004 assistants: OK");
+}
+
+/**
+ * Decision tests (world → expected Advice), kept separate from execution tests (Advice → domain
+ * change). These pin that the example policy chooses the RIGHT kind/reason for a given world —
+ * the matrix only proves apply is safe for whatever kind was chosen, not that the choice was
+ * correct. Every case constructs a world, then asserts the exact decision.
+ */
+function runDecisionTable(): void {
+  // Each case builds a fresh world+SP and returns the advice under test.
+  const decide = (
+    build: (w: BasketWorld, spId: string) => void,
+    who: "BUYER" | "SELLER",
+    opts: { multi?: boolean } = {}
+  ): Advice => {
+    const src = opts.multi ? twoProductWorld() : tomatoesWorld();
+    build(src.world, src.spId);
+    return who === "BUYER" ? adviseBuyer(src.world, src.spId) : adviseSeller(src.world, src.spId);
+  };
+
+  const sellerOffer = (world: BasketWorld, spId: string, price: number, quantity = 2) =>
+    world.proposeOffer({
+      sellerPurchaseId: spId,
+      actor: "SELLER",
+      items: [{ productId: "tomatoes", quantity, unit: "kg", price }],
+      reason: "PRICE_CHANGE",
+    });
+  const buyerOffer = (world: BasketWorld, spId: string, price: number) =>
+    world.proposeOffer({
+      sellerPurchaseId: spId,
+      actor: "BUYER",
+      items: [{ productId: "tomatoes", quantity: 2, unit: "kg", price }],
+      reason: "BUYER_CHANGE",
+    });
+  const agree = (world: BasketWorld, spId: string, price: number, quantity = 2) => {
+    sellerOffer(world, spId, price, quantity);
+    world.acceptOffer(world.requireSp(spId).activeOfferId!, "BUYER");
+  };
+
+  // Buyer, agreed baseline present.
+  const d1 = decide((w, sp) => { agree(w, sp, 15); sellerOffer(w, sp, 12); }, "BUYER");
+  assert.equal(d1.kind, "ACCEPT_ACTIVE", "buyer accepts a discount below the agreed baseline");
+  const d2 = decide((w, sp) => { agree(w, sp, 15); sellerOffer(w, sp, 17); }, "BUYER");
+  assert(d2.kind === "COUNTER" && d2.items[0]?.price === 15, "buyer counters a small hike at the agreed baseline");
+  const d3 = decide((w, sp) => { agree(w, sp, 15); sellerOffer(w, sp, 40); }, "BUYER");
+  assert(d3.kind === "REJECT" && d3.rejectReason === "PRICE_UNACCEPTABLE", "buyer rejects a hopeless hike");
+
+  // Buyer, quantity CHANGED between agreed and active: the agreed price is reused as a baseline
+  // ONLY for the identical (product, unit, quantity) line; a changed quantity defers to the catalog
+  // UNIT reference instead. Agreed 20 kg @ 25 (catalog unit reference is 15); active is 10 kg @ 20.
+  // Reusing the 25 line-price would wrongly ACCEPT (20 < 25); the correct behaviour uses the catalog
+  // unit reference 15 and COUNTERs (20 > 15).
+  const dQty = decide((w, sp) => { agree(w, sp, 25, 20); sellerOffer(w, sp, 20, 10); }, "BUYER");
+  assert(
+    dQty.kind === "COUNTER" && dQty.items[0]?.price === 15 && dQty.items[0]?.quantity === 10,
+    "changed quantity is evaluated against the catalog reference (15), not the 20 kg agreed price (25)"
+  );
+
+  // Buyer, no baseline: catalog path.
+  const d4 = decide((w, sp) => sellerOffer(w, sp, 15), "BUYER");
+  assert.equal(d4.kind, "ACCEPT_ACTIVE", "buyer accepts a first offer at the catalog reference");
+  const d5 = decide((w, sp) => sellerOffer(w, sp, 16), "BUYER");
+  assert(d5.kind === "COUNTER" && d5.items[0]?.price === 15, "buyer counters a first offer above catalog");
+  const d6 = decide((w, sp) => sellerOffer(w, sp, 40), "BUYER");
+  assert(d6.kind === "REJECT" && d6.rejectReason === "PRICE_UNACCEPTABLE", "buyer rejects a hopeless first offer");
+
+  // Seller.
+  const d7 = decide((w, sp) => buyerOffer(w, sp, 15), "SELLER");
+  assert.equal(d7.kind, "ACCEPT_ACTIVE", "seller accepts a buyer offer at catalog");
+  const d8 = decide((w, sp) => buyerOffer(w, sp, 13), "SELLER");
+  assert(d8.kind === "COUNTER" && d8.items[0]?.price === 15, "seller counters a slightly low buyer offer");
+  const d9 = decide((w, sp) => buyerOffer(w, sp, 2), "SELLER");
+  assert(d9.kind === "REJECT" && d9.rejectReason === "PRICE_UNACCEPTABLE", "seller rejects a hopeless low buyer offer");
+
+  // WAIT reasons.
+  const d10 = decide(() => {}, "BUYER");
+  assert(d10.kind === "WAIT" && d10.waitReason === "NO_ACTIVE_OFFER", "buyer waits with no offer");
+  const d11 = decide((w, sp) => buyerOffer(w, sp, 15), "BUYER");
+  assert(d11.kind === "WAIT" && d11.waitReason === "OWN_OFFER_ACTIVE", "buyer waits on its own offer");
+
+  // Every generated REJECT names the declined active counterparty Offer.
+  for (const rej of [d3, d6, d9]) {
+    assert(rej.kind === "REJECT" && typeof rej.offerId === "string" && rej.offerId.length > 0, "generated REJECT names offerId");
+  }
 }
 
 interface MatrixCombo {

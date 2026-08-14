@@ -89,111 +89,77 @@ function decideOnOffer(world: BasketWorld, sellerPurchaseId: string, policy: Buy
 
   const agreed = sp.agreedOfferId ? world.offerById(sp.agreedOfferId) : null;
 
-  if (agreed) {
-    // Baseline is per LINE, not per productId: two lines of the same product with different
-    // quantity/unit must not collapse into one baseline. Several matching lines with different
-    // prices are AMBIGUOUS — picking the cheapest would be a hidden price policy, so there is
-    // no baseline for such a line.
-    const baselineFor = (item: PurchaseItem): number | null => {
-      const exact = agreed.items.filter(
-        (a) => a.productId === item.productId && a.unit === item.unit && a.quantity === item.quantity && a.price != null
-      );
-      const pool =
-        exact.length > 0
-          ? exact
-          : agreed.items.filter((a) => a.productId === item.productId && a.unit === item.unit && a.price != null);
-      if (pool.length === 0) return null;
-      if (exact.length === 0 && pool.length > 1) return null;
-      const price = pool[0].price as number;
-      return pool.every((a) => a.price === price) ? price : null;
-    };
+  // The reference for an active LINE is its agreed baseline ONLY for the exact same commercial
+  // line (productId, unit, quantity). A different quantity is a different proposal — there is no
+  // fallback across quantities (that would compare 10 kg against a 20 kg price). A line without
+  // an exact, unambiguous agreed baseline is judged against the catalog reference instead, so a
+  // quantity change is never silently accepted or flagged as a "hike".
+  const exactBaseline = (item: PurchaseItem): number | null => {
+    if (!agreed) return null;
+    const exact = agreed.items.filter(
+      (a) => a.productId === item.productId && a.unit === item.unit && a.quantity === item.quantity && a.price != null
+    );
+    if (exact.length === 0) return null;
+    const price = exact[0].price as number;
+    return exact.every((a) => a.price === price) ? price : null;
+  };
 
-    const hikes = active.items.filter((item) => {
-      const baseline = baselineFor(item);
-      return baseline != null && item.price != null && item.price > baseline + EPS;
-    });
-
-    // A hike beyond the reject threshold is not worth negotiating — give up explicitly.
-    const hopeless = hikes.filter((item) => {
-      const baseline = baselineFor(item);
-      return baseline != null && item.price != null && item.price > baseline + policy.rejectOverReference + EPS;
-    });
-    if (hopeless.length > 0) {
-      const detail = hopeless.map((item) => `${item.productId} ${item.price}>${baselineFor(item)}+${policy.rejectOverReference}`).join(", ");
-      return {
-        actor: "BUYER",
-        kind: "REJECT",
-        rejectReason: "PRICE_UNACCEPTABLE",
-        rationale: `Price exceeds the agreed baseline beyond the reject threshold on: ${detail}; give up on this SellerPurchase.`,
-        basis: captureAdviceBasis(world, sellerPurchaseId, { actor: "BUYER", ...policy }),
-      };
-    }
-
-    if (hikes.length > 0) {
-      const items = active.items.map((item) => ({
-        ...item,
-        price: baselineFor(item) ?? item.price,
-      }));
-      const detail = hikes
-        .map((item) => `${item.productId} ${item.price}>${baselineFor(item)}`)
-        .join(", ");
-      return {
-        actor: "BUYER",
-        kind: "COUNTER",
-        counterOfferId: active.id,
-        items,
-        rationale: `Price hike vs agreed baseline on: ${detail}; counter at agreed per-line prices.`,
-        basis: captureAdviceBasis(world, sellerPurchaseId, { actor: "BUYER", ...policy }),
-      };
-    }
-
-    return {
-      actor: "BUYER",
-      kind: "ACCEPT_ACTIVE",
-      offerId: active.id,
-      rationale: `No item of ${active.id} is above the agreed baseline; accept.`,
-      basis: captureAdviceBasis(world, sellerPurchaseId, { actor: "BUYER", ...policy }),
-    };
+  interface LineEval {
+    item: PurchaseItem;
+    reference: number;
+    fromBaseline: boolean;
+    over: boolean;
+    hopeless: boolean;
   }
 
-  // No agreed baseline: never accept blindly — compare every item against the catalog reference.
-  const overpriced: { productId: string; price: number; reference: number }[] = [];
+  const evals: LineEval[] = [];
   for (const item of active.items) {
-    const reference = catalogReferencePrice(world, sp.sellerId, item.productId, item.unit, item.quantity);
+    const baseline = exactBaseline(item);
+    const fromBaseline = baseline != null;
+    const reference = fromBaseline
+      ? baseline
+      : catalogReferencePrice(world, sp.sellerId, item.productId, item.unit);
     if (reference == null) {
-      return wait(world, sellerPurchaseId, policy, "NO_CATALOG_PRICE", `No comparable catalog reference for ${item.productId} (${item.unit}); cannot evaluate the first offer.`);
+      return wait(
+        world,
+        sellerPurchaseId,
+        policy,
+        "NO_CATALOG_PRICE",
+        `No agreed baseline and no comparable catalog reference for ${item.productId} (${item.unit} x${item.quantity}); cannot evaluate.`
+      );
     }
-    if (item.price != null && item.price > reference + policy.maxOverCatalog + EPS) {
-      overpriced.push({ productId: item.productId, price: item.price, reference });
-    }
+    // An agreed baseline tolerates no increase; a catalog reference tolerates policy.maxOverCatalog.
+    const margin = fromBaseline ? 0 : policy.maxOverCatalog;
+    const over = item.price != null && item.price > reference + margin + EPS;
+    const hopeless = item.price != null && item.price > reference + policy.rejectOverReference + EPS;
+    evals.push({ item, reference, fromBaseline, over, hopeless });
   }
 
-  const hopelesslyOverpriced = overpriced.filter(
-    (ev) => ev.price > ev.reference + policy.rejectOverReference + EPS
-  );
-  if (hopelesslyOverpriced.length > 0) {
-    const detail = hopelesslyOverpriced.map((ev) => `${ev.productId} ${ev.price}>${ev.reference}+${policy.rejectOverReference}`).join(", ");
+  const hopeless = evals.filter((ev) => ev.hopeless);
+  if (hopeless.length > 0) {
+    const detail = hopeless
+      .map((ev) => `${ev.item.productId} ${ev.item.price}>${ev.reference}+${policy.rejectOverReference}`)
+      .join(", ");
     return {
       actor: "BUYER",
       kind: "REJECT",
       rejectReason: "PRICE_UNACCEPTABLE",
-      rationale: `Offer exceeds the catalog reference beyond the reject threshold on: ${detail}; give up on this SellerPurchase.`,
+      offerId: active.id,
+      rationale: `Price exceeds the ${hopeless[0].fromBaseline ? "agreed baseline" : "catalog reference"} beyond the reject threshold on: ${detail}; give up on this SellerPurchase.`,
       basis: captureAdviceBasis(world, sellerPurchaseId, { actor: "BUYER", ...policy }),
     };
   }
 
-  if (overpriced.length > 0) {
-    const items = active.items.map((item) => ({
-      ...item,
-      price: catalogReferencePrice(world, sp.sellerId, item.productId, item.unit, item.quantity) ?? item.price,
-    }));
-    const detail = overpriced.map((ev) => `${ev.productId} ${ev.price}>${ev.reference}`).join(", ");
+  const over = evals.filter((ev) => ev.over);
+  if (over.length > 0) {
+    const items = evals.map((ev) => ({ ...ev.item, price: ev.reference }));
+    const detail = over.map((ev) => `${ev.item.productId} ${ev.item.price}>${ev.reference}`).join(", ");
     return {
       actor: "BUYER",
       kind: "COUNTER",
       counterOfferId: active.id,
       items,
-      rationale: `No agreed baseline and offer is above catalog reference on: ${detail}; counter at catalog prices.`,
+      rationale: `Above ${over.every((ev) => ev.fromBaseline) ? "agreed baseline" : "reference"} on: ${detail}; counter at per-line reference prices.`,
       basis: captureAdviceBasis(world, sellerPurchaseId, { actor: "BUYER", ...policy }),
     };
   }
@@ -202,7 +168,7 @@ function decideOnOffer(world: BasketWorld, sellerPurchaseId: string, policy: Buy
     actor: "BUYER",
     kind: "ACCEPT_ACTIVE",
     offerId: active.id,
-    rationale: `No agreed baseline; every item of ${active.id} is within catalog reference + ${policy.maxOverCatalog} MAD; accept.`,
+    rationale: `Every line of ${active.id} is within its per-line reference; accept.`,
     basis: captureAdviceBasis(world, sellerPurchaseId, { actor: "BUYER", ...policy }),
   };
 }

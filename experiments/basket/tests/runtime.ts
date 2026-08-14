@@ -35,5 +35,27 @@ export function runTz002(): void {
   assert.ok(respond?.sellerPurchaseId);
   assert.ok(respond?.result);
 
+  // Determinism: the runtime uses a simulated clock and a per-world id counter, so re-running the
+  // SAME scenario from a fresh runtime must reproduce the event stream AND the WHOLE observable
+  // world (not just SellerPurchase pointers) byte-for-byte. This backs the "deterministic" claim.
+  const observableWorld = (rt: ReturnType<typeof runScenario>) =>
+    JSON.stringify({
+      sellerPurchases: [...rt.world.sellerPurchases.values()],
+      purchases: [...rt.world.purchases.values()],
+      offers: rt.world.offers,
+      acceptances: rt.world.acceptances,
+      substitutions: rt.world.substitutions,
+      stockConflicts: rt.world.stockConflicts,
+      fulfillments: rt.world.fulfillments,
+      catalog: rt.world.catalog,
+      now: rt.world.nowIso(),
+    });
+  for (const scenario of DEMO_SCENARIOS) {
+    const a = runScenario(scenario);
+    const b = runScenario(scenario);
+    assert.deepEqual(a.events, b.events, `${scenario.name}: event stream must be reproducible`);
+    assert.equal(observableWorld(a), observableWorld(b), `${scenario.name}: full observable world must be reproducible`);
+  }
+
   console.log("TZ-BASKET-002 runtime: OK");
 }

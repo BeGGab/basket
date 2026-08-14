@@ -16,9 +16,13 @@ export interface AdviceBasis {
    * becomes stale once the Offer expires — this covers advise → clock advance → apply.
    */
   activeOfferValid: boolean;
-  /** Full content fingerprint of the active Offer — protects against same-ID/different-content drift. */
-  activeOfferItems: string;
-  agreedOfferItems: string;
+  /**
+   * Full immutable fingerprint of the active/agreed Offer — the complete observed fact, not just
+   * its commercial items: actor, reason, validUntil, createdAt AND items. Protects against
+   * same-ID/different-content drift and lets a future LLM policy reference the whole Offer.
+   */
+  activeOfferFingerprint: string;
+  agreedOfferFingerprint: string;
   status: SellerPurchaseStatus;
   /**
    * Canonical JSON of pending substitutions — id AND content (original, replacement, proposedBy).
@@ -44,9 +48,10 @@ export interface AdviceBasis {
 
 /**
  * Every fact in the basis must belong to the SellerPurchase it identifies: Offers are fetched
- * by ID, so ownership is asserted explicitly, and the fingerprint embeds the owning SP id.
+ * by ID, so ownership is asserted explicitly, and the fingerprint embeds the owning SP id plus
+ * the full immutable Offer metadata (not only items).
  */
-function offerItemsFacts(world: BasketWorld, sellerPurchaseId: string, offerId: string | null): string {
+function offerFingerprint(world: BasketWorld, sellerPurchaseId: string, offerId: string | null): string {
   if (!offerId) return "";
   const offer = world.offerById(offerId);
   if (offer.sellerPurchaseId !== sellerPurchaseId) {
@@ -57,6 +62,10 @@ function offerItemsFacts(world: BasketWorld, sellerPurchaseId: string, offerId: 
   return JSON.stringify({
     sellerPurchaseId,
     offerId,
+    actor: offer.actor,
+    reason: offer.reason,
+    createdAt: offer.createdAt,
+    validUntil: offer.validUntil ?? null,
     items: offer.items.map((item) => ({
       productId: item.productId,
       quantity: item.quantity,
@@ -109,8 +118,8 @@ export function captureAdviceBasis(
     activeOfferId: sp.activeOfferId,
     agreedOfferId: sp.agreedOfferId,
     activeOfferValid: sp.activeOfferId ? world.isOfferValid(world.offerById(sp.activeOfferId)) : false,
-    activeOfferItems: offerItemsFacts(world, sellerPurchaseId, sp.activeOfferId),
-    agreedOfferItems: offerItemsFacts(world, sellerPurchaseId, sp.agreedOfferId),
+    activeOfferFingerprint: offerFingerprint(world, sellerPurchaseId, sp.activeOfferId),
+    agreedOfferFingerprint: offerFingerprint(world, sellerPurchaseId, sp.agreedOfferId),
     status: sp.status,
     pendingSubstitutionFacts: JSON.stringify(
       world
@@ -139,13 +148,13 @@ export function adviceIsStale(world: BasketWorld, sellerPurchaseId: string, basi
   if (basis.activeOfferValid !== now.activeOfferValid) {
     return "Advice is stale: active Offer validity changed (expired since the advice was computed).";
   }
-  if (basis.activeOfferItems !== now.activeOfferItems) {
+  if (basis.activeOfferFingerprint !== now.activeOfferFingerprint) {
     return "Advice is stale: active Offer content changed.";
   }
   if (basis.agreedOfferId !== now.agreedOfferId) {
     return `Advice is stale: agreedOfferId ${basis.agreedOfferId} ≠ ${now.agreedOfferId}.`;
   }
-  if (basis.agreedOfferItems !== now.agreedOfferItems) {
+  if (basis.agreedOfferFingerprint !== now.agreedOfferFingerprint) {
     return "Advice is stale: agreed Offer content changed.";
   }
   if (basis.status !== now.status) {

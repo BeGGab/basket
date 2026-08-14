@@ -5,6 +5,18 @@
 **Приёмка:** программные сценарии, без обязательного UI  
 **Статус:** Implemented
 
+## Domain Contract
+
+Before implementation, the executor MUST read:
+
+`docs/domain/GREENMARKET_DOMAIN_SPEC.md`
+
+The implementation MUST comply with the current version of this specification.
+
+If the task conflicts with the specification, do not resolve the conflict implicitly in code. Report the conflict and update the domain specification first.
+
+See `AGENTS.md` for the mandatory AI workflow.
+
 ## Цель
 
 Собрать поверх доменного эксперимента ТЗ-001 **runtime симуляции**: акторы (Buyer Emulator + Seller Emulator) живут в одном детерминированном цикле, переходы SellerPurchase идут через явную FSM, сценарии описываются декларативно (Scenario Engine), а не только императивными тестами.
