@@ -4,6 +4,7 @@ import { MapScreenView } from '@/screens/map/MapScreenView';
 import { SellerListScreenView } from '@/screens/seller-list/SellerListScreenView';
 import { SellerCardScreenView } from '@/screens/seller-card/SellerCardScreenView';
 import { CartScreenView } from '@/screens/cart/CartScreenView';
+import { SimulationScreenView } from '@/screens/sim/SimulationScreenView';
 import { Header, Page, Row } from '@/layout';
 import { Text } from '@/design-system/components';
 import '@/buyer_mvp/buyer_mvp.css';
@@ -57,9 +58,12 @@ export function NavigationContainer() {
   const isFullScreenRoute =
     FULL_SCREEN_ROUTES.has(location.pathname) || location.pathname.startsWith('/seller/');
 
+  const hideNav =
+    isFullScreenRoute || location.pathname === '/sim';
+
   return (
     <>
-      {!isFullScreenRoute && <TopNav />}
+      {!hideNav && <TopNav />}
       {isFullScreenRoute ? (
         <Routes>
           <Route path="/map" element={<MapScreenView />} />
@@ -73,6 +77,7 @@ export function NavigationContainer() {
             <Route path="/catalog" element={<CatalogScreen />} />
             <Route path="/product/:productId" element={<ProductScreen />} />
             <Route path="/cart" element={<CartScreenView />} />
+            <Route path="/sim" element={<SimulationScreenView />} />
             <Route path="/profile" element={<PlaceholderScreen name="Профиль" />} />
             <Route path="*" element={<PlaceholderScreen name="Страница не найдена" />} />
           </Routes>
