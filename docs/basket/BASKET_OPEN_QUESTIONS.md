@@ -11,13 +11,17 @@ These are hypotheses to resolve through experiments, not implementation requirem
 - **OQ-003:** If yes, should referencePrice participate?
 - **OQ-004:** Does each alternative need its own expected price/range?
 - **OQ-005:** Is ANY_ACCEPTABLE required?
-- **OQ-006:** Does Resolution happen before seller partitioning or consider seller-specific offers?
+- **OQ-006:** RESOLVED (BS-019). Resolution is catalog-global and happens *before* seller partitioning. One ListItem → one productId for the Purchase; sellers are not given private alternatives.
 
 ## Offers
 
-- **OQ-007:** Is activeOfferId required or derivable?
-- **OQ-008:** Can an older Offer be accepted after a newer Offer exists?
-- **OQ-009:** What happens to activeOfferId on expiration?
+- **OQ-007:** RESOLVED (I-011 / I-027 / BS-021 / BS-024). `activeOfferId` is a required projection pointer, maintained by `proposeOffer`. `lastOffer()` is a convenience scan of history, not a substitute for the field.
+- **OQ-008:** RESOLVED (BS-017 / I-027). No. After a newer Offer exists, the older Offer cannot be accepted. Only `activeOfferId` is acceptable; history stays append-only.
+- **OQ-009:** OPEN. Split from already-decided pieces:
+  - Offer **validity** (`isOfferValid` / `validUntil`) — defined.
+  - **Acceptance** of an expired Offer — forbidden (I-028).
+  - `activeOfferId` as a required pointer — closed (OQ-007).
+  - Still open: pointer/status when an **already agreed** Offer later expires and no replacement Offer is proposed (keep pointer? clear it? which status?). The domain does not auto-change status on that expiry.
 - **OQ-010:** Is a separate negotiation TTL necessary?
 
 ## Silence
@@ -33,8 +37,10 @@ These are hypotheses to resolve through experiments, not implementation requirem
 ## Stock and fulfillment
 
 - **OQ-015:** At what point does limited stock become a commercial conflict: Offer, Acceptance, STABLE or fulfillment?
-- **OQ-016:** Does the future domain need Allocation?
+- **OQ-016:** Does the future domain need Allocation? OPEN. BS-011/BS-023 only confirm a detection-event log, not an allocation model. Canonical statement: **SPEC OQ-006**.
 - **OQ-017:** Does the future domain need Reservation?
+- **OQ-029:** Duplicate ListItems of the same `(productId, unit)` with different quantities (e.g. tomatoes 2 kg and 5 kg in one List). OPEN. Canonical statement: **SPEC OQ-003** in `docs/domain/GREENMARKET_DOMAIN_SPEC.md`. The experiment currently surfaces the second line as `DUPLICATE_LINE` rather than silently aggregating or dropping it.
+- **OQ-030:** May catalog package/reference `quantity` change the unit price (volume pricing)? OPEN. Canonical statement: **SPEC OQ-002**. Stage 1 assumes it does not.
 
 ## Purchase state
 
@@ -57,4 +63,4 @@ These are hypotheses to resolve through experiments, not implementation requirem
 
 - **OQ-026:** Does any scenario force a new entity?
 - **OQ-027:** Does any entity become overloaded?
-- **OQ-028:** Does any implementation require duplicated state?
+- **OQ-028:** Does any implementation require duplicated state? SellerPurchase no longer has a parallel `rejected` flag; `status === "REJECTED"` is the sole lifecycle signal.

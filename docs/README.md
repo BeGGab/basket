@@ -7,7 +7,8 @@
 - **[`specifications/`](./specifications/)** — технические задания (ТЗ-001…ТЗ-026), включая черновики и утверждённые версии.
 - **[`architecture/`](./architecture/)** — подготовка к FSM Engine: промпт-инструкция и ТЗ-022.
 - **[`reviews/`](./reviews/)** — ревью, рецензии архива, мета-разборы структуры.
-- **[`basket/`](./basket/)** — экспериментальная доменная модель корзины v0.1: [`BASKET_EXPERIMENT.md`](./basket/BASKET_EXPERIMENT.md), domain model, invariants, open questions, emulator spec, breaking scenarios, test matrix, results template.
+- **[`domain/`](./domain/)** — каноническая доменная спецификация GreenMarket: [`GREENMARKET_DOMAIN_SPEC.md`](./domain/GREENMARKET_DOMAIN_SPEC.md). Обязательна к прочтению перед любой доменной работой (см. корневой [`AGENTS.md`](../AGENTS.md)).
+- **[`basket/`](./basket/)** — экспериментальная модель корзины Stage 1; [`TZ-BASKET-001.md`](./basket/TZ-BASKET-001.md), [`TZ-BASKET-002.md`](./basket/TZ-BASKET-002.md), [`TZ-BASKET-003.md`](./basket/TZ-BASKET-003.md) (Simulation UI на `/sim`), [`TZ-BASKET-004.md`](./basket/TZ-BASKET-004.md) (Buyer/Seller assistants).
 
 > `research/` в исходном плане структуры пока не создана — в репозитории нет исследовательских материалов отдельно от specifications/reviews. Создавайте её по факту появления первого такого документа, а не заранее.
 
