@@ -17,17 +17,13 @@ These are hypotheses to resolve through experiments, not implementation requirem
 
 - **OQ-007:** RESOLVED (I-011 / I-027 / BS-021 / BS-024). `activeOfferId` is a required projection pointer, maintained by `proposeOffer`. `lastOffer()` is a convenience scan of history, not a substitute for the field.
 - **OQ-008:** RESOLVED (BS-017 / I-027). No. After a newer Offer exists, the older Offer cannot be accepted. Only `activeOfferId` is acceptable; history stays append-only.
-- **OQ-009:** OPEN. Split from already-decided pieces:
-  - Offer **validity** (`isOfferValid` / `validUntil`) — defined.
-  - **Acceptance** of an expired Offer — forbidden (I-028).
-  - `activeOfferId` as a required pointer — closed (OQ-007).
-  - Still open: pointer/status when an **already agreed** Offer later expires and no replacement Offer is proposed (keep pointer? clear it? which status?). The domain does not auto-change status on that expiry.
-- **OQ-010:** Is a separate negotiation TTL necessary?
+- **OQ-009:** CLOSED (SPEC v0.3 §38 / I-037 / I-038 / BS-031 / BS-032). An already-agreed Offer that later expires keeps `agreedOfferId` and `activeOfferId`, remains the price baseline, and does not exit STABLE. `validUntil` still forbids accept/counter of that standing proposal (I-028 / I-035). Canonical statement: **SPEC OQ-004 CLOSED**.
+- **OQ-010:** Is a separate negotiation TTL necessary? OPEN. Canonical statement: **SPEC OQ-005**.
 
 ## Silence
 
-- **OQ-011:** Are lastSellerActivity and waitingSince sufficient?
-- **OQ-012:** Is SELLER_UNRESPONSIVE a real domain state or only a derived UI signal?
+- **OQ-011:** CLOSED (SPEC v0.3 §39 / I-039 / BS-029 / BS-030 / BS-035). `waitingSince` + `lastSellerActivity` + clock are sufficient. Silence is the absence of a command, not an entity and not REJECT/CANCEL/EXPIRED.
+- **OQ-012:** CLOSED (SPEC v0.3 §40 / I-040 / I-041 / BS-035 / BS-036). `SELLER_UNRESPONSIVE` is not a domain state. `advance` is the domain time operation; emulator `tick()` is not. Time does not enter `EXPIRED`.
 
 ## Substitution
 

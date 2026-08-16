@@ -22,7 +22,7 @@ the specification first (`AGENTS.md`).
 - **I-008:** Acceptance does not mutate Offer.
 - **I-009:** Unaccepted Offer cannot become agreed state.
 - **I-010:** agreedOfferId references an immutable Offer.
-- **I-011:** `activeOfferId` is a required projection pointer to the currently applicable Offer. Snapshot, acceptance (I-027) and STABLE all use this field; it is not an optional hint.
+- **I-011:** `activeOfferId` is a required projection pointer to the current standing proposal. Snapshot, acceptance (I-027) and STABLE all use this field; it is not an optional hint. Time passage does not clear it; an expired active Offer is still the pointer, just not acceptable (I-028) or counterable (I-035).
 - **I-027:** Only the active Offer may be accepted. Older Offers remain historical facts; a rollback is a new Offer.
 - **I-028:** An expired Offer (`validUntil` in the past) cannot be accepted. Validity is `isOfferValid`. Acceptance of an expired Offer is refused **before** any Acceptance is recorded.
 - **I-029:** An Offer may be accepted only by the counterparty: BUYER accepts SELLER or SYSTEM; SELLER accepts BUYER. An actor cannot accept their own Offer. SYSTEM cannot accept.
@@ -31,9 +31,15 @@ the specification first (`AGENTS.md`).
 
 Offer expiration is three separate things:
 
-1. **Validity** — defined (`isOfferValid` / `validUntil`).
-2. **Acceptance of an expired Offer** — forbidden (I-028).
-3. **OQ-009 (OPEN)** — pointer/status after an **already agreed** Offer later expires and no replacement exists. The mock does **not** auto-change SellerPurchase status on that expiry; validity only prevents *entering* STABLE. Leaving STABLE in place is not a closed domain decision.
+1. **Validity** — defined (`isOfferValid` / `validUntil`): may this *standing proposal* be accepted or countered.
+2. **Acceptance / counter of an expired Offer** — forbidden (I-028 / I-035).
+3. **Already-agreed Offer later expires** — **CLOSED (I-037 / I-038)**. Pointers stay; the Acceptance remains the baseline; STABLE is not exited. See SPEC §38 / experiment OQ-009.
+
+- **I-037:** `validUntil` constrains acceptance and counter of the **active** standing proposal only. It does not revoke a recorded Acceptance, clear `agreedOfferId` / `activeOfferId`, or remove the agreed Offer as a price baseline. An expired agreed Offer is still the commercial baseline and may keep STABLE, but it is not a stock claim (I-025).
+- **I-038:** STABLE is the presence of an accepted agreement (`agreedOfferId === activeOfferId` and no pending mandatory substitutions). Current Offer validity is not a STABLE entry or exit condition — the Acceptance already happened while the Offer was valid (I-028).
+- **I-039:** Silence is the absence of a domain command. It does not change SellerPurchase status, `activeOfferId`, or `agreedOfferId`, and does not invent `REJECTED`, `CANCELLED`, or `EXPIRED`.
+- **I-040:** The world's `DeterministicClock` is the sole time source. `advance` is the domain operation that moves time and re-evaluates derived STABLE eligibility. Emulator/runtime `tick()` is not a domain operation.
+- **I-041:** Passage of time and silence do not transition a SellerPurchase to `EXPIRED`. `EXPIRED` is reserved so the FSM can refuse that automatic transition (I-026).
 
 ## Substitution
 
@@ -49,7 +55,7 @@ Offer expiration is three separate things:
 
 ## Stability
 
-- **I-017:** STABLE means commercial agreement.
+- **I-017:** STABLE means commercial agreement. It does not mean the agreed Offer's `validUntil` is still in the future.
 - **I-018:** STABLE does not imply payment, reservation, delivery, fulfillment or guaranteed physical quantity.
 - **I-019:** Later partial fulfillment does not retroactively invalidate a valid agreement when partial fulfillment is allowed. `partialFulfillmentAllowed = false` is an enforced policy: `mockFulfill` refuses a delivery below the agreed quantity instead of recording it.
 
@@ -66,7 +72,7 @@ Offer expiration is three separate things:
 ## Boundaries
 
 - **I-024:** Fulfilled quantity is outside the central current Basket model. The mock records the **delivered** quantity, and the FULFILLMENT stock checkpoint is evaluated on that delivered quantity, not on the agreed one.
-- **I-025:** Payment/Reservation/Allocation/Delivery are not introduced merely to solve current scenarios. Concurrent over-claim is recorded as `stockConflicts` **detection events** (same race may appear at several checkpoints); it is not an Allocation entity. For detection, a claim is the quantity on the SellerPurchase's **valid active** commercial proposal, and claims compete only within the same commercial line `(productId, unit)` — a `pcs` claim does not draw on a `kg` stock pool. REJECTED, CANCELLED, and expired Offers are not claims.
+- **I-025:** Payment/Reservation/Allocation/Delivery are not introduced merely to solve current scenarios. Concurrent over-claim is recorded as `stockConflicts` **detection events** (same race may appear at several checkpoints); it is not an Allocation entity. For detection, a claim is the quantity on the SellerPurchase's **valid active** commercial proposal, and claims compete only within the same commercial line `(productId, unit)` — a `pcs` claim does not draw on a `kg` stock pool. REJECTED, CANCELLED, and expired Offers are not claims. A STABLE SellerPurchase whose active Offer has expired therefore holds no stock claim — consistent with I-018 (`STABLE ≠ stock guarantee`).
 - **I-026:** New FSM states require experimental evidence.
 
 ## Model integrity

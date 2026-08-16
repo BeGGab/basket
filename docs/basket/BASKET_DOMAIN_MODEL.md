@@ -227,7 +227,7 @@ Expiration is split:
 
 1. **Validity** — `isOfferValid(offer)` from `validUntil`. Defined.
 2. **Acceptance** — expired Offer cannot be accepted (I-028). Defined.
-3. **OQ-009 (open)** — what happens to the pointer and SellerPurchase status when an already-agreed Offer later expires and no newer Offer exists. The domain does **not** auto-transition status on that expiry (STABLE may remain STABLE). That is deliberately not a closed decision.
+3. **Already-agreed Offer later expires** — **CLOSED** (SPEC v0.3 §38 / I-037 / I-038). Pointers stay; the Acceptance remains the baseline; STABLE is not exited. Validity still forbids accept/counter of the standing proposal (I-028 / I-035).
 
 ## Snapshot invariant
 
@@ -263,12 +263,13 @@ Conceptually:
 ```text
 activeOffer == agreedOffer
 AND no unresolved mandatory substitution
-AND agreed offer is valid
 ```
 
-STABLE does not mean payment, reservation, delivery, guaranteed physical availability, or guaranteed quantity.
+Current Offer validity is **not** a STABLE entry or exit condition (I-038). `validUntil` answers whether the *active standing proposal* may still be accepted or countered, not whether an already-recorded agreement evaporates.
 
-`acceptOffer()` refuses an expired Offer **before** recording Acceptance (I-028). STABLE’s “agreed offer is valid” is therefore not the only validity gate.
+STABLE does not mean payment, reservation, delivery, guaranteed physical availability, guaranteed quantity, or that the agreed Offer's `validUntil` is still in the future.
+
+`acceptOffer()` refuses an expired Offer **before** recording Acceptance (I-028). An expired agreed Offer is also not a stock claim (I-025).
 
 ## Stock conflict detections
 
@@ -282,7 +283,7 @@ Initial candidates:
 
 `DRAFT | NEGOTIATING | WAITING_SELLER | WAITING_BUYER | STABLE | REJECTED | CANCELLED | EXPIRED`
 
-`EXPIRED` is reserved in the experimental enum; the clock does **not** enter it automatically. Expiration is a derived Offer fact (`isOfferValid`). Whether it should be a lifecycle state is OQ-009 / OQ-011 — not closed here.
+`EXPIRED` is reserved in the experimental enum so the FSM can refuse an automatic transition into it (I-041). The clock and silence do **not** enter it. Expiration is a derived Offer fact (`isOfferValid`). `SELLER_UNRESPONSIVE` is not a domain state (SPEC §40).
 
 States must be added only when evidence requires them.
 

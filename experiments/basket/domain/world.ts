@@ -137,7 +137,10 @@ export class BasketWorld {
     return this.clock.now().toISOString();
   }
 
-  /** Advance time and re-evaluate STABLE/validity without inventing EXPIRED as a silence state. */
+  /**
+   * Domain time operation (I-040): move the world clock and re-evaluate derived STABLE eligibility.
+   * Does not create Offers/Acceptances, does not clear pointers, does not enter EXPIRED (I-041).
+   */
   advance(durationMs: number): void {
     this.clock.advance(durationMs);
     for (const sp of this.spById.values()) this.refreshStatus(sp);
@@ -491,6 +494,7 @@ export class BasketWorld {
     };
   }
 
+  /** Standing-proposal validity (I-037): may this Offer be accepted or countered *now*. */
   isOfferValid(offer: Offer): boolean {
     if (!offer.validUntil) return true;
     return Date.parse(offer.validUntil) > this.clock.now().getTime();
@@ -536,12 +540,8 @@ export class BasketWorld {
     const agreed = sp.agreedOfferId ? this.requireOffer(sp.agreedOfferId) : null;
     const active = sp.activeOfferId ? this.requireOffer(sp.activeOfferId) : null;
     const pending = this.pendingMandatorySubs(sp);
-    const stable =
-      agreed !== null &&
-      active !== null &&
-      agreed.id === active.id &&
-      pending.length === 0 &&
-      this.isOfferValid(agreed);
+    // I-038: STABLE is the accepted agreement, not a live lease on validUntil.
+    const stable = agreed !== null && active !== null && agreed.id === active.id && pending.length === 0;
     if (stable) {
       this.applyStatus(sp, "STABLE");
       this.recordStockConflict(sp, agreed.items, "STABLE");
@@ -550,8 +550,6 @@ export class BasketWorld {
     if (agreed && active && agreed.id !== active.id) {
       this.applyStatus(sp, active.actor === "BUYER" ? "WAITING_SELLER" : "WAITING_BUYER");
     }
-    // OQ-009 remains OPEN: an already-agreed Offer that later expires does not
-    // auto-change SellerPurchase status. Validity only prevents *entering* STABLE.
   }
 
   /**

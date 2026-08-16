@@ -509,7 +509,7 @@ export function runAllScenarios(): ScenarioResult[] {
       assert.notEqual(w.requireSp(sp).status, "EXPIRED");
       return prove(
         "BS-012",
-        "I-026 I-028",
+        "I-026 I-028 I-037 I-038",
         { laterStatus: "STABLE", laterOfferValid: false, agreedIsLive: true, counterOverExpiredRejected: true },
         {
           laterStatus: w.requireSp(sp).status,
@@ -517,9 +517,9 @@ export function runAllScenarios(): ScenarioResult[] {
           agreedIsLive: w.requireSp(sp).agreedOfferId === live.id,
           counterOverExpiredRejected,
         },
-        "domain does not auto-drop STABLE on agreed expiry (OQ-009 OPEN)",
-        "OPEN",
-        "OQ-009"
+        "I-037/I-038: agreed expiry keeps STABLE and pointers",
+        "CONFIRMED",
+        "none"
       );
     })
   );
@@ -538,12 +538,12 @@ export function runAllScenarios(): ScenarioResult[] {
       const s = w.requireSp(sp);
       return prove(
         "BS-013",
-        "I-026",
+        "I-026 I-039 I-041",
         { status: "WAITING_SELLER", hasWaitingSince: true },
         { status: s.status, hasWaitingSince: Boolean(s.waitingSince) },
-        "keep v0.1",
-        "OPEN",
-        "OQ-012"
+        "I-039/I-041: silence + time do not invent EXPIRED",
+        "CONFIRMED",
+        "none"
       );
     })
   );
@@ -719,9 +719,9 @@ export function runAllScenarios(): ScenarioResult[] {
           expiredStillValid: w.isOfferValid(old),
           activeValid: w.isOfferValid(neu),
         },
-        "keep v0.1",
-        "OPEN",
-        "OQ-009"
+        "I-011: new Offer becomes active; expired Offer stays historical",
+        "CONFIRMED",
+        "none"
       );
     })
   );
@@ -898,9 +898,12 @@ export function runAllScenarios(): ScenarioResult[] {
       w.advance(3_600_000);
       return prove(
         "BS-026",
-        "I-026",
+        "I-039 I-026",
         { offerValid: true, status: "WAITING_SELLER" },
-        { offerValid: w.isOfferValid(w.lastOffer(sp)!), status: w.requireSp(sp).status }
+        { offerValid: w.isOfferValid(w.lastOffer(sp)!), status: w.requireSp(sp).status },
+        "I-039: silence while valid is not expiration and does not change status",
+        "CONFIRMED",
+        "none"
       );
     })
   );
@@ -1107,16 +1110,323 @@ export function runAllScenarios(): ScenarioResult[] {
       const s = w.requireSp(sp);
       return prove(
         "BS-022",
-        "I-026",
+        "I-026 I-039",
         { offerValid: false, status: "WAITING_SELLER", hasWaitingSince: true },
         {
           offerValid: w.isOfferValid(w.lastOffer(sp)!),
           status: s.status,
           hasWaitingSince: Boolean(s.waitingSince),
         },
-        "keep v0.1",
-        "OPEN",
-        "OQ-011"
+        "I-039: silence after expiration does not REJECT or change pointers",
+        "CONFIRMED",
+        "none"
+      );
+    })
+  );
+
+  results.push(
+    run("BS-029", () => {
+      const w = new BasketWorld();
+      w.setCatalog(catalog());
+      const list = w.createList("bs029");
+      w.addItem(list.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      const offer = w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 15),
+        reason: "PRICE_CHANGE",
+        validUntil: "2026-01-01T01:00:00.000Z",
+      });
+      const before = w.requireSp(sp);
+      w.advance(1_800_000);
+      const after = w.requireSp(sp);
+      return prove(
+        "BS-029",
+        "I-039",
+        {
+          status: "WAITING_BUYER",
+          active: offer.id,
+          agreed: null,
+          valid: true,
+          sameActive: true,
+        },
+        {
+          status: after.status,
+          active: after.activeOfferId,
+          agreed: after.agreedOfferId,
+          valid: w.isOfferValid(offer),
+          sameActive: after.activeOfferId === before.activeOfferId,
+        },
+        "silence while valid changes nothing but the clock"
+      );
+    })
+  );
+
+  results.push(
+    run("BS-030", () => {
+      const w = new BasketWorld();
+      w.setCatalog(catalog());
+      const list = w.createList("bs030");
+      w.addItem(list.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      const offer = w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 15),
+        reason: "PRICE_CHANGE",
+        validUntil: "2026-01-01T00:00:01.000Z",
+      });
+      w.advance(10_000);
+      const s = w.requireSp(sp);
+      return prove(
+        "BS-030",
+        "I-039 I-028",
+        {
+          status: "WAITING_BUYER",
+          active: offer.id,
+          agreed: null,
+          valid: false,
+          rejected: false,
+          expiredState: false,
+        },
+        {
+          status: s.status,
+          active: s.activeOfferId,
+          agreed: s.agreedOfferId,
+          valid: w.isOfferValid(offer),
+          rejected: s.status === "REJECTED",
+          expiredState: s.status === "EXPIRED",
+        },
+        "silence until expiration is not implicit REJECT"
+      );
+    })
+  );
+
+  results.push(
+    run("BS-031", () => {
+      const w = new BasketWorld();
+      w.setCatalog(catalog());
+      const list = w.createList("bs031");
+      w.addItem(list.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      const a = w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 15),
+        reason: "PRICE_CHANGE",
+        validUntil: "2026-01-01T00:00:05.000Z",
+      });
+      w.acceptOffer(a.id, "BUYER");
+      w.advance(10_000);
+      const s = w.requireSp(sp);
+      return prove(
+        "BS-031",
+        "I-037 I-038",
+        {
+          status: "STABLE",
+          agreed: a.id,
+          active: a.id,
+          valid: false,
+          expiredState: false,
+        },
+        {
+          status: s.status,
+          agreed: s.agreedOfferId,
+          active: s.activeOfferId,
+          valid: w.isOfferValid(a),
+          expiredState: s.status === "EXPIRED",
+        },
+        "accepted Offer expiry keeps STABLE and both pointers"
+      );
+    })
+  );
+
+  results.push(
+    run("BS-032", () => {
+      const w = new BasketWorld();
+      w.setCatalog(catalog());
+      const list = w.createList("bs032");
+      w.addItem(list.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      const a = w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 15),
+        reason: "PRICE_CHANGE",
+        validUntil: "2026-01-01T00:00:05.000Z",
+      });
+      w.acceptOffer(a.id, "BUYER");
+      w.advance(10_000);
+      const b = w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 14),
+        reason: "TIME_DISCOUNT",
+      });
+      const mid = w.requireSp(sp);
+      const agreedStaysA = mid.agreedOfferId === a.id;
+      const activeIsB = mid.activeOfferId === b.id;
+      const waitingOnB = mid.status === "WAITING_BUYER";
+      const bAcceptable = threw(() => w.acceptOffer(b.id, "BUYER"), /./) === false;
+      const end = w.requireSp(sp);
+      return prove(
+        "BS-032",
+        "I-011 I-037",
+        {
+          agreedStaysA: true,
+          activeIsB: true,
+          waitingOnB: true,
+          bAcceptable: true,
+          agreedAfterB: b.id,
+          statusAfterB: "STABLE",
+          history: 2,
+        },
+        {
+          agreedStaysA,
+          activeIsB,
+          waitingOnB,
+          bAcceptable,
+          agreedAfterB: end.agreedOfferId,
+          statusAfterB: end.status,
+          history: w.offers.filter((o) => o.sellerPurchaseId === sp).length,
+        },
+        "new Offer after agreed expiry becomes active; A stays agreed until B is accepted"
+      );
+    })
+  );
+
+  results.push(
+    run("BS-033", () => {
+      const w = new BasketWorld();
+      w.setCatalog(catalog());
+      const list = w.createList("bs033");
+      w.addItem(list.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      const a = w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 15),
+        reason: "PRICE_CHANGE",
+        validUntil: "2026-01-01T00:00:01.000Z",
+      });
+      w.advance(5_000);
+      const blocked = threw(() => w.acceptOffer(a.id, "BUYER"), /expired|I-028/);
+      return prove(
+        "BS-033",
+        "I-028",
+        { blocked: true, acceptances: 0, agreed: null },
+        { blocked, acceptances: w.acceptances.length, agreed: w.requireSp(sp).agreedOfferId },
+        "expired Offer cannot be revived by ACCEPT"
+      );
+    })
+  );
+
+  results.push(
+    run("BS-034", () => {
+      const w = new BasketWorld();
+      w.setCatalog(catalog());
+      const list = w.createList("bs034");
+      w.addItem(list.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 15),
+        reason: "PRICE_CHANGE",
+        validUntil: "2026-01-01T00:00:01.000Z",
+      });
+      w.advance(5_000);
+      const blocked = threw(
+        () =>
+          w.proposeOffer({
+            sellerPurchaseId: sp,
+            actor: "BUYER",
+            items: tomatoes(2, 14),
+            reason: "BUYER_CHANGE",
+          }),
+        /I-035|expired/
+      );
+      return prove(
+        "BS-034",
+        "I-035",
+        { blocked: true, offerCount: 1 },
+        { blocked, offerCount: w.offers.filter((o) => o.sellerPurchaseId === sp).length },
+        "expired Offer cannot be countered"
+      );
+    })
+  );
+
+  results.push(
+    run("BS-035", () => {
+      const w = new BasketWorld();
+      w.setCatalog(catalog());
+      const list = w.createList("bs035");
+      w.addItem(list.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 15),
+        reason: "PRICE_CHANGE",
+        validUntil: "2026-01-01T00:00:01.000Z",
+      });
+      const before = w.requireSp(sp).status;
+      w.advance(86_400_000);
+      const after = w.requireSp(sp);
+      return prove(
+        "BS-035",
+        "I-039 I-041",
+        { before: "WAITING_BUYER", after: "WAITING_BUYER", expiredState: false, invented: false },
+        {
+          before,
+          after: after.status,
+          expiredState: after.status === "EXPIRED",
+          invented: after.status !== before,
+        },
+        "silence must not create a fake FSM state"
+      );
+    })
+  );
+
+  results.push(
+    run("BS-036", () => {
+      const play = () => {
+        const w = new BasketWorld();
+        w.setCatalog(catalog());
+        const list = w.createList("bs036");
+        w.addItem(list.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+        const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+        const a = w.proposeOffer({
+          sellerPurchaseId: sp,
+          actor: "SELLER",
+          items: tomatoes(2, 15),
+          reason: "PRICE_CHANGE",
+          validUntil: "2026-01-01T00:00:05.000Z",
+        });
+        w.acceptOffer(a.id, "BUYER");
+        w.advance(10_000);
+        return JSON.stringify({
+          sellerPurchases: [...w.sellerPurchases.values()],
+          purchases: [...w.purchases.values()],
+          offers: w.offers,
+          acceptances: w.acceptances,
+          substitutions: w.substitutions,
+          stockConflicts: w.stockConflicts,
+          fulfillments: w.fulfillments,
+          catalog: w.catalog,
+          now: w.nowIso(),
+          valid: w.isOfferValid(a),
+        });
+      };
+      const first = play();
+      const second = play();
+      return prove(
+        "BS-036",
+        "I-040",
+        { same: true },
+        { same: first === second },
+        "same commands + same clock produce the same observable world"
       );
     })
   );
@@ -1128,9 +1438,9 @@ export function formatResults(rows: ScenarioResult[]): string {
   const lines = [
     "# GreenMarket — Basket Experiment Results",
     "",
-    "**Status:** Evidence from TZ-BASKET-001…004 mock run  ",
+    "**Status:** Evidence from TZ-BASKET-001…005 mock run  ",
     "**Experiment version:** v0.1  ",
-    "**Model version:** v0.1.13 (CatalogLine identity (sellerId, productId, unit) propagates into SellerPurchase; duplicate ListItems of the same line are DUPLICATE_LINE not silent collapse; PartialAvailabilitySeller stock is unit-aware; cheapestAvailable removed; package-quantity unit-price assumption recorded; GREENMARKET_DOMAIN_SPEC v0.2 + AGENTS.md)",
+    "**Model version:** v0.1.14 / SPEC v0.3 (Offer validity is standing-proposal only; agreed expiry keeps pointers and STABLE; silence is not a command; advance is the domain time operation)",
     "",
     "## How to read results",
     "",
@@ -1139,7 +1449,7 @@ export function formatResults(rows: ScenarioResult[]): string {
     "- **Domain `OPEN`** — implementation is deterministic, but the business semantics are still an open question (see `openQuestion`).",
     "- Do not treat Impl PASS as confirmation of an unresolved OQ.",
     "- Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.",
-    "- All 28 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped.",
+    "- All 36 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped.",
     "",
     "## Purpose",
     "",
@@ -1170,13 +1480,13 @@ export function formatResults(rows: ScenarioResult[]): string {
   }
   lines.push("## Final decision", "");
   lines.push("```text");
-  lines.push("Model version: v0.1.13");
+  lines.push("Model version: v0.1.14 / SPEC v0.3");
   lines.push("Status: experiment implemented; production architecture not started");
   lines.push("");
   lines.push("Scope of this evidence: every CONFIRMED below confirms a SPECIFIC experimental behavior");
   lines.push("under the mock clock, mock catalog and example policies — NOT the basket model as a whole.");
-  lines.push("The model as a whole cannot be declared confirmed while expiration/silence/stock-allocation");
-  lines.push("questions (OQ-009, OQ-011, OQ-012, OQ-016) remain open.");
+  lines.push("The model as a whole cannot be declared confirmed while price/package, negotiation-TTL and");
+  lines.push("allocation questions (SPEC OQ-001/OQ-002; experiment OQ-010; OQ-016) remain open.");
   lines.push("");
   lines.push("Changes in this PR (already implemented and tested):");
   lines.push("- I-033: BasketWorld hands out frozen projections; state changes only via domain commands");
@@ -1210,7 +1520,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("- AdviceBasis fingerprints pending substitutions with CONTENT (not only IDs) and records the effective policy as an audit fact");
   lines.push("- rejectReason is validated semantically at apply: a REJECT may not claim a ground (substitution, unavailability, priced offer) that does not exist");
   lines.push("- the COUNTER guard compares every item field except price, so future PurchaseItem fields are protected automatically");
-  lines.push("- OQ-009 assumption pinned by test: an expired agreed Offer still provides the price baseline; validUntil gates the ACTIVE Offer only");
+  lines.push("- expired agreed Offer still provides the price baseline (I-037, CONFIRMED — no longer an OQ-009 assumption)");
   lines.push("- combination matrix test: multi-item x missing catalog x substitution x expired x offer author x advisor — kind invariants, determinism, and the SEMANTIC end state after apply for every combination");
   lines.push("- ACCEPT_SUBSTITUTION requires the accepting actor to be the counterparty of proposedBy");
   lines.push("- I-035: countering an expired Offer is forbidden in the domain (symmetric with I-028)");
@@ -1224,7 +1534,13 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("- PartialAvailabilitySeller offers min(requested, stock) of the SAME CatalogLine (sellerId, productId, unit) — a pcs pool is not kg stock");
   lines.push("- cheapestAvailable() removed from domain catalog semantics (ambiguous ≠ cheapest); catalogUnitPrice returns null on disagreement");
   lines.push("- Stage-1 ASSUMPTION recorded (SPEC OQ-002): package/reference quantity never changes unit price — not a proven domain truth");
-  lines.push("- GREENMARKET_DOMAIN_SPEC v0.2 is the canonical domain contract (docs/domain); AGENTS.md requires AI executors to read it before any domain change");
+  lines.push("- GREENMARKET_DOMAIN_SPEC v0.3 is the canonical domain contract; TZ-BASKET-005 closed experiment OQ-009/OQ-011/OQ-012");
+  lines.push("- I-037: validUntil constrains accept/counter of the ACTIVE standing proposal only; it does not revoke Acceptance or agreed baseline");
+  lines.push("- I-038: STABLE is agreed==active and no pending substitutions — Offer validity is not a STABLE exit");
+  lines.push("- I-039: silence is the absence of a command; it does not REJECT/CANCEL/EXPIRED or move pointers");
+  lines.push("- I-040: DeterministicClock + advance() are the domain time model; emulator tick() is not a domain operation");
+  lines.push("- I-041: time/silence do not enter EXPIRED");
+  lines.push("- BS-029…036: silence-while-valid, silence-until-expiry, agreed expiry, new Offer after expiry, no revive, no counter, no fake FSM state, time determinism");
   lines.push("- Stock race records combined claims (stock=6, A→4, B→3) at OFFER_CREATION");
   lines.push("- stock claim = valid active Offer quantity; REJECTED/CANCELLED/expired excluded");
   lines.push("- I-029: only the counterparty may accept an Offer");
@@ -1232,23 +1548,23 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("- TZ-001…004 ship as four dependent PRs (domain → assistants → runtime → /sim), each with its own runner");
   lines.push("- removed duplicate SellerPurchase.rejected; REJECTED is FSM status only");
   lines.push("");
-  lines.push("Still open after this experiment (future domain work, not blockers for TZ-001…004):");
-  lines.push("- OQ-001, OQ-002 — resolution / price policy");
-  lines.push("- OQ-009 — pointer/status when an *already agreed* Offer later expires without a replacement");
-  lines.push("- OQ-011, OQ-012 — silence / waiting facts");
+  lines.push("Closed in SPEC v0.3 / TZ-BASKET-005:");
+  lines.push("- OQ-009 CLOSED — agreed Offer expiry keeps pointers and STABLE; validity still forbids accept/counter");
+  lines.push("- OQ-011 CLOSED — waitingSince + lastSellerActivity + clock suffice; silence is not an entity");
+  lines.push("- OQ-012 CLOSED — no SELLER_UNRESPONSIVE / auto-EXPIRED; advance is the time operation");
   lines.push("");
-  lines.push("Known dependency: the assistant layer uses Offer validity (isOfferValid) in its decisions and");
-  lines.push("in AdviceBasis, while OQ-009 (agreed-Offer expiration) is still open. Assistant semantics for");
-  lines.push("that case is therefore an ASSUMPTION and must be revisited when OQ-009 is resolved.");
+  lines.push("Still open:");
+  lines.push("- SPEC OQ-001 / OQ-002 — price semantics / package quantity");
+  lines.push("- SPEC OQ-003 — duplicate ListItems");
+  lines.push("- SPEC OQ-005 / experiment OQ-010 — negotiation TTL");
+  lines.push("- experiment OQ-016 — allocation");
   lines.push("");
-  lines.push("No new domain concepts required. Existing model required several invariant/behavior corrections.");
-  lines.push("IMPORTANT: the model is NOT final. Implementation PASS here does not close the open OQs above;");
-  lines.push("OQ-009/OQ-011/OQ-012 (agreed-Offer expiration, silence semantics) must be resolved before the");
-  lines.push("model is transferred to production architecture. The assistant layer is validated against ONE");
-  lines.push("deterministic example policy family: this PR proves the Advice/basis/apply contract is executable");
-  lines.push("and safe for THAT family — it does NOT prove the contract sufficient for arbitrary LLM/real");
-  lines.push("policies. 'Policy-agnostic' refers to the contract shape (injected parameters), not to evidence.");
-  lines.push("Recommended next step: resolve OQ-009/OQ-011/OQ-012 as a separate domain iteration");
+  lines.push("Assistant compatibility: isOfferValid still means standing-proposal validity. STABLE is");
+  lines.push("checked first (WAIT TERMINAL_STATUS). An expired agreed Offer remains the price baseline");
+  lines.push("when a later live active Offer is evaluated (I-037). Advice shape is unchanged.");
+  lines.push("");
+  lines.push("The model is still experimental. PASS does not close remaining OPEN questions.");
+  lines.push("Recommended next step: price semantics (SPEC OQ-001/OQ-002) or production-architecture gate");
   lines.push("```");
   lines.push("");
   return lines.join("\n");
