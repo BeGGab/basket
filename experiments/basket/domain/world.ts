@@ -1,4 +1,5 @@
-import { comparableRows, priceableSellerLines } from "./catalog";
+import { catalogUnitPrice, comparableRows, priceableSellerLines } from "./catalog";
+import type { AlternativeProjection } from "./projections";
 import { DeterministicClock } from "./clock";
 import { transition } from "./fsm";
 import { resolve } from "./resolution";
@@ -197,6 +198,14 @@ export class BasketWorld {
     const allowed = sellerIds ? new Set(sellerIds) : null;
 
     for (const item of list.items) {
+      if (item.quantity === undefined) {
+        purchase.unresolvedItems.push({
+          listItemId: item.id,
+          productId: item.productId,
+          reason: "MISSING_QUANTITY",
+        });
+        continue;
+      }
       const result = resolve(item, policy, this.catalogState);
       if (result.kind === "UNRESOLVED" || !result.productId) {
         purchase.unresolvedItems.push({
@@ -239,14 +248,9 @@ export class BasketWorld {
           duplicated = true;
           continue;
         }
-        const fallbackQuantity = comparableRows(this.catalogState, {
-          sellerId: line.sellerId,
-          productId: result.productId,
-          unit: line.unit,
-        })[0]?.quantity;
         bucket.push({
           productId: result.productId,
-          quantity: item.quantity ?? fallbackQuantity ?? 1,
+          quantity: item.quantity,
           unit: line.unit,
           price: line.price,
           resolvedFrom: result.resolvedFrom ?? item.productId,
@@ -364,6 +368,13 @@ export class BasketWorld {
     }
     if (!this.isOfferValid(offer)) {
       throw new Error(`Cannot accept Offer ${offer.id}: offer is expired (I-028).`);
+    }
+    if (
+      offer.items.some((item) => item.price == null || !Number.isFinite(item.price) || item.price < 0)
+    ) {
+      throw new Error(
+        `Cannot accept Offer ${offer.id}: every item needs a finite price ≥ 0 (I-046).`
+      );
     }
     this.assertAcceptanceActor(offer, actor);
     const acceptance: ReadonlyAcceptance = Object.freeze<Acceptance>({
@@ -494,7 +505,75 @@ export class BasketWorld {
       agreed: { offerId: agreed?.id ?? null, items: agreed ? frozenItems(agreed.items) : [] },
       current: { offerId: current?.id ?? null, items: current ? frozenItems(current.items) : [] },
       pendingSubstitutions: Object.freeze(this.pendingMandatorySubs(sp).map(frozenSub)),
+      alternatives: Object.freeze(this.listAlternatives(sp).map((row) => Object.freeze({ ...row }))),
     };
+  }
+
+  /**
+   * I-023 projection: List alternatives vs this seller's catalog facts.
+   * Bound to List + this SellerPurchase's offer history, not only current sp.items.
+   * Does not select an alternative and does not treat List quantity as the alt's pack size.
+   */
+  private listAlternatives(sp: SellerPurchase): AlternativeProjection[] {
+    const purchase = this.requirePurchase(sp.purchaseId);
+    const list = this.requireList(purchase.listId);
+    const observed = new Set<string>();
+    const note = (productId?: string | null) => {
+      if (productId) observed.add(productId);
+    };
+    for (const line of sp.items) {
+      note(line.productId);
+      note(line.resolvedFrom);
+    }
+    for (const offer of this.offerLog) {
+      if (offer.sellerPurchaseId !== sp.id) continue;
+      for (const line of offer.items) {
+        note(line.productId);
+        note(line.resolvedFrom);
+      }
+    }
+    const rows: AlternativeProjection[] = [];
+    for (const item of list.items) {
+      const relevant =
+        observed.has(item.productId) ||
+        item.alternatives.some((alt) => observed.has(alt.productId));
+      if (!relevant) continue;
+      for (const alt of item.alternatives) {
+        if (alt.productId === item.productId) continue;
+        const requestedUnit = item.unit ?? null;
+        const rowsForAlt = requestedUnit
+          ? comparableRows(this.catalogState, {
+              sellerId: sp.sellerId,
+              productId: alt.productId,
+              unit: requestedUnit,
+            })
+          : [];
+        const catalogPrice = requestedUnit
+          ? catalogUnitPrice(this.catalogState, {
+              sellerId: sp.sellerId,
+              productId: alt.productId,
+              unit: requestedUnit,
+            })
+          : null;
+        const qty = rowsForAlt.length > 0 && rowsForAlt.every((row) => row.quantity === rowsForAlt[0].quantity)
+          ? rowsForAlt[0].quantity
+          : null;
+        const catalogUnit = rowsForAlt.length > 0 ? requestedUnit : null;
+        rows.push({
+          productId: alt.productId,
+          alternativePriority: alt.alternativePriority,
+          requestedQuantity: item.quantity ?? null,
+          requestedUnit,
+          catalogQuantity: qty,
+          catalogUnit,
+          catalogPrice,
+          unitCompatible: requestedUnit !== null && rowsForAlt.length > 0,
+          referenceQtyMatches:
+            qty !== null && item.quantity !== undefined && qty === item.quantity,
+        });
+      }
+    }
+    return rows;
   }
 
   /**

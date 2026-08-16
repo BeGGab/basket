@@ -2,7 +2,7 @@
 
 **Status:** Experimental Baseline v0.1
 
-`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036. All 36 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
+`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 55 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
 
 | ID | Scenario | Model | Emulator | /sim demo | Main check |
 |---|---|:---:|:---:|:---:|---|
@@ -42,6 +42,25 @@
 | BS-034 | Expired cannot be countered | ✓ |  |  | I-035 isCounterReason blocked; PRICE_CHANGE allowed |
 | BS-035 | Silence invents no FSM state | ✓ |  |  | I-039 / I-041 |
 | BS-036 | Time determinism | ✓ |  |  | I-040 identical full snapshot |
+| PRICE-UNIT-001 | 2 kg × 15 | ✓ |  |  | I-042 unit price; no linePrice |
+| PRICE-UNIT-002 | 1 kg × 30 vs 2 kg × 15 | ✓ |  |  | distinguishable facts |
+| PRICE-OFFER-001 | 15 → 12 | ✓ |  |  | I-044 immutable Offer |
+| PRICE-QTY-001 | 2 kg → 4 kg @ 15 | ✓ |  |  | I-043 quantity ≠ line price |
+| PRICE-ABSENT-001 | missing price | ✓ |  |  | no invented total |
+| PRICE-CATALOG-QTY-001 | catalog qty 20, request 2 | ✓ |  |  | I-045 |
+| PACKAGE-001 | 1 package @ 60 | ✓ |  |  | representable; contents GAP |
+| PACKAGE-002 | 5 kg → 20 kg | ✓ |  |  | same price ok; volume AMBIGUOUS |
+| PACKAGE-003 | same qty, different basis | ✓ |  |  | basis invisible |
+| ALT-PRICE-001 | primary cheaper | ✓ |  |  | representation only |
+| ALT-PRICE-002 | primary dearer | ✓ |  |  | not BEST_PRICE |
+| PRICE-SNAPSHOT-001 | agreed/current/alt | ✓ |  |  | I-023 |
+| PRICE-ZERO-001 | 2 kg @ 0 | ✓ |  |  | 0 is a unit price |
+| PRICE-LIST-QTY-ABSENT-001 | omitted list qty | ✓ |  |  | default 1 ≠ catalog qty |
+| ALT-UNIT-001 | alt in pcs, list in kg | ✓ |  |  | no unit conversion |
+| ALT-PACK-001 | list 2 kg vs alt pack 5 kg | ✓ |  |  | projection, no policy |
+| ALT-STABILITY-001 | offer/sub/replace | ✓ |  |  | alternatives persist |
+| PRICE-REGRESSION-001 | hike/discount | ✓ |  |  | 15 is MAD/kg |
+| PRICE-TOTAL-001 | invalid qty/price | ✓ |  |  | unitLineTotal → null |
 
 TZ-004 assistant demos on `/sim` (DISCOUNT / HIKE / SELLER) are training overlays, not rows in this BS matrix.
 

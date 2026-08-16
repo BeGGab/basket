@@ -119,6 +119,15 @@ function decideOnOffer(world: BasketWorld, sellerPurchaseId: string, policy: Buy
     const reference = fromBaseline
       ? baseline
       : catalogReferencePrice(world, sp.sellerId, item.productId, item.unit);
+    if (item.price == null || !Number.isFinite(item.price)) {
+      return wait(
+        world,
+        sellerPurchaseId,
+        policy,
+        "MISSING_ITEM_PRICE",
+        `Active Offer ${active.id} has no unit price on ${item.productId}; cannot treat it as a priced proposal.`
+      );
+    }
     if (reference == null) {
       return wait(
         world,

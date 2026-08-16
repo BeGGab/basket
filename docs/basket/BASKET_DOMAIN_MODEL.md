@@ -137,9 +137,12 @@ PurchaseItem
 ├── product
 ├── quantity
 ├── unit
-├── price
+├── price      // I-042: price of one unit; not a line total
 └── discount?
 ```
+
+`price` is the price of one `unit`. A line total is derived (`quantity * price`) and is not stored.
+Catalog `quantity` is a reference/package size, not this requested quantity (I-045).
 
 Commercial history must not be duplicated here; it belongs to Offer history.
 

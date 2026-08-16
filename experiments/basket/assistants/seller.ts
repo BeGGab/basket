@@ -60,6 +60,15 @@ export function adviseSeller(
     if (listPrice == null) {
       return wait(world, sellerPurchaseId, policy, "NO_CATALOG_PRICE", `No comparable catalog price for ${item.productId} (${item.unit}); cannot evaluate the offer.`);
     }
+    if (item.price == null || !Number.isFinite(item.price)) {
+      return wait(
+        world,
+        sellerPurchaseId,
+        policy,
+        "MISSING_ITEM_PRICE",
+        `Active Offer ${active.id} has no unit price on ${item.productId}; cannot treat it as a priced proposal.`
+      );
+    }
     evaluations.push({ productId: item.productId, buyerPrice: item.price ?? null, listPrice });
   }
 

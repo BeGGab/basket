@@ -17,11 +17,11 @@ type Row = Readonly<CatalogOffer>;
  * disagree on price are AMBIGUOUS: the model returns "no reference" instead of picking one by
  * array order (that would be a hidden price policy).
  *
- * ASSUMPTION (SPEC OQ-001 / OQ-002, see docs/domain/GREENMARKET_DOMAIN_SPEC.md): package/reference
- * `quantity` never changes the unit price — "1 kg @ 15" and "20 kg @ 15" are the same line at the
- * same unit price. This is a deliberate Stage-1 assumption, NOT a proven domain truth; volume
- * pricing (e.g. 20 kg cheaper per kg) would make `quantity` part of the price policy and must be
- * revisited before it is relied on.
+ * CONFIRMED (SPEC v0.4 / I-042 / I-045): `price` is per one `unit`. Catalog `quantity` is a
+ * Stage-1 reference/package size — not identity, not a price multiplier, not a unit conversion.
+ * "1 kg @ 15" and "20 kg @ 15" are the same line at the same unit price. Same identity with
+ * different prices is AMBIGUOUS. Volume pricing / package-contents business semantics remain
+ * SPEC OQ-002 OPEN.
  */
 export interface CatalogLineQuery {
   sellerId?: string;

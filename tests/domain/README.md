@@ -28,6 +28,25 @@ npx tsx experiments/basket/tests/run.ts
 | `SILENCE-EXPIRED-001` | active Offer + no command + time > validUntil → same status/pointers, not REJECT | `scenarios.ts` BS-030 / BS-022 |
 | `AGREED-EXPIRE-001` | accepted A expires, no replacement → STABLE, pointers stay A | `scenarios.ts` BS-031 / BS-012 |
 | `AGREED-EXPIRE-NEW-001` | A accepted, A expires, B proposed → agreed=A, active=B, B acceptable | `scenarios.ts` BS-032 |
+| `PRICE-UNIT-001` | 2 kg × 15 stored as unit price; no `linePrice` | `scenarios.ts` PRICE-UNIT-001 |
+| `PRICE-UNIT-002` | 2 kg × 15 vs 1 kg × 30 distinguishable | `scenarios.ts` PRICE-UNIT-002 |
+| `PRICE-OFFER-001` | price 15 → 12 is a new immutable Offer | `scenarios.ts` PRICE-OFFER-001 |
+| `PRICE-QTY-001` | quantity change does not reread price as line total | `scenarios.ts` PRICE-QTY-001 |
+| `PRICE-ABSENT-001` | missing price → no derived total | `scenarios.ts` PRICE-ABSENT-001 |
+| `PRICE-CATALOG-QTY-001` | catalog `quantity` ≠ requested quantity | `scenarios.ts` PRICE-CATALOG-QTY-001 |
+| `PACKAGE-001` | 1 package @ 60 representable; contents = MODEL GAP | `scenarios.ts` PACKAGE-001 |
+| `PACKAGE-002` | catalog qty 5→20: same price ok; different price AMBIGUOUS | `scenarios.ts` PACKAGE-002 |
+| `PACKAGE-003` | same package quantity, different external basis invisible | `scenarios.ts` PACKAGE-003 |
+| `ALT-PRICE-001` | primary cheaper than alternative — representation only | `scenarios.ts` ALT-PRICE-001 |
+| `ALT-PRICE-002` | primary dearer than alternative — not BEST_PRICE | `scenarios.ts` ALT-PRICE-002 |
+| `PRICE-SNAPSHOT-001` | agreed / current / alternative together | `scenarios.ts` PRICE-SNAPSHOT-001 |
+| `PRICE-ZERO-001` | price 0 is a unit price, not a missing price | `scenarios.ts` PRICE-ZERO-001 |
+| `PRICE-LIST-QTY-ABSENT-001` | omitted List quantity defaults to 1, not catalog qty | `scenarios.ts` PRICE-LIST-QTY-ABSENT-001 |
+| `ALT-UNIT-001` | alternative in another unit is not converted | `scenarios.ts` ALT-UNIT-001 |
+| `ALT-PACK-001` | list qty vs alt catalog pack size exposed | `scenarios.ts` ALT-PACK-001 |
+| `ALT-STABILITY-001` | alternatives survive offer/substitution change | `scenarios.ts` ALT-STABILITY-001 |
+| `PRICE-REGRESSION-001` | hike/discount still use unit price | `scenarios.ts` PRICE-REGRESSION-001 |
+| `PRICE-TOTAL-001` | invalid quantity/price → no derived total | `scenarios.ts` PRICE-TOTAL-001 |
 | *(SPEC OQ-003)* | duplicate ListItems of same `(productId, unit)` | `run.ts` `DUPLICATE_LINE` (explicit, not silent collapse) |
 
 A PR that confirms a new domain rule MUST add or update a row here **and** the executable test.

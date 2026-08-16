@@ -1,3 +1,7 @@
+import type { ReadonlyAlternativeProjection } from "./projections";
+
+export type { AlternativeProjection, ReadonlyAlternativeProjection } from "./projections";
+
 export type Actor = "BUYER" | "SELLER" | "SYSTEM";
 
 export type OfferReason =
@@ -158,6 +162,8 @@ export interface Snapshot {
   agreed: { offerId: string | null; items: readonly Readonly<PurchaseItem>[] };
   current: { offerId: string | null; items: readonly Readonly<PurchaseItem>[] };
   pendingSubstitutions: readonly ReadonlySubstitution[];
+  /** Projection only (I-023). Not a commercial entity. No AUTO_ACCEPT / BEST_PRICE. */
+  alternatives: readonly ReadonlyAlternativeProjection[];
 }
 
 /**
