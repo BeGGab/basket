@@ -244,7 +244,7 @@ must decide the business semantics before any new concept is added.
 
 **Affected invariants:** I-036, I-045.
 
-**Affected scenarios:** PACKAGE-001 (representation), PACKAGE-002 / PACKAGE-003 (OPEN — OQ-002).
+**Affected scenarios:** PACKAGE-001 (representation CONFIRMED), PACKAGE-004 (contents OPEN), PACKAGE-002 / PACKAGE-003 (OPEN — OQ-002).
 
 Alternative *selection policy* (AUTO_ACCEPT / BEST_PRICE / ASK_BUYER) is a different question and
 stays **OPEN — SPEC OQ-008**.
@@ -617,11 +617,12 @@ AGREED-EXPIRE-NEW-001    A accepted, A expires, B proposed → agreed=A, active=
 PRICE-UNIT-001           2 kg × 15 stored as unit price; no linePrice field
 PRICE-UNIT-002           2 kg × 15 vs 1 kg × 30 distinguishable; derived totals equal only after I-042
 PRICE-OFFER-001          price 15 → 12 is a new immutable Offer
-PACKAGE-001              1 package @ 60 representable; 1 package = 5 kg is a MODEL GAP
+PACKAGE-001              1 package @ 60 representable as a unit (CONFIRMED)
 PACKAGE-002              catalog qty 5 → 20: same unit price ok; different unit price AMBIGUOUS
-PACKAGE-003              same quantity + unit=package, different external basis → basis invisible
+PACKAGE-003              MODEL GAP: current identity cannot represent distinct package bases
+PACKAGE-004              package contents / conversion absent — OPEN (OQ-002)
 ALT-PRICE-001            primary cheaper than alternative — representation only
-ALT-PRICE-002            primary dearer than alternative — no BEST_PRICE
+ALT-PRICE-002            FIRST_AVAILABLE / PRIMARY_ONLY are not BEST_PRICE; policy OPEN (OQ-008)
 PRICE-SNAPSHOT-001       agreed / current / alternative visible together
 ```
 
@@ -653,7 +654,7 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
 - **OQ-002 — Package / volume pricing business semantics.** **OPEN.** Stage-1 records a
   representation constraint (see §13.1 / I-045): catalog `quantity` is not a multiplier or unit
   conversion. Whether the domain should later support volume pricing or package contents is
-  undecided. PACKAGE-002 / PACKAGE-003 are evidence of the current limitation, not a policy.
+  undecided. PACKAGE-002 / PACKAGE-003 / PACKAGE-004 are evidence of the current limitation, not a policy.
 - **OQ-003 — Duplicate ListItems.** What to do with `Tomatoes / 2 kg` and `Tomatoes / 5 kg` in one
   List? **OPEN**
 - **OQ-004 — Expired agreed Offer.** **CLOSED** in v0.3 (maps to experiment OQ-009). See §38:

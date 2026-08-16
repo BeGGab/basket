@@ -510,34 +510,36 @@ export class BasketWorld {
   }
 
   /**
-   * I-023 projection: List alternatives vs this seller's catalog facts.
-   * Bound to List + this SellerPurchase's offer history, not only current sp.items.
+   * I-023: alternatives are sourced from the List, then compared to this seller's catalog.
+   * Current `sp.items` and this SP's offer history are only a binding set — which List
+   * lines belong to this SellerPurchase. They are not the source of alternatives.
+   * Replacing the current commercial item does not drop List alternatives.
    * Does not select an alternative and does not treat List quantity as the alt's pack size.
    */
   private listAlternatives(sp: SellerPurchase): AlternativeProjection[] {
     const purchase = this.requirePurchase(sp.purchaseId);
     const list = this.requireList(purchase.listId);
-    const observed = new Set<string>();
-    const note = (productId?: string | null) => {
-      if (productId) observed.add(productId);
+    const boundProducts = new Set<string>();
+    const bind = (productId?: string | null) => {
+      if (productId) boundProducts.add(productId);
     };
     for (const line of sp.items) {
-      note(line.productId);
-      note(line.resolvedFrom);
+      bind(line.productId);
+      bind(line.resolvedFrom);
     }
     for (const offer of this.offerLog) {
       if (offer.sellerPurchaseId !== sp.id) continue;
       for (const line of offer.items) {
-        note(line.productId);
-        note(line.resolvedFrom);
+        bind(line.productId);
+        bind(line.resolvedFrom);
       }
     }
     const rows: AlternativeProjection[] = [];
     for (const item of list.items) {
-      const relevant =
-        observed.has(item.productId) ||
-        item.alternatives.some((alt) => observed.has(alt.productId));
-      if (!relevant) continue;
+      const boundToThisSp =
+        boundProducts.has(item.productId) ||
+        item.alternatives.some((alt) => boundProducts.has(alt.productId));
+      if (!boundToThisSp) continue;
       for (const alt of item.alternatives) {
         if (alt.productId === item.productId) continue;
         const requestedUnit = item.unit ?? null;
