@@ -617,7 +617,7 @@ AGREED-EXPIRE-NEW-001    A accepted, A expires, B proposed → agreed=A, active=
 PRICE-UNIT-001           2 kg × 15 stored as unit price; no linePrice field
 PRICE-UNIT-002           2 kg × 15 vs 1 kg × 30 distinguishable; derived totals equal only after I-042
 PRICE-OFFER-001          price 15 → 12 is a new immutable Offer
-PACKAGE-001              1 package @ 60 representable; 1 package = 5 kg is a MODEL GAP
+PACKAGE-001              1 package @ 60 representable as a unit; contents/conversion OPEN (OQ-002)
 PACKAGE-002              catalog qty 5 → 20: same unit price ok; different unit price AMBIGUOUS
 PACKAGE-003              same quantity + unit=package, different external basis → basis invisible
 ALT-PRICE-001            primary cheaper than alternative — representation only

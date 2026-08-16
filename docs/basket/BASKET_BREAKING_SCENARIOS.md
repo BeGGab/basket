@@ -230,7 +230,7 @@ List asks 2 kg. Catalog row `quantity = 20`. PurchaseItem.quantity is 2, not 20 
 
 ## PACKAGE-001 — Package as a unit
 
-`1 package @ 60` is representable. `1 package = 5 kg` is not a domain fact (MODEL GAP).
+`1 package @ 60` is representable as a unit (CONFIRMED). Package contents / conversion remain **OPEN — SPEC OQ-002**.
 
 ## PACKAGE-002 — Package size vs unit price
 

@@ -62,7 +62,7 @@ Record evidence from the mock domain and seller emulator.
 | BS-034 | PASS | CONFIRMED | none | I-035: isCounterReason (BUYER_CHANGE / SELLER_COUNTEROFFER) cannot reply to an expired Offer; PRICE_CHANGE may replace it |
 | BS-035 | PASS | CONFIRMED | none | silence must not create a fake FSM state or rewrite waiting facts; waitMs is derived from clock |
 | BS-036 | PASS | CONFIRMED | none | determinism regression: same start + same commands → same snapshot; not a proof of all nondeterminism sources |
-| PACKAGE-001 | PASS | CONFIRMED | none | 1 package @ 60 is representable as unit=package; 1 package = 5 kg is not in the model |
+| PACKAGE-001 | PASS | CONFIRMED | none | package is representable as a unit |
 | PACKAGE-002 | PASS | OPEN (SPEC-OQ-002) | none | Stage-1: different catalog qty + different unit price is AMBIGUOUS. Volume-pricing policy is not decided |
 | PACKAGE-003 | PASS | OPEN (SPEC-OQ-002) | none | two catalog package sizes (5 and 20) at the same unit price collapse to one Offer 1@60; basis policy OPEN |
 | PRICE-ABSENT-001 | PASS | CONFIRMED | none | priceless Offer has no derived total, cannot be accepted, and is not treated as a priced proposal |
@@ -72,7 +72,7 @@ Record evidence from the mock domain and seller emulator.
 | PRICE-QTY-001 | PASS | CONFIRMED | none | quantity change is a new Offer; price stays per-unit and is not reread as a line total |
 | PRICE-REGRESSION-001 | PASS | CONFIRMED | none | existing hike/discount paths treat 15 as MAD/kg, not as a 30 MAD line total |
 | PRICE-SNAPSHOT-001 | PASS | CONFIRMED | none | canonical snapshot: agreed 15 / current 12 / alternative 24 — representation only |
-| PRICE-TOTAL-001 | PASS | CONFIRMED | none | unitLineTotal is IEEE-754 under I-030 bounds; invalid quantity/price yield null, not a fake total |
+| PRICE-TOTAL-001 | PASS | CONFIRMED | none | unitLineTotal yields null for qty 0/<0/NaN/Infinity and price <0/NaN/Infinity; 2×15=30 |
 | PRICE-UNIT-001 | PASS | CONFIRMED | none | price is per kg; derived total is not a stored linePrice |
 | PRICE-UNIT-002 | PASS | CONFIRMED | none | 2kg@15 vs 1kg@30 are different Offers; equal derived totals are arithmetic, not commercial equivalence |
 | PRICE-ZERO-001 | PASS | CONFIRMED | none | price 0 is a real unit price; derived total 0 is not a missing price |
@@ -577,11 +577,11 @@ Record evidence from the mock domain and seller emulator.
 - Actual: quantity=1; unit=package; price=60; derivedTotal=60; kgConversion=null; contentsInModel=false
 - Invariant: I-045 I-042
 - Hypothesis: CONFIRMED
-- Open question: none
+- Open question: SPEC-OQ-002
 - Model violation: none
-- New concept: package-contents / unit conversion (not introduced)
+- New concept: package contents / conversion (not introduced)
 - Workaround: none
-- Decision: 1 package @ 60 is representable as unit=package; 1 package = 5 kg is not in the model
+- Decision: package is representable as a unit
 
 ### PACKAGE-002 — Impl PASS / Domain OPEN (SPEC-OQ-002)
 
@@ -693,15 +693,15 @@ Record evidence from the mock domain and seller emulator.
 
 ### PRICE-TOTAL-001 — Impl PASS / Domain CONFIRMED
 
-- Expected: negQty=null; nanQty=null; infPrice=null; ok=30
-- Actual: negQty=null; nanQty=null; infPrice=null; ok=30
-- Invariant: I-042 I-046
+- Expected: qtyZero=null; qtyNeg=null; qtyNan=null; qtyInf=null; priceNeg=null; priceNan=null; priceInf=null; ok=30
+- Actual: qtyZero=null; qtyNeg=null; qtyNan=null; qtyInf=null; priceNeg=null; priceNan=null; priceInf=null; ok=30
+- Invariant: I-042 I-046 I-030
 - Hypothesis: CONFIRMED
 - Open question: none
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: unitLineTotal is IEEE-754 under I-030 bounds; invalid quantity/price yield null, not a fake total
+- Decision: unitLineTotal yields null for qty 0/<0/NaN/Infinity and price <0/NaN/Infinity; 2×15=30
 
 ### PRICE-UNIT-001 — Impl PASS / Domain CONFIRMED
 

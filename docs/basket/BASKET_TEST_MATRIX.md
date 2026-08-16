@@ -48,7 +48,7 @@
 | PRICE-QTY-001 | 2 kg → 4 kg @ 15 | ✓ |  |  | I-043 quantity ≠ line price |
 | PRICE-ABSENT-001 | missing price | ✓ |  |  | no invented total |
 | PRICE-CATALOG-QTY-001 | catalog qty 20, request 2 | ✓ |  |  | I-045 |
-| PACKAGE-001 | 1 package @ 60 | ✓ |  |  | representable; contents GAP |
+| PACKAGE-001 | 1 package @ 60 | ✓ |  |  | representable as a unit; contents OPEN |
 | PACKAGE-002 | 5 kg → 20 kg | ✓ |  |  | same price ok; volume AMBIGUOUS |
 | PACKAGE-003 | same qty, different basis | ✓ |  |  | basis invisible |
 | ALT-PRICE-001 | primary cheaper | ✓ |  |  | representation only |

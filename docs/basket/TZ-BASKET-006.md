@@ -83,7 +83,7 @@ Alternative **policy** остаётся **OPEN — SPEC OQ-008**.
 | PRICE-QTY-001 | 2 kg @ 15 → 4 kg @ 15: новый Offer, price всё ещё per-unit |
 | PRICE-ABSENT-001 | нет price → нет derived total, поле не изобретается |
 | PRICE-CATALOG-QTY-001 | catalog.quantity не становится PurchaseItem.quantity |
-| PACKAGE-001 | 1 package @ 60 представим; 1 package = 5 kg — MODEL GAP |
+| PACKAGE-001 | package representable as a unit (CONFIRMED); contents/conversion OPEN — SPEC-OQ-002 |
 | PACKAGE-002 | 5→20 при той же / разной unit price |
 | PACKAGE-003 | одинаковая quantity, разный внешний package basis — basis невидим |
 | ALT-PRICE-001 | primary дешевле alternative — representation only |

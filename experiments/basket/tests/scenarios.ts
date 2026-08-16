@@ -1974,10 +1974,10 @@ export function runAllScenarios(): ScenarioResult[] {
           kgConversion: kgLine,
           contentsInModel: kgLine !== null,
         },
-        "1 package @ 60 is representable as unit=package; 1 package = 5 kg is not in the model",
+        "package is representable as a unit",
         "CONFIRMED",
-        "none",
-        { newConcept: "package-contents / unit conversion (not introduced)" }
+        "SPEC-OQ-002",
+        { newConcept: "package contents / conversion (not introduced)" }
       );
     })
   );
@@ -2453,15 +2453,28 @@ export function runAllScenarios(): ScenarioResult[] {
     run("PRICE-TOTAL-001", () => {
       return prove(
         "PRICE-TOTAL-001",
-        "I-042 I-046",
-        { negQty: null, nanQty: null, infPrice: null, ok: 30 },
+        "I-042 I-046 I-030",
         {
-          negQty: unitLineTotal({ quantity: -2, price: 15 }),
-          nanQty: unitLineTotal({ quantity: Number.NaN, price: 15 }),
-          infPrice: unitLineTotal({ quantity: 2, price: Number.POSITIVE_INFINITY }),
+          qtyZero: null,
+          qtyNeg: null,
+          qtyNan: null,
+          qtyInf: null,
+          priceNeg: null,
+          priceNan: null,
+          priceInf: null,
+          ok: 30,
+        },
+        {
+          qtyZero: unitLineTotal({ quantity: 0, price: 15 }),
+          qtyNeg: unitLineTotal({ quantity: -2, price: 15 }),
+          qtyNan: unitLineTotal({ quantity: Number.NaN, price: 15 }),
+          qtyInf: unitLineTotal({ quantity: Number.POSITIVE_INFINITY, price: 15 }),
+          priceNeg: unitLineTotal({ quantity: 2, price: -1 }),
+          priceNan: unitLineTotal({ quantity: 2, price: Number.NaN }),
+          priceInf: unitLineTotal({ quantity: 2, price: Number.POSITIVE_INFINITY }),
           ok: unitLineTotal({ quantity: 2, price: 15 }),
         },
-        "unitLineTotal is IEEE-754 under I-030 bounds; invalid quantity/price yield null, not a fake total"
+        "unitLineTotal yields null for qty 0/<0/NaN/Infinity and price <0/NaN/Infinity; 2×15=30"
       );
     })
   );
