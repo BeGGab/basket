@@ -39,7 +39,7 @@
 | BS-031 | Accepted Offer expires | ✓ |  |  | I-037/I-038 STABLE + pointers stay |
 | BS-032 | Expiry then new Offer | ✓ |  |  | agreed=A, active=B, B acceptable |
 | BS-033 | Expired cannot be revived | ✓ |  |  | I-028 |
-| BS-034 | Expired cannot be countered | ✓ |  |  | I-035 |
+| BS-034 | Expired cannot be countered | ✓ |  |  | I-035 isCounterReason blocked; PRICE_CHANGE allowed |
 | BS-035 | Silence invents no FSM state | ✓ |  |  | I-039 / I-041 |
 | BS-036 | Time determinism | ✓ |  |  | I-040 identical full snapshot |
 

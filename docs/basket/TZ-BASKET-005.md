@@ -33,7 +33,7 @@ GREENMARKET_DOMAIN_SPEC.md is the canonical source. This PR updates SPEC first, 
 |---|---|---|
 | OQ-009 | OQ-004 | что происходит с уже согласованным Offer после `validUntil` |
 | OQ-011 | — | что означает молчание участника |
-| OQ-012 | — | как представлять ожидание и переход времени |
+| OQ-012 | — | как представлять **passage of time** (не negotiation TTL — это SPEC OQ-005) |
 
 Главный вопрос: может ли доменная модель однозначно описать SellerPurchase, когда Offer истёк, участник молчит или проходит время ожидания?
 
@@ -71,11 +71,11 @@ I-028 / I-035 по-прежнему запрещают ACCEPT / COUNTER истё
 
 Silence = **отсутствие domain command**, не сущность и не FSM-состояние. Не становится REJECT / CANCEL / EXPIRED без явной команды.
 
-Достаточные факты: `waitingSince`, `lastSellerActivity`, clock. Silence до и после expiration отличается только вычисленным `isOfferValid`.
+Для Stage-1 silence достаточны факты: `waitingSince`, `lastSellerActivity`, clock. Silence до и после expiration отличается только вычисленным `isOfferValid`. Это не доказательство для всех будущих waiting-политик.
 
 ### OQ-012 — время
 
-1. Источник времени — `DeterministicClock` мира (`Clock.now()`). Domain operations читают часы, не принимают timestamp.
+1. Источник **текущего** времени — `DeterministicClock` мира (`Clock.now()`). Операции читают часы и не принимают параметр "now". `Offer.validUntil` — входные данные Offer, не источник текущего времени.
 2. `advance(durationMs)` — domain operation: двигает **только** часы. Не создаёт Offers / Acceptances / stock-conflict events / статусы и не чистит pointers. STABLE от часов не зависит (I-038). `validUntil` — exclusive end (`now === validUntil` уже expired).
 3. Emulator/runtime `tick()` — **не** domain operation.
 4. Passage of time меняет только computed `isOfferValid`. Не входит в `EXPIRED` / `REJECTED` / `CANCELLED`.
@@ -92,7 +92,7 @@ Silence = **отсутствие domain command**, не сущность и не
 - **I-037** — `validUntil` ограничивает accept/counter active standing proposal; не отзывает Acceptance
 - **I-038** — STABLE = `agreed == active` и нет pending mandatory substitutions; validity не вход/выход
 - **I-039** — silence не меняет status / pointers и не изобретает REJECT/CANCEL/EXPIRED
-- **I-040** — clock + `advance` двигает только часы; `tick()` не domain operation; `validUntil` — exclusive end
+- **I-040** — clock — источник *текущего* времени; `validUntil` — данные Offer; `advance` не пересчитывает STABLE
 - **I-041** — time/silence не входят в `EXPIRED`
 
 ## Сценарии
@@ -157,11 +157,12 @@ Final domain status
 
 ```text
 OQ-009 CLOSED    agreed Offer expiry keeps pointers and STABLE
-OQ-011 CLOSED    waitingSince + lastSellerActivity + clock suffice
-OQ-012 CLOSED    no SELLER_UNRESPONSIVE / auto-EXPIRED; advance is the time operation
+OQ-011 CLOSED    Stage-1 silence: waitingSince + lastSellerActivity + clock
+OQ-012 CLOSED    passage of time: no SELLER_UNRESPONSIVE / auto-EXPIRED
 
-OQ-001 OPEN      price semantics (unit vs line)
+OQ-001 OPEN      price semantics
 OQ-002 OPEN      package quantity vs unit price
+OQ-005 OPEN      negotiation lifetime / TTL
 ```
 
 После этого ТЗ не идти сразу в production Basket. Следующий шаг — review, затем SPEC достаточно стабилен для следующего экспериментального этапа.

@@ -49,13 +49,13 @@ Record evidence from the mock domain and seller emulator.
 | BS-026 | PASS | CONFIRMED | none | I-039: silence while valid is not expiration and does not change status |
 | BS-027 | PASS | OPEN (OQ-001) | none | keep v0.1 |
 | BS-028 | PASS | CONFIRMED | none | keep v0.1 |
-| BS-029 | PASS | CONFIRMED | none | silence while valid changes nothing but the clock |
+| BS-029 | PASS | CONFIRMED | none | silence while valid: no actor command after proposeOffer; only advance |
 | BS-030 | PASS | CONFIRMED | none | silence until expiration is not implicit REJECT; validUntil is exclusive |
 | BS-031 | PASS | CONFIRMED | none | accepted Offer expiry keeps STABLE and pointers; no claim; no counter; time creates no facts |
 | BS-032 | PASS | CONFIRMED | none | new Offer after agreed expiry becomes active; A stays agreed until B is accepted |
 | BS-033 | PASS | CONFIRMED | none | expired Offer cannot be revived by ACCEPT |
-| BS-034 | PASS | CONFIRMED | none | expired Offer cannot be countered |
-| BS-035 | PASS | CONFIRMED | none | silence must not create a fake FSM state |
+| BS-034 | PASS | CONFIRMED | none | I-035: isCounterReason (BUYER_CHANGE / SELLER_COUNTEROFFER) cannot reply to an expired Offer; PRICE_CHANGE may replace it |
+| BS-035 | PASS | CONFIRMED | none | silence must not create a fake FSM state or move pointers |
 | BS-036 | PASS | CONFIRMED | none | same commands + same clock produce the same observable world |
 
 ## Scenario records
@@ -398,15 +398,15 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-029 — Impl PASS / Domain CONFIRMED
 
-- Expected: status=WAITING_BUYER; active=offer-5; agreed=null; valid=true; sameActive=true
-- Actual: status=WAITING_BUYER; active=offer-5; agreed=null; valid=true; sameActive=true
+- Expected: status=WAITING_BUYER; active=offer-5; agreed=null; valid=true; sameActive=true; sameAgreed=true; actorCommandsAfterOffer=0
+- Actual: status=WAITING_BUYER; active=offer-5; agreed=null; valid=true; sameActive=true; sameAgreed=true; actorCommandsAfterOffer=0
 - Invariant: I-039
 - Hypothesis: CONFIRMED
 - Open question: none
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: silence while valid changes nothing but the clock
+- Decision: silence while valid: no actor command after proposeOffer; only advance
 
 ### BS-030 — Impl PASS / Domain CONFIRMED
 
@@ -422,8 +422,8 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-031 — Impl PASS / Domain CONFIRMED
 
-- Expected: status=STABLE; agreed=offer-5; active=offer-5; valid=false; expiredState=false; timeCreatesConflicts=false; counterBlocked=true; claimDropped=true
-- Actual: status=STABLE; agreed=offer-5; active=offer-5; valid=false; expiredState=false; timeCreatesConflicts=false; counterBlocked=true; claimDropped=true
+- Expected: status=STABLE; agreed=offer-5; active=offer-5; valid=false; expiredState=false; timeCreatesConflicts=false; counterBlocked=true; claimDropped=true; stock=6; expiredQty=4; newQty=3; wouldConflictIfExpiredStillClaimed=true
+- Actual: status=STABLE; agreed=offer-5; active=offer-5; valid=false; expiredState=false; timeCreatesConflicts=false; counterBlocked=true; claimDropped=true; stock=6; expiredQty=4; newQty=3; wouldConflictIfExpiredStillClaimed=true
 - Invariant: I-037 I-038 I-025 I-035 I-040
 - Hypothesis: CONFIRMED
 - Open question: none
@@ -458,27 +458,27 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-034 — Impl PASS / Domain CONFIRMED
 
-- Expected: blocked=true; offerCount=1
-- Actual: blocked=true; offerCount=1
+- Expected: buyerCounterBlocked=true; sellerCounterBlocked=true; bothAreCounters=true; replacementIsNotCounter=true; countersLeftNoOffer=true; replacementCreated=true
+- Actual: buyerCounterBlocked=true; sellerCounterBlocked=true; bothAreCounters=true; replacementIsNotCounter=true; countersLeftNoOffer=true; replacementCreated=true
 - Invariant: I-035
 - Hypothesis: CONFIRMED
 - Open question: none
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: expired Offer cannot be countered
+- Decision: I-035: isCounterReason (BUYER_CHANGE / SELLER_COUNTEROFFER) cannot reply to an expired Offer; PRICE_CHANGE may replace it
 
 ### BS-035 — Impl PASS / Domain CONFIRMED
 
-- Expected: before=WAITING_BUYER; after=WAITING_BUYER; expiredState=false; invented=false
-- Actual: before=WAITING_BUYER; after=WAITING_BUYER; expiredState=false; invented=false
+- Expected: before=WAITING_BUYER; after=WAITING_BUYER; expiredState=false; invented=false; sameActive=true; sameAgreed=true
+- Actual: before=WAITING_BUYER; after=WAITING_BUYER; expiredState=false; invented=false; sameActive=true; sameAgreed=true
 - Invariant: I-039 I-041
 - Hypothesis: CONFIRMED
 - Open question: none
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: silence must not create a fake FSM state
+- Decision: silence must not create a fake FSM state or move pointers
 
 ### BS-036 — Impl PASS / Domain CONFIRMED
 
@@ -565,8 +565,8 @@ Changes in this PR (already implemented and tested):
 
 Closed in SPEC v0.3 / TZ-BASKET-005:
 - OQ-009 CLOSED — agreed Offer expiry keeps pointers and STABLE; validity still forbids accept/counter
-- OQ-011 CLOSED — waitingSince + lastSellerActivity + clock suffice; silence is not an entity
-- OQ-012 CLOSED — no SELLER_UNRESPONSIVE / auto-EXPIRED; advance is the time operation
+- OQ-011 CLOSED for Stage-1 silence — waitingSince + lastSellerActivity + clock; not a universal waiting proof
+- OQ-012 CLOSED for passage of time — no SELLER_UNRESPONSIVE / auto-EXPIRED; negotiation TTL remains OQ-005
 
 Still open:
 - SPEC OQ-001 / OQ-002 — price semantics / package quantity

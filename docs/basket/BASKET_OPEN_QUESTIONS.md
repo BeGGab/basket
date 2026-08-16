@@ -22,8 +22,8 @@ These are hypotheses to resolve through experiments, not implementation requirem
 
 ## Silence
 
-- **OQ-011:** CLOSED (SPEC v0.3 §39 / I-039 / BS-029 / BS-030 / BS-035). `waitingSince` + `lastSellerActivity` + clock are sufficient. Silence is the absence of a command, not an entity and not REJECT/CANCEL/EXPIRED.
-- **OQ-012:** CLOSED (SPEC v0.3 §40 / I-040 / I-041 / BS-035 / BS-036). `SELLER_UNRESPONSIVE` is not a domain state. `advance` is the domain time operation; emulator `tick()` is not. Time does not enter `EXPIRED`.
+- **OQ-011:** CLOSED for Stage-1 silence semantics (SPEC v0.3 §39 / I-039 / BS-029 / BS-030 / BS-035). `waitingSince` + `lastSellerActivity` + clock suffice for the current experiment. Silence is the absence of a command, not an entity and not REJECT/CANCEL/EXPIRED. Not a proof for all future waiting policies.
+- **OQ-012:** CLOSED for passage of time (SPEC v0.3 §40 / I-040 / I-041 / BS-035 / BS-036). `SELLER_UNRESPONSIVE` is not a domain state. `advance` is the domain time operation; emulator `tick()` is not. Time does not enter `EXPIRED`. Negotiation lifetime / timeout policy remains **OPEN — OQ-010 / SPEC OQ-005**.
 
 ## Substitution
 

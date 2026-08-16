@@ -194,7 +194,7 @@ Expired A, then ACCEPT(A). Blocked by I-028. No Acceptance recorded.
 
 ## BS-034 — Expired Offer cannot be countered
 
-Expired A, then COUNTER. Blocked by I-035.
+Expired A, then a **counter** (`isCounterReason`: `BUYER_CHANGE` and `SELLER_COUNTEROFFER`) is blocked by I-035. A non-counter replacement (`PRICE_CHANGE`) is allowed. The test must use the domain counter mark, not an incidental `proposeOffer` reason.
 
 ## BS-035 — Silence must not create a fake FSM state
 

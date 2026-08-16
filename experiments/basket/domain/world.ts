@@ -2,6 +2,7 @@ import { comparableRows, priceableSellerLines } from "./catalog";
 import { DeterministicClock } from "./clock";
 import { transition } from "./fsm";
 import { resolve } from "./resolution";
+import { isCounterReason } from "./types";
 import type {
   Acceptance,
   Actor,
@@ -318,7 +319,7 @@ export class BasketWorld {
     // I-035: a counter is a reply to a live proposal. Countering an expired Offer is forbidden —
     // like acceptOffer (I-028); replacing an expired Offer requires an explicit new proposal
     // with a non-counter reason (PRICE_CHANGE, TIME_DISCOUNT, ...).
-    if ((input.reason === "BUYER_CHANGE" || input.reason === "SELLER_COUNTEROFFER") && sp.activeOfferId) {
+    if (isCounterReason(input.reason) && sp.activeOfferId) {
       const active = this.requireOffer(sp.activeOfferId);
       if (!this.isOfferValid(active)) {
         throw new Error(

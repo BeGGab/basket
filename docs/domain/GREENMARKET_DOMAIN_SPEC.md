@@ -458,8 +458,9 @@ A general TTL for the whole SellerPurchase negotiation is still undefined. **OPE
 state. It does not become `REJECT` or `CANCEL` without an explicit command. `markWaiting` is an
 emulator command (SlowSeller), not silence; silence scenarios must not call it.
 
-Observable facts already suffice: `waitingSince`, `lastSellerActivity`, and the world clock.
-A derived duration may be computed from those facts; it is not stored as its own entity.
+For **Stage-1 silence semantics**, `waitingSince` + `lastSellerActivity` + the world clock are
+sufficient. A derived duration may be computed from those facts; it is not stored as its own
+entity. This does not prove sufficiency for every future negotiation/waiting policy.
 
 | Situation | Effect on SellerPurchase |
 | --- | --- |
@@ -481,11 +482,14 @@ The experiment records waiting facts so observers (UI, Assistant) can *see* sile
 
 **Decision.**
 
-1. **Time source.** The world's `DeterministicClock` (`Clock.now()`) is the sole source of time.
-   Domain operations read the clock; they do not take a timestamp parameter.
+1. **Time source.** The world's `DeterministicClock` (`Clock.now()`) is the sole source of
+   *current* time. Domain operations read the clock; they do not take a "now" parameter.
+   `Offer.validUntil` is input data of that Offer (when the standing proposal stops being
+   acceptable). It is not a source of current time.
 2. **`advance(durationMs)` is a domain operation.** It moves the clock and nothing else. It does
    not create Offers, Acceptances, Substitutions, stock-conflict events, or FSM states, and it
-   does not clear pointers. STABLE eligibility does not depend on the clock (I-038).
+   does not clear pointers. It does **not** recompute STABLE eligibility — passage of time
+   changes derived `isOfferValid`, not STABLE (I-038).
 3. **Emulator/runtime `tick()` is not a domain operation.** It may call `advance` and then actor
    responses. Domain semantics must not live only in `tick()`.
 4. **What passage of time does.** It changes computed `isOfferValid`. It does **not** enter
@@ -590,10 +594,12 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
 - **OQ-004 — Expired agreed Offer.** **CLOSED** in v0.3 (maps to experiment OQ-009). See §38:
   pointers stay; A remains the baseline; STABLE is not exited; validity still forbids accept/counter
   of the standing proposal.
-- **Experiment OQ-011 — Silence facts.** **CLOSED** in v0.3. See §39: `waitingSince` +
-  `lastSellerActivity` + clock are sufficient; silence is not an entity.
-- **Experiment OQ-012 — Waiting as a state.** **CLOSED** in v0.3. See §40: `SELLER_UNRESPONSIVE` /
-  auto-`EXPIRED` are not domain states; `advance` is the time operation.
+- **Experiment OQ-011 — Silence facts.** **CLOSED** in v0.3 for Stage-1 silence semantics. See §39:
+  `waitingSince` + `lastSellerActivity` + clock suffice for the current experiment; silence is not
+  an entity. Not a proof for all future waiting policies.
+- **Experiment OQ-012 — Passage of time.** **CLOSED** in v0.3 for how time is represented. See §40:
+  `SELLER_UNRESPONSIVE` / auto-`EXPIRED` are not domain states; `advance` is the time operation.
+  Negotiation lifetime / timeout policy remains **OPEN — SPEC OQ-005**.
 - **OQ-005 — Negotiation lifetime.** Is a separate TTL for the whole SellerPurchase negotiation
   needed? **OPEN** (maps to experiment OQ-010)
 - **OQ-006 — Allocation.** At which stage does allocation/reservation become necessary? **OPEN**
@@ -657,11 +663,12 @@ silence        → no command ⇒ no lifecycle change
 
 ```
 OQ-009 CLOSED    agreed Offer expiry keeps pointers and STABLE
-OQ-011 CLOSED    waitingSince + lastSellerActivity + clock suffice
-OQ-012 CLOSED    no SELLER_UNRESPONSIVE / auto-EXPIRED state
+OQ-011 CLOSED    Stage-1 silence: waitingSince + lastSellerActivity + clock
+OQ-012 CLOSED    passage of time: no SELLER_UNRESPONSIVE / auto-EXPIRED
 
 OQ-001 OPEN      price semantics (unit vs line)
 OQ-002 OPEN      package quantity vs unit price
+OQ-005 OPEN      negotiation lifetime / TTL
 ```
 
 CatalogLine identity from v0.2 remains:

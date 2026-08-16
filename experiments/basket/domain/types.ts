@@ -10,6 +10,14 @@ export type OfferReason =
   | "SUBSTITUTION"
   | "EXPIRATION";
 
+/** I-035: these reasons are a counter — a reply to the live active Offer. */
+export const COUNTER_REASONS = ["BUYER_CHANGE", "SELLER_COUNTEROFFER"] as const;
+export type CounterReason = (typeof COUNTER_REASONS)[number];
+
+export function isCounterReason(reason: OfferReason): reason is CounterReason {
+  return reason === "BUYER_CHANGE" || reason === "SELLER_COUNTEROFFER";
+}
+
 export type ResolutionPolicy = "PRIMARY_ONLY" | "FIRST_AVAILABLE" | "ASK_BUYER";
 export type ResolutionKind = "PRIMARY" | "ALTERNATIVE" | "UNRESOLVED";
 export type SubstitutionStatus = "PROPOSED" | "ACCEPTED" | "REJECTED";
