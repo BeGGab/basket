@@ -49,14 +49,14 @@ Record evidence from the mock domain and seller emulator.
 | BS-026 | PASS | CONFIRMED | none | I-039: silence while valid is not expiration and does not change status |
 | BS-027 | PASS | OPEN (OQ-001) | none | keep v0.1 |
 | BS-028 | PASS | CONFIRMED | none | keep v0.1 |
-| BS-029 | PASS | CONFIRMED | none | silence while valid: no actor command after proposeOffer; only advance |
+| BS-029 | PASS | CONFIRMED | none | silence while valid: status/pointers/waiting facts unchanged; waitMs derived from waitingSince + clock |
 | BS-030 | PASS | CONFIRMED | none | silence until expiration is not implicit REJECT; validUntil is exclusive |
-| BS-031 | PASS | CONFIRMED | none | accepted Offer expiry keeps STABLE and pointers; no claim; no counter; time creates no facts |
+| BS-031 | PASS | CONFIRMED | none | accepted Offer expiry keeps STABLE; stockClaims drops A; B is the only claim; live control checkpoint records combined=7 |
 | BS-032 | PASS | CONFIRMED | none | new Offer after agreed expiry becomes active; A stays agreed until B is accepted |
 | BS-033 | PASS | CONFIRMED | none | expired Offer cannot be revived by ACCEPT |
 | BS-034 | PASS | CONFIRMED | none | I-035: isCounterReason (BUYER_CHANGE / SELLER_COUNTEROFFER) cannot reply to an expired Offer; PRICE_CHANGE may replace it |
-| BS-035 | PASS | CONFIRMED | none | silence must not create a fake FSM state or move pointers |
-| BS-036 | PASS | CONFIRMED | none | same commands + same clock produce the same observable world |
+| BS-035 | PASS | CONFIRMED | none | silence must not create a fake FSM state or rewrite waiting facts; waitMs is derived from clock |
+| BS-036 | PASS | CONFIRMED | none | determinism regression: same start + same commands → same snapshot; not a proof of all nondeterminism sources |
 
 ## Scenario records
 
@@ -398,15 +398,15 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-029 — Impl PASS / Domain CONFIRMED
 
-- Expected: status=WAITING_BUYER; active=offer-5; agreed=null; valid=true; sameActive=true; sameAgreed=true; actorCommandsAfterOffer=0
-- Actual: status=WAITING_BUYER; active=offer-5; agreed=null; valid=true; sameActive=true; sameAgreed=true; actorCommandsAfterOffer=0
+- Expected: status=WAITING_BUYER; active=offer-5; agreed=null; valid=true; sameActive=true; sameAgreed=true; sameOfferCount=true; sameAcceptanceCount=true; sameWaitingSince=true; sameLastSellerActivity=true; hasWaitingSince=true; hasLastSellerActivity=true; waitMs=1800000
+- Actual: status=WAITING_BUYER; active=offer-5; agreed=null; valid=true; sameActive=true; sameAgreed=true; sameOfferCount=true; sameAcceptanceCount=true; sameWaitingSince=true; sameLastSellerActivity=true; hasWaitingSince=true; hasLastSellerActivity=true; waitMs=1800000
 - Invariant: I-039
 - Hypothesis: CONFIRMED
 - Open question: none
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: silence while valid: no actor command after proposeOffer; only advance
+- Decision: silence while valid: status/pointers/waiting facts unchanged; waitMs derived from waitingSince + clock
 
 ### BS-030 — Impl PASS / Domain CONFIRMED
 
@@ -422,15 +422,15 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-031 — Impl PASS / Domain CONFIRMED
 
-- Expected: status=STABLE; agreed=offer-5; active=offer-5; valid=false; expiredState=false; timeCreatesConflicts=false; counterBlocked=true; claimDropped=true; stock=6; expiredQty=4; newQty=3; wouldConflictIfExpiredStillClaimed=true
-- Actual: status=STABLE; agreed=offer-5; active=offer-5; valid=false; expiredState=false; timeCreatesConflicts=false; counterBlocked=true; claimDropped=true; stock=6; expiredQty=4; newQty=3; wouldConflictIfExpiredStillClaimed=true
+- Expected: status=STABLE; agreed=offer-5; active=offer-5; valid=false; expiredState=false; timeCreatesConflicts=false; counterBlocked=true; aClaimedWhileValid=4; aClaimedAfterExpire=0; bClaimedAfterPropose=3; aClaimedAfterB=0; expiredCheckpointConflicts=0; liveAStillClaimed=4; liveBClaimed=3; liveCheckpointConflicts=1; liveCombined=7
+- Actual: status=STABLE; agreed=offer-5; active=offer-5; valid=false; expiredState=false; timeCreatesConflicts=false; counterBlocked=true; aClaimedWhileValid=4; aClaimedAfterExpire=0; bClaimedAfterPropose=3; aClaimedAfterB=0; expiredCheckpointConflicts=0; liveAStillClaimed=4; liveBClaimed=3; liveCheckpointConflicts=1; liveCombined=7
 - Invariant: I-037 I-038 I-025 I-035 I-040
 - Hypothesis: CONFIRMED
 - Open question: none
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: accepted Offer expiry keeps STABLE and pointers; no claim; no counter; time creates no facts
+- Decision: accepted Offer expiry keeps STABLE; stockClaims drops A; B is the only claim; live control checkpoint records combined=7
 
 ### BS-032 — Impl PASS / Domain CONFIRMED
 
@@ -470,15 +470,15 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-035 — Impl PASS / Domain CONFIRMED
 
-- Expected: before=WAITING_BUYER; after=WAITING_BUYER; expiredState=false; invented=false; sameActive=true; sameAgreed=true
-- Actual: before=WAITING_BUYER; after=WAITING_BUYER; expiredState=false; invented=false; sameActive=true; sameAgreed=true
+- Expected: before=WAITING_BUYER; after=WAITING_BUYER; expiredState=false; invented=false; sameActive=true; sameAgreed=true; sameWaitingSince=true; sameLastSellerActivity=true; waitMs=86400000
+- Actual: before=WAITING_BUYER; after=WAITING_BUYER; expiredState=false; invented=false; sameActive=true; sameAgreed=true; sameWaitingSince=true; sameLastSellerActivity=true; waitMs=86400000
 - Invariant: I-039 I-041
 - Hypothesis: CONFIRMED
 - Open question: none
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: silence must not create a fake FSM state or move pointers
+- Decision: silence must not create a fake FSM state or rewrite waiting facts; waitMs is derived from clock
 
 ### BS-036 — Impl PASS / Domain CONFIRMED
 
@@ -490,7 +490,7 @@ Record evidence from the mock domain and seller emulator.
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: same commands + same clock produce the same observable world
+- Decision: determinism regression: same start + same commands → same snapshot; not a proof of all nondeterminism sources
 
 ## Final decision
 
@@ -556,8 +556,8 @@ Changes in this PR (already implemented and tested):
 - I-040: DeterministicClock + advance() move only the clock; time creates no facts; validUntil is exclusive
 - I-041: time/silence do not enter EXPIRED
 - BS-029…036: silence-while-valid, silence-until-expiry, agreed expiry, new Offer after expiry, no revive, no counter, no fake FSM state, time determinism
-- Stock race records combined claims (stock=6, A→4, B→3) at OFFER_CREATION
-- stock claim = valid active Offer quantity; REJECTED/CANCELLED/expired excluded
+- I-025 claims are the stockClaims() projection (same predicate as detection); stockConflicts is a detection-event log, not a claims registry
+- BS-031: after A expires, stockClaims drops A and keeps B; the live control checkpoint records combined=7
 - I-029: only the counterparty may accept an Offer
 - Offer items: quantity > 0, finite price/qty; applyAdvice requires matching snapshot basis
 - TZ-001…004 ship as four dependent PRs (domain → assistants → runtime → /sim), each with its own runner
@@ -565,7 +565,7 @@ Changes in this PR (already implemented and tested):
 
 Closed in SPEC v0.3 / TZ-BASKET-005:
 - OQ-009 CLOSED — agreed Offer expiry keeps pointers and STABLE; validity still forbids accept/counter
-- OQ-011 CLOSED for Stage-1 silence — waitingSince + lastSellerActivity + clock; not a universal waiting proof
+- OQ-011 CLOSED for Stage-1 silence — no command ⇒ no lifecycle change; waiting facts are observation, not a sufficiency proof
 - OQ-012 CLOSED for passage of time — no SELLER_UNRESPONSIVE / auto-EXPIRED; negotiation TTL remains OQ-005
 
 Still open:

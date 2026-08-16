@@ -273,7 +273,7 @@ STABLE does not mean payment, reservation, delivery, guaranteed physical availab
 
 ## Stock conflict detections
 
-`stockConflicts` is a **detection-event log**, not a unique conflict state. The same race (e.g. stock=6, A→4, B→3, combined=7) may be recorded at `OFFER_CREATION`, `ACCEPTANCE` and `STABLE`. Multiple rows for one race are expected. There is no Allocation/Reservation in this experiment.
+`stockConflicts` is a **detection-event log**, not a unique conflict state and not a claims registry. Current claims are the diagnostic projection `stockClaims(sellerId, productId, unit)` — the same I-025 predicate detection uses. The same race (e.g. stock=6, A→4, B→3, combined=7) may be recorded at `OFFER_CREATION`, `ACCEPTANCE` and `STABLE`. Multiple rows for one race are expected. There is no Allocation/Reservation in this experiment.
 
 For stock-conflict detection, a **claim** is the quantity represented by the SellerPurchase's current **valid active** commercial proposal (`activeOfferId` and `isOfferValid`). REJECTED, CANCELLED, and expired Offers are not claims. `agreedOfferId` is not used as the claim when a newer active Offer exists.
 

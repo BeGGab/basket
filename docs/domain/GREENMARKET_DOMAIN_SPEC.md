@@ -393,7 +393,8 @@ Purchase B → 3
 ```
 
 The combined claims must be detectable as a conflict. But conflict detection does NOT mean
-allocation or reservation. **CONFIRMED**
+allocation or reservation. Current claims are the diagnostic projection `stockClaims`;
+`stockConflicts` is the detection-event log, not a claims registry. **CONFIRMED**
 
 ## 35. Partial Availability Seller
 
@@ -436,14 +437,14 @@ Validity does **not** revoke a recorded Acceptance. An already-agreed Offer that
 | New FSM state? | no |
 | May a party propose a new Offer? | yes (`PRICE_CHANGE`, `TIME_DISCOUNT`, … — not a counter) |
 | New Offer B after A expired | `activeOfferId = B`, `agreedOfferId = A`; B may be accepted if valid |
-| Does A still claim stock? | no — expired Offers are not claims (I-025); STABLE ≠ stock guarantee (I-018) |
+| Does A still claim stock? | no — `stockClaims` excludes expired Offers (I-025); STABLE ≠ stock guarantee (I-018) |
 
 **Rationale.** Acceptance is a completed historical fact. `validUntil` answers “may this standing
 proposal still be accepted or countered?”, not “does the already-recorded agreement evaporate?”.
 STABLE means agreement, not a live lease (I-017 / I-018).
 
 **Affected:** Offer, Acceptance, `agreedOfferId`, `activeOfferId`, STABLE, `isOfferValid`, Assistant
-baseline (agreed price survives expiration), stock claims (expired Offers are still not claims).
+baseline (agreed price survives expiration), stock claims (`stockClaims` excludes expired Offers).
 
 **Affected invariants:** I-011, I-017, I-018, I-025, I-028, I-035, I-037, I-038.
 
@@ -458,9 +459,10 @@ A general TTL for the whole SellerPurchase negotiation is still undefined. **OPE
 state. It does not become `REJECT` or `CANCEL` without an explicit command. `markWaiting` is an
 emulator command (SlowSeller), not silence; silence scenarios must not call it.
 
-For **Stage-1 silence semantics**, `waitingSince` + `lastSellerActivity` + the world clock are
-sufficient. A derived duration may be computed from those facts; it is not stored as its own
-entity. This does not prove sufficiency for every future negotiation/waiting policy.
+For **Stage-1 silence semantics**, `waitingSince`, `lastSellerActivity`, and the world clock are
+the observation facts the experiment records. A derived duration may be computed from those
+facts; it is not stored as its own entity. The experiment does **not** prove that these three
+facts are sufficient for every future negotiation/waiting policy.
 
 | Situation | Effect on SellerPurchase |
 | --- | --- |
@@ -595,8 +597,8 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
   pointers stay; A remains the baseline; STABLE is not exited; validity still forbids accept/counter
   of the standing proposal.
 - **Experiment OQ-011 — Silence facts.** **CLOSED** in v0.3 for Stage-1 silence semantics. See §39:
-  `waitingSince` + `lastSellerActivity` + clock suffice for the current experiment; silence is not
-  an entity. Not a proof for all future waiting policies.
+  silence is not an entity. Stage-1 tests record `waitingSince` + `lastSellerActivity` + clock as
+  observation facts. Not a proof of sufficiency for all future waiting policies.
 - **Experiment OQ-012 — Passage of time.** **CLOSED** in v0.3 for how time is represented. See §40:
   `SELLER_UNRESPONSIVE` / auto-`EXPIRED` are not domain states; `advance` is the time operation.
   Negotiation lifetime / timeout policy remains **OPEN — SPEC OQ-005**.
@@ -663,7 +665,7 @@ silence        → no command ⇒ no lifecycle change
 
 ```
 OQ-009 CLOSED    agreed Offer expiry keeps pointers and STABLE
-OQ-011 CLOSED    Stage-1 silence: waitingSince + lastSellerActivity + clock
+OQ-011 CLOSED    Stage-1 silence: no command ⇒ no lifecycle change
 OQ-012 CLOSED    passage of time: no SELLER_UNRESPONSIVE / auto-EXPIRED
 
 OQ-001 OPEN      price semantics (unit vs line)

@@ -174,7 +174,7 @@ Expose Resolution policy explicitly.
 
 ## BS-029 — Silence while Offer is valid
 
-Offer A is active. Buyer does nothing. `time < validUntil`. Status, `activeOfferId`, and `agreedOfferId` stay; Offer remains valid (I-039).
+Offer A is active. Buyer does nothing. `time < validUntil`. Status, `activeOfferId`, `agreedOfferId`, `waitingSince`, and `lastSellerActivity` stay; Offer remains valid (I-039). A derived `waitMs` is computed from `waitingSince` + clock. This is not a full domain command log.
 
 ## BS-030 — Silence until expiration
 
@@ -182,7 +182,7 @@ Offer A is active. Buyer does nothing. `time > validUntil`. Same pointers and st
 
 ## BS-031 — Accepted Offer expires
 
-Offer A is accepted (`agreedOfferId = A`, `activeOfferId = A`). Time passes `validUntil`. No replacement Offer. SellerPurchase stays STABLE; both pointers stay A; A is no longer valid as a standing proposal (I-037 / I-038). COUNTER of A is still forbidden (I-035). A is not a stock claim (I-025). `advance` creates no new facts (I-040).
+Offer A is accepted (`agreedOfferId = A`, `activeOfferId = A`). Time passes `validUntil`. No replacement Offer. SellerPurchase stays STABLE; both pointers stay A; A is no longer valid as a standing proposal (I-037 / I-038). COUNTER of A is still forbidden (I-035). `stockClaims` shows A while valid and drops A after expiry (I-025). A second SellerPurchase B proposing 3 kg on stock=6 is a real OFFER_CREATION checkpoint: after A expired, B is the only claim and no detection event is written; a live control (A still valid) records `combined=7`. `advance` creates no new facts (I-040).
 
 ## BS-032 — Accepted Offer expires, then a new Offer appears
 
@@ -202,4 +202,4 @@ Long silence after expiration does not invent `EXPIRED` or any other new lifecyc
 
 ## BS-036 — Time determinism
 
-Same initial snapshot + same commands + same timestamps → identical full observable world (I-040).
+Same initial snapshot + same commands + same timestamps → identical full observable world (I-040). Determinism regression only — not a proof that every source of nondeterminism is absent.

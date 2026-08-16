@@ -144,6 +144,16 @@ export interface StockConflict {
   purchaseId: string;
 }
 
+/**
+ * Diagnostic projection of I-025: a current stock claim on one commercial line.
+ * Not a domain entity and not a row in `stockConflicts` (that log is detection events).
+ */
+export interface StockClaim {
+  sellerPurchaseId: string;
+  offerId: string;
+  quantity: number;
+}
+
 export interface Snapshot {
   agreed: { offerId: string | null; items: readonly Readonly<PurchaseItem>[] };
   current: { offerId: string | null; items: readonly Readonly<PurchaseItem>[] };
@@ -174,6 +184,7 @@ export type ReadonlyPurchase = Readonly<Omit<Purchase, "sellerPurchaseIds" | "un
 export type ReadonlySubstitution = Readonly<Substitution>;
 export type ReadonlyAcceptance = Readonly<Acceptance>;
 export type ReadonlyStockConflict = Readonly<StockConflict>;
+export type ReadonlyStockClaim = Readonly<StockClaim>;
 export type ReadonlyMockFulfillment = Readonly<MockFulfillment>;
 
 export interface ReadonlyProductCatalog {

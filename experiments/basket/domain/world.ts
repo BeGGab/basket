@@ -20,8 +20,10 @@ import type {
   ReadonlyPurchase,
   ReadonlySellerPurchase,
   ReadonlyShoppingList,
+  ReadonlyStockClaim,
   ReadonlyStockConflict,
   ReadonlySubstitution,
+  StockClaim,
   ResolutionPolicy,
   SellerPurchase,
   ShoppingList,
@@ -504,6 +506,14 @@ export class BasketWorld {
     return Date.parse(offer.validUntil) > this.clock.now().getTime();
   }
 
+  /**
+   * I-025 diagnostic: current claims on one seller commercial line.
+   * Same predicate as stock-conflict detection. Frozen; not a claims registry entity.
+   */
+  stockClaims(sellerId: string, productId: string, unit: string): readonly ReadonlyStockClaim[] {
+    return Object.freeze(this.collectClaims(sellerId, productId, unit).map((claim) => Object.freeze({ ...claim })));
+  }
+
   isStable(sellerPurchaseId: string): boolean {
     return this.mutableSp(sellerPurchaseId).status === "STABLE";
   }
@@ -557,13 +567,14 @@ export class BasketWorld {
   }
 
   /**
-   * Competing claim = quantity on the other SellerPurchase's **valid active** commercial proposal.
+   * Current claims on a seller commercial line (I-025).
+   * Claim = quantity on that SellerPurchase's **valid active** commercial proposal.
    * REJECTED and CANCELLED are ignored. Expired Offers (`isOfferValid` = false) are not claims.
    */
-  private claimedByOthers(sp: SellerPurchase, productId: string, unit: string): number {
-    let sum = 0;
+  private collectClaims(sellerId: string, productId: string, unit: string): StockClaim[] {
+    const claims: StockClaim[] = [];
     for (const other of this.spById.values()) {
-      if (other.id === sp.id || other.sellerId !== sp.sellerId) continue;
+      if (other.sellerId !== sellerId) continue;
       if (other.status === "REJECTED" || other.status === "CANCELLED") continue;
       if (!other.activeOfferId) continue;
       const offer = this.requireOffer(other.activeOfferId);
@@ -571,10 +582,18 @@ export class BasketWorld {
       for (const item of offer.items) {
         // Claims compete only within the same commercial line: tomatoes/kg and tomatoes/pcs
         // draw on different stock pools (identity is (productId, unit)).
-        if (item.productId === productId && item.unit === unit) sum += item.quantity;
+        if (item.productId === productId && item.unit === unit) {
+          claims.push({ sellerPurchaseId: other.id, offerId: offer.id, quantity: item.quantity });
+        }
       }
     }
-    return sum;
+    return claims;
+  }
+
+  private claimedByOthers(sp: SellerPurchase, productId: string, unit: string): number {
+    return this.collectClaims(sp.sellerId, productId, unit)
+      .filter((claim) => claim.sellerPurchaseId !== sp.id)
+      .reduce((sum, claim) => sum + claim.quantity, 0);
   }
 
   private assertOfferItems(items: PurchaseItem[]): void {

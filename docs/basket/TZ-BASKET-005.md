@@ -63,7 +63,7 @@ GREENMARKET_DOMAIN_SPEC.md is the canonical source. This PR updates SPEC first, 
 | Новое FSM-состояние? | нет |
 | Можно предложить новый Offer? | да, с non-counter reason |
 | Появление B | `active=B`, `agreed=A`; B можно принять, если valid |
-| Stock claim? | нет — expired Offer не claim (I-025); STABLE ≠ stock guarantee |
+| Stock claim? | нет — `stockClaims` исключает expired Offer (I-025); STABLE ≠ stock guarantee |
 
 I-028 / I-035 по-прежнему запрещают ACCEPT / COUNTER истёкшего standing proposal.
 
@@ -71,7 +71,7 @@ I-028 / I-035 по-прежнему запрещают ACCEPT / COUNTER истё
 
 Silence = **отсутствие domain command**, не сущность и не FSM-состояние. Не становится REJECT / CANCEL / EXPIRED без явной команды.
 
-Для Stage-1 silence достаточны факты: `waitingSince`, `lastSellerActivity`, clock. Silence до и после expiration отличается только вычисленным `isOfferValid`. Это не доказательство для всех будущих waiting-политик.
+Для Stage-1 silence тесты фиксируют факты: `waitingSince`, `lastSellerActivity`, clock. Из них можно вычислить duration. Это observation, не доказательство достаточности для всех будущих waiting-политик. Silence до и после expiration отличается только вычисленным `isOfferValid`.
 
 ### OQ-012 — время
 
@@ -106,7 +106,8 @@ Regression: BS-012, BS-013, BS-021, BS-022, BS-024, BS-026, BS-028 — Domain CO
 Смысловые изменения кода:
 
 - `refreshStatus` больше не требует `isOfferValid(agreed)` для STABLE (I-038);
-- `advance()` двигает только часы и больше не вызывает `refreshStatus` (I-040) — время не пишет stock-conflict events и не пересчитывает FSM.
+- `advance()` двигает только часы и больше не вызывает `refreshStatus` (I-040) — время не пишет stock-conflict events и не пересчитывает FSM;
+- `stockClaims()` — диагностическая проекция того же I-025 predicate, что detection; не новая сущность и не синоним `stockConflicts`.
 
 Assistant Advice shape не менялся: STABLE проверяется раньше validity → `WAIT(TERMINAL_STATUS)`; истёкший agreed Offer остаётся price baseline при живом следующем active Offer. Pre-expiry STABLE WAIT становится stale после expiry (`activeOfferValid` flipped); повторный advise снова `WAIT(TERMINAL_STATUS)`.
 
@@ -157,7 +158,7 @@ Final domain status
 
 ```text
 OQ-009 CLOSED    agreed Offer expiry keeps pointers and STABLE
-OQ-011 CLOSED    Stage-1 silence: waitingSince + lastSellerActivity + clock
+OQ-011 CLOSED    Stage-1 silence: no command ⇒ no lifecycle change
 OQ-012 CLOSED    passage of time: no SELLER_UNRESPONSIVE / auto-EXPIRED
 
 OQ-001 OPEN      price semantics

@@ -1140,11 +1140,11 @@ export function runAllScenarios(): ScenarioResult[] {
         validUntil: "2026-01-01T01:00:00.000Z",
       });
       const before = w.requireSp(sp);
-      const acceptancesAfterOffer = w.acceptances.length;
-      const offersAfterOffer = w.offers.filter((o) => o.sellerPurchaseId === sp).length;
       // Silence = no actor command after proposeOffer. Only advance (I-040) follows.
       w.advance(1_800_000);
       const after = w.requireSp(sp);
+      const waitMs =
+        after.waitingSince === null ? null : Date.parse(w.nowIso()) - Date.parse(after.waitingSince);
       return prove(
         "BS-029",
         "I-039",
@@ -1155,7 +1155,13 @@ export function runAllScenarios(): ScenarioResult[] {
           valid: true,
           sameActive: true,
           sameAgreed: true,
-          actorCommandsAfterOffer: 0,
+          sameOfferCount: true,
+          sameAcceptanceCount: true,
+          sameWaitingSince: true,
+          sameLastSellerActivity: true,
+          hasWaitingSince: true,
+          hasLastSellerActivity: true,
+          waitMs: 1_800_000,
         },
         {
           status: after.status,
@@ -1164,12 +1170,15 @@ export function runAllScenarios(): ScenarioResult[] {
           valid: w.isOfferValid(offer),
           sameActive: after.activeOfferId === before.activeOfferId,
           sameAgreed: after.agreedOfferId === before.agreedOfferId,
-          actorCommandsAfterOffer:
-            w.acceptances.length - acceptancesAfterOffer +
-            (w.offers.filter((o) => o.sellerPurchaseId === sp).length - offersAfterOffer) +
-            (after.status === "REJECTED" || after.status === "CANCELLED" ? 1 : 0),
+          sameOfferCount: w.offers.filter((o) => o.sellerPurchaseId === sp).length === 1,
+          sameAcceptanceCount: w.acceptances.length === 0,
+          sameWaitingSince: after.waitingSince === before.waitingSince,
+          sameLastSellerActivity: after.lastSellerActivity === before.lastSellerActivity,
+          hasWaitingSince: Boolean(after.waitingSince),
+          hasLastSellerActivity: Boolean(after.lastSellerActivity),
+          waitMs,
         },
-        "silence while valid: no actor command after proposeOffer; only advance"
+        "silence while valid: status/pointers/waiting facts unchanged; waitMs derived from waitingSince + clock"
       );
     })
   );
@@ -1218,77 +1227,108 @@ export function runAllScenarios(): ScenarioResult[] {
 
   results.push(
     run("BS-031", () => {
-      const w = new BasketWorld();
-      w.setCatalog({
-        names: { tomatoes: "Tomatoes" },
-        availability: [{ sellerId: "seller-a", productId: "tomatoes", quantity: 20, unit: "kg", price: 15, stock: 6 }],
-      });
-      const list = w.createList("bs031");
-      w.addItem(list.id, { productId: "tomatoes", quantity: 4, unit: "kg", alternatives: [] });
-      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
-      const a = w.proposeOffer({
-        sellerPurchaseId: sp,
-        actor: "SELLER",
-        items: tomatoes(4, 15),
-        reason: "PRICE_CHANGE",
-        validUntil: "2026-01-01T00:00:05.000Z",
-      });
-      w.acceptOffer(a.id, "BUYER");
-      const conflictsBeforeTime = w.stockConflicts.length;
-      w.advance(10_000);
-      const conflictsAfterTime = w.stockConflicts.length;
-      const s = w.requireSp(sp);
+      const claimedQty = (
+        claims: readonly { sellerPurchaseId: string; quantity: number }[],
+        sellerPurchaseId: string
+      ) => claims.filter((c) => c.sellerPurchaseId === sellerPurchaseId).reduce((sum, c) => sum + c.quantity, 0);
+      const race = (expireA: boolean) => {
+        const w = new BasketWorld();
+        w.setCatalog({
+          names: { tomatoes: "Tomatoes" },
+          availability: [{ sellerId: "seller-a", productId: "tomatoes", quantity: 20, unit: "kg", price: 15, stock: 6 }],
+        });
+        const list = w.createList(expireA ? "bs031" : "bs031-live");
+        w.addItem(list.id, { productId: "tomatoes", quantity: 4, unit: "kg", alternatives: [] });
+        const spA = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+        const a = w.proposeOffer({
+          sellerPurchaseId: spA,
+          actor: "SELLER",
+          items: tomatoes(4, 15),
+          reason: "PRICE_CHANGE",
+          validUntil: "2026-01-01T00:00:05.000Z",
+        });
+        w.acceptOffer(a.id, "BUYER");
+        const claimsWhileValid = w.stockClaims("seller-a", "tomatoes", "kg");
+        const conflictsBeforeTime = w.stockConflicts.length;
+        if (expireA) w.advance(10_000);
+        const claimsAfterClock = w.stockClaims("seller-a", "tomatoes", "kg");
+        const conflictsAfterTime = w.stockConflicts.length;
+        const listB = w.createList(expireA ? "bs031-b" : "bs031-live-b");
+        w.addItem(listB.id, { productId: "tomatoes", quantity: 3, unit: "kg", alternatives: [] });
+        const spB = w.createPurchaseFromList(listB.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+        w.proposeOffer({
+          sellerPurchaseId: spB,
+          actor: "SELLER",
+          items: tomatoes(3, 15),
+          reason: "PRICE_CHANGE",
+        });
+        return {
+          w,
+          a,
+          spA,
+          spB,
+          claimsWhileValid,
+          claimsAfterClock,
+          claimsAfterB: w.stockClaims("seller-a", "tomatoes", "kg"),
+          bCreationConflicts: w.stockConflicts.filter(
+            (c) => c.purchaseId === w.requireSp(spB).purchaseId && c.detectedAt === "OFFER_CREATION"
+          ),
+          timeCreatesConflicts: conflictsAfterTime !== conflictsBeforeTime,
+        };
+      };
+      const expired = race(true);
+      const live = race(false);
+      const s = expired.w.requireSp(expired.spA);
       const counterBlocked = threw(
         () =>
-          w.proposeOffer({
-            sellerPurchaseId: sp,
+          expired.w.proposeOffer({
+            sellerPurchaseId: expired.spA,
             actor: "BUYER",
             items: tomatoes(4, 14),
             reason: "BUYER_CHANGE",
           }),
         /I-035|expired/
       );
-      const listB = w.createList("bs031-b");
-      w.addItem(listB.id, { productId: "tomatoes", quantity: 3, unit: "kg", alternatives: [] });
-      const spB = w.createPurchaseFromList(listB.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
-      w.proposeOffer({
-        sellerPurchaseId: spB,
-        actor: "SELLER",
-        items: tomatoes(3, 15),
-        reason: "PRICE_CHANGE",
-      });
       return prove(
         "BS-031",
         "I-037 I-038 I-025 I-035 I-040",
         {
           status: "STABLE",
-          agreed: a.id,
-          active: a.id,
+          agreed: expired.a.id,
+          active: expired.a.id,
           valid: false,
           expiredState: false,
           timeCreatesConflicts: false,
           counterBlocked: true,
-          claimDropped: true,
-          stock: 6,
-          expiredQty: 4,
-          newQty: 3,
-          wouldConflictIfExpiredStillClaimed: true,
+          aClaimedWhileValid: 4,
+          aClaimedAfterExpire: 0,
+          bClaimedAfterPropose: 3,
+          aClaimedAfterB: 0,
+          expiredCheckpointConflicts: 0,
+          liveAStillClaimed: 4,
+          liveBClaimed: 3,
+          liveCheckpointConflicts: 1,
+          liveCombined: 7,
         },
         {
           status: s.status,
           agreed: s.agreedOfferId,
           active: s.activeOfferId,
-          valid: w.isOfferValid(a),
+          valid: expired.w.isOfferValid(expired.a),
           expiredState: s.status === "EXPIRED",
-          timeCreatesConflicts: conflictsAfterTime !== conflictsBeforeTime,
+          timeCreatesConflicts: expired.timeCreatesConflicts,
           counterBlocked,
-          claimDropped: w.stockConflicts.filter((c) => c.purchaseId === w.requireSp(spB).purchaseId).length === 0,
-          stock: 6,
-          expiredQty: 4,
-          newQty: 3,
-          wouldConflictIfExpiredStillClaimed: 4 + 3 > 6,
+          aClaimedWhileValid: claimedQty(expired.claimsWhileValid, expired.spA),
+          aClaimedAfterExpire: claimedQty(expired.claimsAfterClock, expired.spA),
+          bClaimedAfterPropose: claimedQty(expired.claimsAfterB, expired.spB),
+          aClaimedAfterB: claimedQty(expired.claimsAfterB, expired.spA),
+          expiredCheckpointConflicts: expired.bCreationConflicts.length,
+          liveAStillClaimed: claimedQty(live.claimsAfterB, live.spA),
+          liveBClaimed: claimedQty(live.claimsAfterB, live.spB),
+          liveCheckpointConflicts: live.bCreationConflicts.length,
+          liveCombined: live.bCreationConflicts[0]?.combined ?? 0,
         },
-        "accepted Offer expiry keeps STABLE and pointers; no claim; no counter; time creates no facts"
+        "accepted Offer expiry keeps STABLE; stockClaims drops A; B is the only claim; live control checkpoint records combined=7"
       );
     })
   );
@@ -1461,6 +1501,8 @@ export function runAllScenarios(): ScenarioResult[] {
       const before = w.requireSp(sp);
       w.advance(86_400_000);
       const after = w.requireSp(sp);
+      const waitMs =
+        after.waitingSince === null ? null : Date.parse(w.nowIso()) - Date.parse(after.waitingSince);
       return prove(
         "BS-035",
         "I-039 I-041",
@@ -1471,6 +1513,9 @@ export function runAllScenarios(): ScenarioResult[] {
           invented: false,
           sameActive: true,
           sameAgreed: true,
+          sameWaitingSince: true,
+          sameLastSellerActivity: true,
+          waitMs: 86_400_000,
         },
         {
           before: before.status,
@@ -1479,8 +1524,11 @@ export function runAllScenarios(): ScenarioResult[] {
           invented: after.status !== before.status,
           sameActive: after.activeOfferId === before.activeOfferId,
           sameAgreed: after.agreedOfferId === before.agreedOfferId,
+          sameWaitingSince: after.waitingSince === before.waitingSince,
+          sameLastSellerActivity: after.lastSellerActivity === before.lastSellerActivity,
+          waitMs,
         },
-        "silence must not create a fake FSM state or move pointers"
+        "silence must not create a fake FSM state or rewrite waiting facts; waitMs is derived from clock"
       );
     })
   );
@@ -1515,6 +1563,7 @@ export function runAllScenarios(): ScenarioResult[] {
           catalog: w.catalog,
           now: w.nowIso(),
           valid: w.isOfferValid(a),
+          stockClaims: w.stockClaims("seller-a", "tomatoes", "kg"),
         });
       };
       const first = play();
@@ -1524,7 +1573,7 @@ export function runAllScenarios(): ScenarioResult[] {
         "I-040",
         { same: true },
         { same: first === second },
-        "same commands + same clock produce the same observable world"
+        "determinism regression: same start + same commands → same snapshot; not a proof of all nondeterminism sources"
       );
     })
   );
@@ -1639,8 +1688,8 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("- I-040: DeterministicClock + advance() move only the clock; time creates no facts; validUntil is exclusive");
   lines.push("- I-041: time/silence do not enter EXPIRED");
   lines.push("- BS-029…036: silence-while-valid, silence-until-expiry, agreed expiry, new Offer after expiry, no revive, no counter, no fake FSM state, time determinism");
-  lines.push("- Stock race records combined claims (stock=6, A→4, B→3) at OFFER_CREATION");
-  lines.push("- stock claim = valid active Offer quantity; REJECTED/CANCELLED/expired excluded");
+  lines.push("- I-025 claims are the stockClaims() projection (same predicate as detection); stockConflicts is a detection-event log, not a claims registry");
+  lines.push("- BS-031: after A expires, stockClaims drops A and keeps B; the live control checkpoint records combined=7");
   lines.push("- I-029: only the counterparty may accept an Offer");
   lines.push("- Offer items: quantity > 0, finite price/qty; applyAdvice requires matching snapshot basis");
   lines.push("- TZ-001…004 ship as four dependent PRs (domain → assistants → runtime → /sim), each with its own runner");
@@ -1648,7 +1697,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("");
   lines.push("Closed in SPEC v0.3 / TZ-BASKET-005:");
   lines.push("- OQ-009 CLOSED — agreed Offer expiry keeps pointers and STABLE; validity still forbids accept/counter");
-  lines.push("- OQ-011 CLOSED for Stage-1 silence — waitingSince + lastSellerActivity + clock; not a universal waiting proof");
+  lines.push("- OQ-011 CLOSED for Stage-1 silence — no command ⇒ no lifecycle change; waiting facts are observation, not a sufficiency proof");
   lines.push("- OQ-012 CLOSED for passage of time — no SELLER_UNRESPONSIVE / auto-EXPIRED; negotiation TTL remains OQ-005");
   lines.push("");
   lines.push("Still open:");
