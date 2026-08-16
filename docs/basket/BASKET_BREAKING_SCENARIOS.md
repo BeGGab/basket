@@ -222,7 +222,7 @@ Offer `2 kg @ 15` then `4 kg @ 15` is a new Offer. Price stays 15 per kg; it is 
 
 ## PRICE-ABSENT-001 — Missing price
 
-A PurchaseItem without `price` has no derived total. The model does not invent `0` or `linePrice`.
+A PurchaseItem without `price` has no derived total. The model does not invent `0` or `linePrice`. A second priceless Offer is not a bypass to agreed/STABLE.
 
 ## PRICE-CATALOG-QTY-001 — Catalog quantity is not requested quantity
 
@@ -230,7 +230,7 @@ List asks 2 kg. Catalog row `quantity = 20`. PurchaseItem.quantity is 2, not 20 
 
 ## PACKAGE-001 — Package as a unit
 
-`1 package @ 60` is representable as a unit (CONFIRMED). Package contents / conversion remain **OPEN — SPEC OQ-002**.
+`1 package @ 60` is representable as a unit (CONFIRMED). This scenario does not decide package contents.
 
 ## PACKAGE-002 — Package size vs unit price
 
@@ -238,7 +238,11 @@ Two catalog rows `5 kg @ 12` and `20 kg @ 12` share one reference. `5 kg @ 12` a
 
 ## PACKAGE-003 — Hidden package basis
 
-`1 package @ 60` cannot distinguish an external 5 kg basis from a 20 kg basis.
+Current identity `(sellerId, productId, unit)` cannot represent two catalog package bases (5 vs 20). That is a MODEL GAP, not a decision that those rows must be different commercial offers.
+
+## PACKAGE-004 — Package contents / conversion
+
+`1 package = 5 kg` is not in the model (**OPEN — SPEC OQ-002**). Separate from PACKAGE-001 representation.
 
 ## ALT-PRICE-001 — Primary cheaper than alternative
 
@@ -246,8 +250,16 @@ Primary 15 and alternative 24 are both visible. PRIMARY_ONLY does not switch. No
 
 ## ALT-PRICE-002 — Primary dearer than alternative
 
-Primary 24 and alternative 15 are both visible. FIRST_AVAILABLE is not BEST_PRICE.
+Primary 24 and alternative 15 are both visible. FIRST_AVAILABLE / PRIMARY_ONLY are not BEST_PRICE in this run. That does not prove price never affects resolution (**OPEN — SPEC OQ-008**).
 
 ## PRICE-SNAPSHOT-001 — Canonical price snapshot
 
 Agreed `2 kg @ 15`, current `2 kg @ 12`, alternative `Tomato B × 2 kg @ 24` are visible together. Representation only.
+
+## ALT-STABILITY-001 — List alternatives survive item replacement
+
+After the current commercial item is replaced (primary gone from `sp.items`), snapshot alternatives still come from the original List — requested qty/unit included.
+
+## PRICE-TOTAL-001 — Derived total bounds
+
+`unitLineTotal` only multiplies. Quantity `> 0` is I-030. Invalid I-030/I-046 inputs yield no derived total; `lineTotalAbsence` names the reason. Not a new TZ-006 quantity rule.

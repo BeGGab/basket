@@ -6,7 +6,7 @@ import type { OfferReason, ProductCatalog, PurchaseItem } from "../domain/types"
 import { createSellerEmulator, buyerOffer } from "../emulator/sellers";
 import { resolve } from "../domain/resolution";
 import { catalogUnitPrice } from "../domain/catalog";
-import { hasStoredLinePrice, unitLineTotal } from "../domain/price";
+import { hasStoredLinePrice, lineTotalAbsence, unitLineTotal } from "../domain/price";
 import { adviseBuyer, catalogReferencePrice } from "../assistants";
 
 export type ScenarioResult = {
@@ -1781,6 +1781,14 @@ export function runAllScenarios(): ScenarioResult[] {
       });
       const item = offer.items[0];
       const acceptBlocked = threw(() => w.acceptOffer(offer.id, "BUYER"), /I-046/);
+      const second = w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: [{ productId: "tomatoes", quantity: 2, unit: "kg" }],
+        reason: "PRICE_CHANGE",
+      });
+      const secondAcceptBlocked = threw(() => w.acceptOffer(second.id, "BUYER"), /I-046/);
+      const firstAfterSecondBlocked = threw(() => w.acceptOffer(offer.id, "BUYER"), /I-027|I-046/);
       const advice = adviseBuyer(w, sp);
       return prove(
         "PRICE-ABSENT-001",
@@ -1788,8 +1796,12 @@ export function runAllScenarios(): ScenarioResult[] {
         {
           hasPrice: false,
           derivedTotal: null,
+          absence: "MISSING_PRICE",
           storedLinePrice: false,
           acceptBlocked: true,
+          secondAcceptBlocked: true,
+          firstAfterSecondBlocked: true,
+          agreedOfferId: null,
           stable: false,
           adviceKind: "WAIT",
           adviceReason: "MISSING_ITEM_PRICE",
@@ -1798,14 +1810,18 @@ export function runAllScenarios(): ScenarioResult[] {
         {
           hasPrice: item.price !== undefined,
           derivedTotal: unitLineTotal(item),
+          absence: lineTotalAbsence(item),
           storedLinePrice: hasStoredLinePrice(item),
           acceptBlocked,
+          secondAcceptBlocked,
+          firstAfterSecondBlocked,
+          agreedOfferId: w.requireSp(sp).agreedOfferId,
           stable: w.requireSp(sp).status === "STABLE",
           adviceKind: advice.kind,
           adviceReason: advice.kind === "WAIT" ? advice.waitReason : null,
           catalogRefUnchanged: catalogReferencePrice(w, "seller-a", "tomatoes", "kg"),
         },
-        "priceless Offer has no derived total, cannot be accepted, and is not treated as a priced proposal"
+        "priceless Offer has no derived total; a second priceless Offer is not a bypass to agreed/STABLE"
       );
     })
   );
@@ -1954,7 +1970,6 @@ export function runAllScenarios(): ScenarioResult[] {
         reason: "PRICE_CHANGE",
       });
       const item = offer.items[0];
-      const kgLine = catalogUnitPrice(w.catalog, { sellerId: "seller-a", productId: "tomatoes", unit: "kg" });
       return prove(
         "PACKAGE-001",
         "I-045 I-042",
@@ -1963,19 +1978,48 @@ export function runAllScenarios(): ScenarioResult[] {
           unit: "package",
           price: 60,
           derivedTotal: 60,
-          kgConversion: null,
-          contentsInModel: false,
         },
         {
           quantity: item.quantity,
           unit: item.unit,
           price: item.price ?? null,
           derivedTotal: unitLineTotal(item),
+        },
+        "package is representable as a unit"
+      );
+    })
+  );
+
+  results.push(
+    run("PACKAGE-004", () => {
+      const w = new BasketWorld();
+      w.setCatalog({
+        names: { tomatoes: "Tomatoes" },
+        availability: [{ sellerId: "seller-a", productId: "tomatoes", quantity: 1, unit: "package", price: 60, stock: 10 }],
+      });
+      const list = w.createList("package-004");
+      w.addItem(list.id, { productId: "tomatoes", quantity: 1, unit: "package", alternatives: [] });
+      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: [{ productId: "tomatoes", quantity: 1, unit: "package", price: 60 }],
+        reason: "PRICE_CHANGE",
+      });
+      const kgLine = catalogUnitPrice(w.catalog, { sellerId: "seller-a", productId: "tomatoes", unit: "kg" });
+      return prove(
+        "PACKAGE-004",
+        "I-045",
+        {
+          kgConversion: null,
+          contentsInModel: false,
+        },
+        {
           kgConversion: kgLine,
           contentsInModel: kgLine !== null,
         },
-        "package is representable as a unit",
-        "CONFIRMED",
+        "MODEL GAP: package contents / conversion are not in the model; business semantics remain OPEN",
+        "OPEN",
         "SPEC-OQ-002",
         { newConcept: "package contents / conversion (not introduced)" }
       );
@@ -2061,35 +2105,30 @@ export function runAllScenarios(): ScenarioResult[] {
         reason: "PRICE_CHANGE",
       });
       const qtys = [...new Set(w.catalog.availability.map((row) => row.quantity))].sort((a, b) => a - b);
+      const identityKeys = [
+        ...new Set(w.catalog.availability.map((row) => `${row.sellerId}|${row.productId}|${row.unit}`)),
+      ];
       return prove(
         "PACKAGE-003",
-        "I-045",
+        "I-045 I-036",
         {
           catalogRows: 2,
           catalogQtys: "5,20",
-          unitPrice: 60,
-          offerQty: 1,
-          offerUnit: "package",
-          offerPrice: 60,
-          identityCollapsesBasis: true,
+          sharedIdentity: "seller-a|tomatoes|package",
+          identityKeyCount: 1,
+          offerHasCatalogQty: false,
         },
         {
           catalogRows: w.catalog.availability.length,
           catalogQtys: qtys.join(","),
-          unitPrice: catalogUnitPrice(w.catalog, {
-            sellerId: "seller-a",
-            productId: "tomatoes",
-            unit: "package",
-          }),
-          offerQty: offer.items[0].quantity,
-          offerUnit: offer.items[0].unit,
-          offerPrice: offer.items[0].price ?? null,
-          identityCollapsesBasis: qtys.join(",") === "5,20" && offer.items[0].quantity === 1,
+          sharedIdentity: identityKeys[0] ?? null,
+          identityKeyCount: identityKeys.length,
+          offerHasCatalogQty: Object.prototype.hasOwnProperty.call(offer.items[0], "catalogQuantity"),
         },
-        "two catalog package sizes (5 and 20) at the same unit price collapse to one Offer 1@60; basis policy OPEN",
+        "MODEL GAP: current identity cannot represent distinct package bases",
         "OPEN",
         "SPEC-OQ-002",
-        { newConcept: "package basis / contents (not introduced)" }
+        { newConcept: "distinct package-base identity (not introduced)" }
       );
     })
   );
@@ -2206,7 +2245,7 @@ export function runAllScenarios(): ScenarioResult[] {
           worldResolved: w.requireSp(sp).items[0].productId,
           altVisible: alt?.catalogPrice ?? null,
         },
-        "FIRST_AVAILABLE ≠ hypothetical cheapest across catalog order; BEST_PRICE policy remains OPEN",
+        "FIRST_AVAILABLE and PRIMARY_ONLY are not BEST_PRICE in this run; this does not prove price never affects resolution. SPEC OQ-008 remains OPEN",
         "OPEN",
         "SPEC-OQ-008"
       );
@@ -2368,19 +2407,53 @@ export function runAllScenarios(): ScenarioResult[] {
         proposedBy: "SELLER",
       });
       const afterSub = w.snapshot(sp).alternatives.some((row) => row.productId === "tomato_b");
-      w.proposeOffer({
+      const replacement = w.proposeOffer({
         sellerPurchaseId: sp,
         actor: "SELLER",
         items: [{ productId: "baguette", quantity: 1, unit: "pcs", price: 11 }],
         reason: "SUBSTITUTION",
       });
-      const afterReplacement = w.snapshot(sp).alternatives.some((row) => row.productId === "tomato_b");
+      const afterReplacementOffer = w.snapshot(sp).alternatives.some((row) => row.productId === "tomato_b");
+      w.acceptOffer(replacement.id, "BUYER");
+      const afterPrimaryReplaced = w.snapshot(sp);
+      const currentIds = w.requireSp(sp).items.map((row) => row.productId);
+      const listItem = w.lists.get(list.id)!.items[0];
+      const currentItemsAloneWouldShowAlt =
+        currentIds.includes(listItem.productId) ||
+        listItem.alternatives.some((alt) => currentIds.includes(alt.productId));
+      const snapAlt = afterPrimaryReplaced.alternatives.find((row) => row.productId === "tomato_b");
       return prove(
         "ALT-STABILITY-001",
-        "I-023",
-        { afterOffer: true, afterNewOffer: true, afterSub: true, afterReplacement: true },
-        { afterOffer, afterNewOffer, afterSub, afterReplacement },
-        "snapshot alternatives stay bound to the List + offer history when current items change"
+        "I-023 I-014",
+        {
+          afterOffer: true,
+          afterNewOffer: true,
+          afterSub: true,
+          afterReplacementOffer: true,
+          currentProduct: "baguette",
+          currentHasPrimary: false,
+          currentHasAlt: false,
+          currentItemsAloneWouldShowAlt: false,
+          listStillHasAlt: true,
+          snapshotHasListAlt: true,
+          requestedQty: 2,
+          requestedUnit: "kg",
+        },
+        {
+          afterOffer,
+          afterNewOffer,
+          afterSub,
+          afterReplacementOffer,
+          currentProduct: currentIds[0] ?? null,
+          currentHasPrimary: currentIds.includes("tomatoes"),
+          currentHasAlt: currentIds.includes("tomato_b"),
+          currentItemsAloneWouldShowAlt,
+          listStillHasAlt: listItem.alternatives.some((alt) => alt.productId === "tomato_b"),
+          snapshotHasListAlt: snapAlt !== undefined,
+          requestedQty: snapAlt?.requestedQuantity ?? null,
+          requestedUnit: snapAlt?.requestedUnit ?? null,
+        },
+        "alternatives are a List projection: they remain after the current commercial item is replaced"
       );
     })
   );
@@ -2451,30 +2524,45 @@ export function runAllScenarios(): ScenarioResult[] {
 
   results.push(
     run("PRICE-TOTAL-001", () => {
+      const qtyZero = { quantity: 0, price: 15 };
+      const qtyNeg = { quantity: -2, price: 15 };
+      const qtyNan = { quantity: Number.NaN, price: 15 };
+      const qtyInf = { quantity: Number.POSITIVE_INFINITY, price: 15 };
+      const priceNeg = { quantity: 2, price: -1 };
+      const priceNan = { quantity: 2, price: Number.NaN };
+      const priceInf = { quantity: 2, price: Number.POSITIVE_INFINITY };
+      const missing = { quantity: 2 };
+      const ok = { quantity: 2, price: 15 };
       return prove(
         "PRICE-TOTAL-001",
-        "I-042 I-046 I-030",
+        "I-030 I-046 I-042",
         {
-          qtyZero: null,
-          qtyNeg: null,
-          qtyNan: null,
-          qtyInf: null,
-          priceNeg: null,
-          priceNan: null,
-          priceInf: null,
-          ok: 30,
+          qtyZeroTotal: null,
+          qtyZeroReason: "INVALID_QUANTITY",
+          qtyNegReason: "INVALID_QUANTITY",
+          qtyNanReason: "INVALID_QUANTITY",
+          qtyInfReason: "INVALID_QUANTITY",
+          priceNegReason: "INVALID_PRICE",
+          priceNanReason: "INVALID_PRICE",
+          priceInfReason: "INVALID_PRICE",
+          missingReason: "MISSING_PRICE",
+          okTotal: 30,
+          okReason: null,
         },
         {
-          qtyZero: unitLineTotal({ quantity: 0, price: 15 }),
-          qtyNeg: unitLineTotal({ quantity: -2, price: 15 }),
-          qtyNan: unitLineTotal({ quantity: Number.NaN, price: 15 }),
-          qtyInf: unitLineTotal({ quantity: Number.POSITIVE_INFINITY, price: 15 }),
-          priceNeg: unitLineTotal({ quantity: 2, price: -1 }),
-          priceNan: unitLineTotal({ quantity: 2, price: Number.NaN }),
-          priceInf: unitLineTotal({ quantity: 2, price: Number.POSITIVE_INFINITY }),
-          ok: unitLineTotal({ quantity: 2, price: 15 }),
+          qtyZeroTotal: unitLineTotal(qtyZero),
+          qtyZeroReason: lineTotalAbsence(qtyZero),
+          qtyNegReason: lineTotalAbsence(qtyNeg),
+          qtyNanReason: lineTotalAbsence(qtyNan),
+          qtyInfReason: lineTotalAbsence(qtyInf),
+          priceNegReason: lineTotalAbsence(priceNeg),
+          priceNanReason: lineTotalAbsence(priceNan),
+          priceInfReason: lineTotalAbsence(priceInf),
+          missingReason: lineTotalAbsence(missing),
+          okTotal: unitLineTotal(ok),
+          okReason: lineTotalAbsence(ok),
         },
-        "unitLineTotal yields null for qty 0/<0/NaN/Infinity and price <0/NaN/Infinity; 2×15=30"
+        "unitLineTotal only multiplies; quantity > 0 is I-030, price bounds are I-046; null is no derived total, not a new TZ-006 rule"
       );
     })
   );
@@ -2494,10 +2582,10 @@ export function formatResults(rows: ScenarioResult[]): string {
     "",
     "- **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).",
     "- **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).",
-    "- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003 and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, not a policy.",
+    "- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004 and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, not a policy.",
     "- Do not treat Impl PASS as confirmation of an unresolved OQ.",
     "- Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.",
-    "- All 55 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.",
+    `- All ${rows.length} scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.`,
     "",
     "## Purpose",
     "",
@@ -2581,13 +2669,13 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("- OQ-006 / OQ-008 closed");
   lines.push("- PartialAvailabilitySeller offers min(requested, stock) of the SAME CatalogLine (sellerId, productId, unit) — a pcs pool is not kg stock");
   lines.push("- cheapestAvailable() removed from domain catalog semantics (ambiguous ≠ cheapest); catalogUnitPrice returns null on disagreement");
-  lines.push("- GREENMARKET_DOMAIN_SPEC v0.4 is the canonical domain contract; TZ-BASKET-006 closed SPEC OQ-001/OQ-002");
+  lines.push("- GREENMARKET_DOMAIN_SPEC v0.4 is the canonical domain contract; TZ-BASKET-006 closed SPEC OQ-001; SPEC OQ-002 remains OPEN");
   lines.push("- I-042: price is the price of one unit; derived total = quantity * price; no stored linePrice");
   lines.push("- I-043: changing quantity does not reread price as a line total");
   lines.push("- I-044: Offer stores (product, quantity, unit, price); a change is a new Offer");
   lines.push("- I-045: catalog quantity is Stage-1 reference size — not identity, multiplier, or conversion; SPEC OQ-002 business semantics remain OPEN");
-  lines.push("- I-046: acceptOffer requires a finite price on every item; unitLineTotal is IEEE-754 under I-030 bounds");
-  lines.push("- snapshot.alternatives is AlternativeProjection (requested vs catalog qty/unit/price), not a commercial entity");
+  lines.push("- I-046: acceptOffer requires a finite price on every item; unitLineTotal only multiplies under I-030/I-046 bounds and is not a hidden validator");
+  lines.push("- snapshot.alternatives is a List projection (AlternativeProjection); current SP items are only a binding set");
   lines.push("- createPurchaseFromList surfaces MISSING_QUANTITY instead of inventing quantity 1");
   lines.push("- I-037: validUntil constrains accept/counter of the ACTIVE standing proposal only; it does not revoke Acceptance or agreed baseline");
   lines.push("- I-038: STABLE is agreed==active and no pending substitutions — Offer validity is not a STABLE exit");
@@ -2611,7 +2699,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("Status: PASS for Stage-1 representation / OQ-001");
   lines.push("OQ-001: CLOSED — price = price of one unit");
   lines.push("Stage-1 representation: catalog quantity is not a multiplier/conversion (I-045)");
-  lines.push("OQ-002: OPEN — package/volume business semantics (PACKAGE-002/003 are limitation evidence)");
+  lines.push("OQ-002: OPEN — package/volume business semantics (PACKAGE-002/003/004 are limitation evidence)");
   lines.push("Model change required: YES (projections, I-046, MISSING_QUANTITY)");
   lines.push("New concept required: YES if/when OQ-002 is closed — NOT introduced");
   lines.push("Production architecture changed: NO");

@@ -71,7 +71,7 @@ Alternative **policy** остаётся **OPEN — SPEC OQ-008**.
 - **I-043** — смена `quantity` не меняет семантику `price`
 - **I-044** — Offer хранит `(product, quantity, unit, price)`; изменение требует нового Offer
 - **I-045** — catalog `quantity` не identity, не multiplier, не conversion (Stage-1; OQ-002 OPEN)
-- **I-046** — ACCEPT требует finite price; `unitLineTotal` — IEEE-754 в границах I-030
+- **I-046** — ACCEPT требует finite price; `unitLineTotal` только умножает в границах I-030/I-046, не скрытый validator
 
 ## Сценарии
 
@@ -81,22 +81,25 @@ Alternative **policy** остаётся **OPEN — SPEC OQ-008**.
 | PRICE-UNIT-002 | 2 kg × 15 vs 1 kg × 30 различимы; одинаковый derived total только после I-042 |
 | PRICE-OFFER-001 | 15 → 12: immutable Offer, agreed указывает на A |
 | PRICE-QTY-001 | 2 kg @ 15 → 4 kg @ 15: новый Offer, price всё ещё per-unit |
-| PRICE-ABSENT-001 | нет price → нет derived total, поле не изобретается |
+| PRICE-ABSENT-001 | нет price → нет derived total; второй priceless Offer не обход в STABLE |
 | PRICE-CATALOG-QTY-001 | catalog.quantity не становится PurchaseItem.quantity |
-| PACKAGE-001 | package representable as a unit (CONFIRMED); contents/conversion OPEN — SPEC-OQ-002 |
+| PACKAGE-001 | package representable as a unit (CONFIRMED) |
 | PACKAGE-002 | 5→20 при той же / разной unit price |
-| PACKAGE-003 | одинаковая quantity, разный внешний package basis — basis невидим |
+| PACKAGE-003 | MODEL GAP: current identity cannot represent distinct package bases |
+| PACKAGE-004 | package contents / conversion OPEN — SPEC-OQ-002 |
 | ALT-PRICE-001 | primary дешевле alternative — representation only |
-| ALT-PRICE-002 | primary дороже alternative — representation only, не BEST_PRICE |
+| ALT-PRICE-002 | FIRST_AVAILABLE / PRIMARY_ONLY ≠ BEST_PRICE; не доказательство «цена не влияет» |
 | PRICE-SNAPSHOT-001 | agreed / current / alternative одновременно |
 | PRICE-ZERO-001 | price 0 ≠ missing price |
 | PRICE-LIST-QTY-ABSENT-001 | omitted List quantity ≠ catalog package size |
 | ALT-UNIT-001 | alternative в другой unit не конвертируется |
+| ALT-STABILITY-001 | List alternative остаётся после замены текущего commercial item |
+| PRICE-TOTAL-001 | unitLineTotal только умножает; qty > 0 из I-030 |
 
 ## Implementation
 
-- `unitLineTotal()` — derived `quantity * price`, не stored field
-- `snapshot().alternatives` — проекция List alternatives + catalog unit price; без выбора
+- `unitLineTotal()` — IEEE-754 multiply; `lineTotalAbsence()` — diagnostic, не domain validator
+- `snapshot().alternatives` — проекция исходного List; current `sp.items` только binding set
 - `createPurchaseFromList` больше не подставляет catalog `quantity` как requested quantity
 
 ## Запрещённые решения (не использованы)
