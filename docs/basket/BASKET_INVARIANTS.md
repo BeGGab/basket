@@ -22,18 +22,24 @@ the specification first (`AGENTS.md`).
 - **I-008:** Acceptance does not mutate Offer.
 - **I-009:** Unaccepted Offer cannot become agreed state.
 - **I-010:** agreedOfferId references an immutable Offer.
-- **I-011:** `activeOfferId` is a required projection pointer to the currently applicable Offer. Snapshot, acceptance (I-027) and STABLE all use this field; it is not an optional hint.
+- **I-011:** `activeOfferId` is a required projection pointer to the current standing proposal. Snapshot, acceptance (I-027) and STABLE all use this field; it is not an optional hint. Time passage does not clear it; an expired active Offer is still the pointer, just not acceptable (I-028) or counterable (I-035).
 - **I-027:** Only the active Offer may be accepted. Older Offers remain historical facts; a rollback is a new Offer.
 - **I-028:** An expired Offer (`validUntil` in the past) cannot be accepted. Validity is `isOfferValid`. Acceptance of an expired Offer is refused **before** any Acceptance is recorded.
 - **I-029:** An Offer may be accepted only by the counterparty: BUYER accepts SELLER or SYSTEM; SELLER accepts BUYER. An actor cannot accept their own Offer. SYSTEM cannot accept.
-- **I-035:** A counter (`BUYER_CHANGE` / `SELLER_COUNTEROFFER`) is a reply to a **live** proposal: countering an expired active Offer is forbidden, symmetric with I-028. Replacing an expired Offer requires an explicit new proposal with a non-counter reason (`PRICE_CHANGE`, `TIME_DISCOUNT`, …).
+- **I-035:** A counter is a reply to a **live** proposal. The domain mark is `isCounterReason` (`BUYER_CHANGE` / `SELLER_COUNTEROFFER`). Countering an expired active Offer is forbidden, symmetric with I-028. Replacing an expired Offer requires an explicit new proposal with a non-counter reason (`PRICE_CHANGE`, `TIME_DISCOUNT`, …).
 - **I-030:** Every Offer item must have `quantity` a finite number **> 0**, a `productId`, a `unit`, and if present a finite `price ≥ 0`. Zero/negative/NaN quantity cannot become an Offer or STABLE. The same guarantees apply at the other input boundaries: `addItem` (List item quantity/unit/referencePrice/alternative priority) and `setCatalog` (row quantity > 0, price ≥ 0, stock ≥ 0).
 
 Offer expiration is three separate things:
 
-1. **Validity** — defined (`isOfferValid` / `validUntil`).
-2. **Acceptance of an expired Offer** — forbidden (I-028).
-3. **OQ-009 (OPEN)** — pointer/status after an **already agreed** Offer later expires and no replacement exists. The mock does **not** auto-change SellerPurchase status on that expiry; validity only prevents *entering* STABLE. Leaving STABLE in place is not a closed domain decision.
+1. **Validity** — defined (`isOfferValid` / `validUntil`): may this *standing proposal* be accepted or countered.
+2. **Acceptance / counter of an expired Offer** — forbidden (I-028 / I-035).
+3. **Already-agreed Offer later expires** — **CLOSED (I-037 / I-038)**. Pointers stay; the Acceptance remains the baseline; STABLE is not exited. See SPEC §38 / experiment OQ-009.
+
+- **I-037:** `validUntil` constrains acceptance and counter of the **active** standing proposal only. It does not revoke a recorded Acceptance, clear `agreedOfferId` / `activeOfferId`, or remove the agreed Offer as a price baseline. An expired agreed Offer is still the commercial baseline and may keep STABLE, but it is not a stock claim (I-025).
+- **I-038:** STABLE is the presence of an accepted agreement (`agreedOfferId === activeOfferId` and no pending mandatory substitutions). Current Offer validity is not a STABLE entry or exit condition — the Acceptance already happened while the Offer was valid (I-028).
+- **I-039:** Silence is the absence of a domain command. It does not change SellerPurchase status, `activeOfferId`, or `agreedOfferId`, and does not invent `REJECTED`, `CANCELLED`, or `EXPIRED`.
+- **I-040:** The world's `DeterministicClock` is the sole source of *current* time. Domain operations read `clock.now()`; they do not take a "now" timestamp. `Offer.validUntil` is input data of that Offer, not a time source. `advance` moves the clock and nothing else — it does not create Offers, Acceptances, Substitutions, stock-conflict events, or FSM transitions, does not clear pointers, and does not recompute STABLE eligibility (I-038). `isOfferValid` is a derived fact from `clock.now()` vs `validUntil` (exclusive end). Emulator/runtime `tick()` is not a domain operation.
+- **I-041:** Passage of time and silence do not transition a SellerPurchase to `EXPIRED`. `EXPIRED` is reserved so the FSM can refuse that automatic transition (I-026).
 
 ## Substitution
 
@@ -49,7 +55,7 @@ Offer expiration is three separate things:
 
 ## Stability
 
-- **I-017:** STABLE means commercial agreement.
+- **I-017:** STABLE means commercial agreement. It does not mean the agreed Offer's `validUntil` is still in the future.
 - **I-018:** STABLE does not imply payment, reservation, delivery, fulfillment or guaranteed physical quantity.
 - **I-019:** Later partial fulfillment does not retroactively invalidate a valid agreement when partial fulfillment is allowed. `partialFulfillmentAllowed = false` is an enforced policy: `mockFulfill` refuses a delivery below the agreed quantity instead of recording it.
 
@@ -66,12 +72,12 @@ Offer expiration is three separate things:
 ## Boundaries
 
 - **I-024:** Fulfilled quantity is outside the central current Basket model. The mock records the **delivered** quantity, and the FULFILLMENT stock checkpoint is evaluated on that delivered quantity, not on the agreed one.
-- **I-025:** Payment/Reservation/Allocation/Delivery are not introduced merely to solve current scenarios. Concurrent over-claim is recorded as `stockConflicts` **detection events** (same race may appear at several checkpoints); it is not an Allocation entity. For detection, a claim is the quantity on the SellerPurchase's **valid active** commercial proposal, and claims compete only within the same commercial line `(productId, unit)` — a `pcs` claim does not draw on a `kg` stock pool. REJECTED, CANCELLED, and expired Offers are not claims.
+- **I-025:** Payment/Reservation/Allocation/Delivery are not introduced merely to solve current scenarios. Concurrent over-claim is recorded as `stockConflicts` **detection events** (same race may appear at several checkpoints); it is not an Allocation entity. A claim is the quantity on the SellerPurchase's **valid active** commercial proposal; claims compete only within the same commercial line `(productId, unit)` — a `pcs` claim does not draw on a `kg` stock pool. REJECTED, CANCELLED, and expired Offers are not claims. Current claims are the diagnostic projection `stockClaims(sellerId, productId, unit)` — the same predicate detection uses. `stockConflicts` is not a claims registry: an empty log is not evidence that claims are empty. A STABLE SellerPurchase whose active Offer has expired therefore holds no stock claim — consistent with I-018 (`STABLE ≠ stock guarantee`).
 - **I-026:** New FSM states require experimental evidence.
 
 ## Model integrity
 
 - **I-031:** A SellerPurchase line is unique per the commercial identity `(sellerId, productId, unit)` — the same identity as a CatalogLine (I-036). `tomatoes/kg` and `tomatoes/pcs` are two independent lines. Several catalog rows of the same `(seller, product, unit)` do not create duplicate lines. A second ListItem that collapses to an already-present `(productId, unit)` (e.g. `2 kg` and `5 kg` tomatoes) is the domain-undefined duplicate case (**SPEC OQ-003**) and is surfaced explicitly as an unresolved `DUPLICATE_LINE`, never silently dropped or silently aggregated.
-- **I-033:** State changes only through domain commands. `BasketWorld` keeps its collections private and every read (`requireSp`, `sellerPurchases`, `lists`, `purchases`, `offers`, `acceptances`, `substitutions`, `stockConflicts`, `fulfillments`, `catalog`, `snapshot`) returns a frozen copy, so `sp.status = …` or replacing `activeOfferId` cannot bypass `transition()` and the invariants above.
+- **I-033:** State changes only through domain commands. `BasketWorld` keeps its collections private and every read (`requireSp`, `sellerPurchases`, `lists`, `purchases`, `offers`, `acceptances`, `substitutions`, `stockConflicts`, `stockClaims`, `fulfillments`, `catalog`, `snapshot`) returns a frozen copy, so `sp.status = …` or replacing `activeOfferId` cannot bypass `transition()` and the invariants above.
 - **I-034:** The catalog is owned by the world: `setCatalog` stores a defensive copy and `setStock(sellerId, productId, unit, stock)` is the only stock mutation. `setStock` keys on the commercial line and requires a **unique** matching row — an ambiguous or missing match throws instead of silently editing the first row. Mutating the object passed to `setCatalog` afterwards has no effect on the world.
 - **I-036:** A catalog line has ONE commercial identity — `(sellerId, productId, unit)` — defined once in `domain/catalog` and shared by resolution, SellerPurchase creation, `setStock`, stock-conflict detection, the **Seller Emulator**, AND the assistants (so the domain is never laxer than the assistant or emulator layer). `price` is the price per one `unit`; the catalog `quantity` is a reference/package size, not part of the identity and not a price multiplier (SPEC OQ-002 is OPEN: Stage 1 *assumes* package size never changes unit price). Availability is unit-aware (a `pcs` row is not availability for a `kg` request); when in-stock rows of one line disagree on price the line has **no** reference price (ambiguous) and is never priced by array order — at Purchase creation such a line is left unresolved (`AMBIGUOUS_PRICE`) rather than silently picking the first row.

@@ -24,6 +24,10 @@ npx tsx experiments/basket/tests/run.ts
 | `ADVICE-STALE-TIME-001` | Advice → clock advances → apply → stale | `assistants.ts` time-race |
 | `COUNTER-MULTI-001` | multi-item counter → every line validated | `experiments/basket/runtime/demos.ts` `TZ004-MULTI-COUNTER` |
 | `PARTIAL-FULFILLMENT-001` | agreed 20 → fulfilled 5 when policy permits | `run.ts` I-019 mockFulfill |
+| `SILENCE-VALID-001` | active Offer + no command + time < validUntil → same status/pointers | `scenarios.ts` BS-029 |
+| `SILENCE-EXPIRED-001` | active Offer + no command + time > validUntil → same status/pointers, not REJECT | `scenarios.ts` BS-030 / BS-022 |
+| `AGREED-EXPIRE-001` | accepted A expires, no replacement → STABLE, pointers stay A | `scenarios.ts` BS-031 / BS-012 |
+| `AGREED-EXPIRE-NEW-001` | A accepted, A expires, B proposed → agreed=A, active=B, B acceptable | `scenarios.ts` BS-032 |
 | *(SPEC OQ-003)* | duplicate ListItems of same `(productId, unit)` | `run.ts` `DUPLICATE_LINE` (explicit, not silent collapse) |
 
 A PR that confirms a new domain rule MUST add or update a row here **and** the executable test.

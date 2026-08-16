@@ -133,11 +133,11 @@ Two SellerPurchases change independently without state overwrite.
 
 ## BS-021 — Expired Active Offer + New Offer
 
-The pointer `activeOfferId` is required (I-011). This scenario checks what it points at after an Offer expires **and** a newer Offer is created. I-028 forbids accepting the expired Offer. What to do with the pointer/status when an already-agreed Offer later expires **without** a replacement remains OQ-009.
+The pointer `activeOfferId` is required (I-011). This scenario checks what it points at after an Offer expires **and** a newer Offer is created. I-028 forbids accepting the expired Offer. Already-agreed expiry without a replacement is BS-031 (I-037 / I-038).
 
 ## BS-022 — Silence After Expiration
 
-Expired Offer plus no new seller response. Determine whether this is waiting, expired, unresolved or another derived condition.
+Expired Offer plus no new seller response. Silence is not a command and is not `markWaiting`. Status stays whatever the last real command left (typically `WAITING_BUYER` after a seller Offer). Not REJECT/CANCEL/EXPIRED (I-039). Only computed `isOfferValid` becomes false.
 
 ## BS-023 — Conflicting Full Promises
 
@@ -171,3 +171,35 @@ Expose Resolution policy explicitly.
 `PartialAvailabilitySeller` offers the in-stock quantity (e.g. 5 kg) instead of the requested 20 kg. Buyer may accept that reduced Offer; STABLE is possible on the reduced agreement. Assert `activeOffer.items[0].quantity === 5` and `agreedOffer.items[0].quantity === 5`, not only `status === STABLE`. The case «agreed 20 / actual 5» is BS-014 (`mockFulfill`), not this profile.
 
 `PartialAvailabilitySeller` observes catalog stock at Offer creation and on `tick()` if stock later drops. Cross-purchase allocation is outside this experiment. A zero-stock result does not create a quantity-0 Offer.
+
+## BS-029 — Silence while Offer is valid
+
+Offer A is active. Buyer does nothing. `time < validUntil`. Status, `activeOfferId`, `agreedOfferId`, `waitingSince`, and `lastSellerActivity` stay; Offer remains valid (I-039). A derived `waitMs` is computed from `waitingSince` + clock. This is not a full domain command log.
+
+## BS-030 — Silence until expiration
+
+Offer A is active. Buyer does nothing. `time > validUntil`. Same pointers and status; `isOfferValid` is false. Not implicit REJECT (I-039 / I-028).
+
+## BS-031 — Accepted Offer expires
+
+Offer A is accepted (`agreedOfferId = A`, `activeOfferId = A`). Time passes `validUntil`. No replacement Offer. SellerPurchase stays STABLE; both pointers stay A; A is no longer valid as a standing proposal (I-037 / I-038). COUNTER of A is still forbidden (I-035). `stockClaims` shows A while valid and drops A after expiry (I-025). A second SellerPurchase B proposing 3 kg on stock=6 is a real OFFER_CREATION checkpoint: after A expired, B is the only claim and no detection event is written; a live control (A still valid) records `combined=7`. `advance` creates no new facts (I-040).
+
+## BS-032 — Accepted Offer expires, then a new Offer appears
+
+A accepted → A expires → B created. `agreedOfferId` stays A; `activeOfferId` becomes B; B may be accepted if valid. After ACCEPT(B): STABLE, both pointers B.
+
+## BS-033 — Expired Offer cannot be revived
+
+Expired A, then ACCEPT(A). Blocked by I-028. No Acceptance recorded.
+
+## BS-034 — Expired Offer cannot be countered
+
+Expired A, then a **counter** (`isCounterReason`: `BUYER_CHANGE` and `SELLER_COUNTEROFFER`) is blocked by I-035. A non-counter replacement (`PRICE_CHANGE`) is allowed. The test must use the domain counter mark, not an incidental `proposeOffer` reason.
+
+## BS-035 — Silence must not create a fake FSM state
+
+Long silence after expiration does not invent `EXPIRED` or any other new lifecycle status (I-039 / I-041).
+
+## BS-036 — Time determinism
+
+Same initial snapshot + same commands + same timestamps → identical full observable world (I-040). Determinism regression only — not a proof that every source of nondeterminism is absent.

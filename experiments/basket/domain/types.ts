@@ -10,6 +10,14 @@ export type OfferReason =
   | "SUBSTITUTION"
   | "EXPIRATION";
 
+/** I-035: these reasons are a counter — a reply to the live active Offer. */
+export const COUNTER_REASONS = ["BUYER_CHANGE", "SELLER_COUNTEROFFER"] as const;
+export type CounterReason = (typeof COUNTER_REASONS)[number];
+
+export function isCounterReason(reason: OfferReason): reason is CounterReason {
+  return reason === "BUYER_CHANGE" || reason === "SELLER_COUNTEROFFER";
+}
+
 export type ResolutionPolicy = "PRIMARY_ONLY" | "FIRST_AVAILABLE" | "ASK_BUYER";
 export type ResolutionKind = "PRIMARY" | "ALTERNATIVE" | "UNRESOLVED";
 export type SubstitutionStatus = "PROPOSED" | "ACCEPTED" | "REJECTED";
@@ -136,6 +144,16 @@ export interface StockConflict {
   purchaseId: string;
 }
 
+/**
+ * Diagnostic projection of I-025: a current stock claim on one commercial line.
+ * Not a domain entity and not a row in `stockConflicts` (that log is detection events).
+ */
+export interface StockClaim {
+  sellerPurchaseId: string;
+  offerId: string;
+  quantity: number;
+}
+
 export interface Snapshot {
   agreed: { offerId: string | null; items: readonly Readonly<PurchaseItem>[] };
   current: { offerId: string | null; items: readonly Readonly<PurchaseItem>[] };
@@ -166,6 +184,7 @@ export type ReadonlyPurchase = Readonly<Omit<Purchase, "sellerPurchaseIds" | "un
 export type ReadonlySubstitution = Readonly<Substitution>;
 export type ReadonlyAcceptance = Readonly<Acceptance>;
 export type ReadonlyStockConflict = Readonly<StockConflict>;
+export type ReadonlyStockClaim = Readonly<StockClaim>;
 export type ReadonlyMockFulfillment = Readonly<MockFulfillment>;
 
 export interface ReadonlyProductCatalog {

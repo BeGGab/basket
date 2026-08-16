@@ -232,10 +232,9 @@ Black→White в alternatives при отсутствии Black → Resolution, 
 STABLE =
   activeOffer == agreedOffer
   AND no unresolved mandatory substitution
-  AND agreed offer is valid
 ```
 
-`acceptOffer()` не принимает просроченный Offer (I-028) — проверка `isOfferValid` до записи Acceptance.
+`validUntil` не является условием входа/выхода из STABLE (I-038 / SPEC v0.3). `acceptOffer()` не принимает просроченный Offer (I-028) — проверка `isOfferValid` до записи Acceptance. Уже согласованный Offer после истечения остаётся baseline и может держать STABLE, но не является stock claim (I-037 / I-025).
 
 Запрещено добавлять `required quantity available` в условие STABLE. Не требуется reserved/paid/fulfilled/delivered.
 

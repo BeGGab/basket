@@ -1,8 +1,8 @@
 # GreenMarket — Basket Experiment Results
 
-**Status:** Evidence from TZ-BASKET-001…004 mock run  
+**Status:** Evidence from TZ-BASKET-001…005 mock run  
 **Experiment version:** v0.1  
-**Model version:** v0.1.13 (CatalogLine identity (sellerId, productId, unit) propagates into SellerPurchase; duplicate ListItems of the same line are DUPLICATE_LINE not silent collapse; PartialAvailabilitySeller stock is unit-aware; cheapestAvailable removed; package-quantity unit-price assumption recorded; GREENMARKET_DOMAIN_SPEC v0.2 + AGENTS.md)
+**Model version:** v0.1.14 / SPEC v0.3 (Offer validity is standing-proposal only; agreed expiry keeps pointers and STABLE; silence is not a command; advance is the domain time operation)
 
 ## How to read results
 
@@ -11,7 +11,7 @@
 - **Domain `OPEN`** — implementation is deterministic, but the business semantics are still an open question (see `openQuestion`).
 - Do not treat Impl PASS as confirmation of an unresolved OQ.
 - Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.
-- All 28 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped.
+- All 36 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped.
 
 ## Purpose
 
@@ -32,8 +32,8 @@ Record evidence from the mock domain and seller emulator.
 | BS-009 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-010 | PASS | OPEN (OQ-002) | none | keep v0.1 |
 | BS-011 | PASS | OPEN (OQ-016) | none | detection layer only; Allocation remains OQ-016 |
-| BS-012 | PASS | OPEN (OQ-009) | none | domain does not auto-drop STABLE on agreed expiry (OQ-009 OPEN) |
-| BS-013 | PASS | OPEN (OQ-012) | none | keep v0.1 |
+| BS-012 | PASS | CONFIRMED | none | I-037/I-038: agreed expiry keeps STABLE and pointers |
+| BS-013 | PASS | CONFIRMED | none | I-039/I-041: silence + time do not invent EXPIRED |
 | BS-014 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-015 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-016 | PASS | CONFIRMED | none | keep v0.1 |
@@ -41,14 +41,22 @@ Record evidence from the mock domain and seller emulator.
 | BS-018 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-019 | PASS | CONFIRMED | none | close OQ-006: Resolution before seller partitioning |
 | BS-020 | PASS | CONFIRMED | none | keep v0.1 |
-| BS-021 | PASS | OPEN (OQ-009) | none | keep v0.1 |
-| BS-022 | PASS | OPEN (OQ-011) | none | keep v0.1 |
+| BS-021 | PASS | CONFIRMED | none | I-011: new Offer becomes active; expired Offer stays historical |
+| BS-022 | PASS | CONFIRMED | none | I-039: silence after expiration is not a command — status stays WAITING_BUYER |
 | BS-023 | PASS | OPEN (OQ-016) | none | detection-event log only; Allocation/Reservation remain OQ-016 |
 | BS-024 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-025 | PASS | CONFIRMED | none | keep v0.1 |
-| BS-026 | PASS | CONFIRMED | none | keep v0.1 |
+| BS-026 | PASS | CONFIRMED | none | I-039: silence while valid is not expiration and does not change status |
 | BS-027 | PASS | OPEN (OQ-001) | none | keep v0.1 |
 | BS-028 | PASS | CONFIRMED | none | keep v0.1 |
+| BS-029 | PASS | CONFIRMED | none | silence while valid: status/pointers/waiting facts unchanged; waitMs derived from waitingSince + clock |
+| BS-030 | PASS | CONFIRMED | none | silence until expiration is not implicit REJECT; validUntil is exclusive |
+| BS-031 | PASS | CONFIRMED | none | accepted Offer expiry keeps STABLE; stockClaims drops A; B is the only claim; live control checkpoint records combined=7 |
+| BS-032 | PASS | CONFIRMED | none | new Offer after agreed expiry becomes active; A stays agreed until B is accepted |
+| BS-033 | PASS | CONFIRMED | none | expired Offer cannot be revived by ACCEPT |
+| BS-034 | PASS | CONFIRMED | none | I-035: isCounterReason (BUYER_CHANGE / SELLER_COUNTEROFFER) cannot reply to an expired Offer; PRICE_CHANGE may replace it |
+| BS-035 | PASS | CONFIRMED | none | silence must not create a fake FSM state or rewrite waiting facts; waitMs is derived from clock |
+| BS-036 | PASS | CONFIRMED | none | determinism regression: same start + same commands → same snapshot; not a proof of all nondeterminism sources |
 
 ## Scenario records
 
@@ -184,29 +192,29 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: detection layer only; Allocation remains OQ-016
 
-### BS-012 — Impl PASS / Domain OPEN (OQ-009)
+### BS-012 — Impl PASS / Domain CONFIRMED
 
 - Expected: laterStatus=STABLE; laterOfferValid=false; agreedIsLive=true; counterOverExpiredRejected=true
 - Actual: laterStatus=STABLE; laterOfferValid=false; agreedIsLive=true; counterOverExpiredRejected=true
-- Invariant: I-026 I-028
-- Hypothesis: OPEN
-- Open question: OQ-009
+- Invariant: I-026 I-028 I-037 I-038
+- Hypothesis: CONFIRMED
+- Open question: none
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: domain does not auto-drop STABLE on agreed expiry (OQ-009 OPEN)
+- Decision: I-037/I-038: agreed expiry keeps STABLE and pointers
 
-### BS-013 — Impl PASS / Domain OPEN (OQ-012)
+### BS-013 — Impl PASS / Domain CONFIRMED
 
 - Expected: status=WAITING_SELLER; hasWaitingSince=true
 - Actual: status=WAITING_SELLER; hasWaitingSince=true
-- Invariant: I-026
-- Hypothesis: OPEN
-- Open question: OQ-012
+- Invariant: I-026 I-039 I-041
+- Hypothesis: CONFIRMED
+- Open question: none
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: keep v0.1
+- Decision: I-039/I-041: silence + time do not invent EXPIRED
 
 ### BS-014 — Impl PASS / Domain CONFIRMED
 
@@ -292,29 +300,29 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: keep v0.1
 
-### BS-021 — Impl PASS / Domain OPEN (OQ-009)
+### BS-021 — Impl PASS / Domain CONFIRMED
 
 - Expected: activeOfferId=offer-6; expiredStillValid=false; activeValid=true
 - Actual: activeOfferId=offer-6; expiredStillValid=false; activeValid=true
 - Invariant: I-011
-- Hypothesis: OPEN
-- Open question: OQ-009
+- Hypothesis: CONFIRMED
+- Open question: none
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: keep v0.1
+- Decision: I-011: new Offer becomes active; expired Offer stays historical
 
-### BS-022 — Impl PASS / Domain OPEN (OQ-011)
+### BS-022 — Impl PASS / Domain CONFIRMED
 
-- Expected: offerValid=false; status=WAITING_SELLER; hasWaitingSince=true
-- Actual: offerValid=false; status=WAITING_SELLER; hasWaitingSince=true
-- Invariant: I-026
-- Hypothesis: OPEN
-- Open question: OQ-011
+- Expected: offerValid=false; status=WAITING_BUYER; hasWaitingSince=true; invented=false
+- Actual: offerValid=false; status=WAITING_BUYER; hasWaitingSince=true; invented=false
+- Invariant: I-026 I-039 I-040
+- Hypothesis: CONFIRMED
+- Open question: none
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: keep v0.1
+- Decision: I-039: silence after expiration is not a command — status stays WAITING_BUYER
 
 ### BS-023 — Impl PASS / Domain OPEN (OQ-016)
 
@@ -354,15 +362,15 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-026 — Impl PASS / Domain CONFIRMED
 
-- Expected: offerValid=true; status=WAITING_SELLER
-- Actual: offerValid=true; status=WAITING_SELLER
-- Invariant: I-026
+- Expected: offerValid=true; status=WAITING_BUYER
+- Actual: offerValid=true; status=WAITING_BUYER
+- Invariant: I-039 I-026 I-040
 - Hypothesis: CONFIRMED
 - Open question: none
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: keep v0.1
+- Decision: I-039: silence while valid is not expiration and does not change status
 
 ### BS-027 — Impl PASS / Domain OPEN (OQ-001)
 
@@ -388,16 +396,112 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: keep v0.1
 
+### BS-029 — Impl PASS / Domain CONFIRMED
+
+- Expected: status=WAITING_BUYER; active=offer-5; agreed=null; valid=true; sameActive=true; sameAgreed=true; sameOfferCount=true; sameAcceptanceCount=true; sameWaitingSince=true; sameLastSellerActivity=true; hasWaitingSince=true; hasLastSellerActivity=true; waitMs=1800000
+- Actual: status=WAITING_BUYER; active=offer-5; agreed=null; valid=true; sameActive=true; sameAgreed=true; sameOfferCount=true; sameAcceptanceCount=true; sameWaitingSince=true; sameLastSellerActivity=true; hasWaitingSince=true; hasLastSellerActivity=true; waitMs=1800000
+- Invariant: I-039
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: silence while valid: status/pointers/waiting facts unchanged; waitMs derived from waitingSince + clock
+
+### BS-030 — Impl PASS / Domain CONFIRMED
+
+- Expected: status=WAITING_BUYER; active=offer-5; agreed=null; valid=false; rejected=false; expiredState=false; atExactValidUntil=true
+- Actual: status=WAITING_BUYER; active=offer-5; agreed=null; valid=false; rejected=false; expiredState=false; atExactValidUntil=true
+- Invariant: I-039 I-028 I-040
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: silence until expiration is not implicit REJECT; validUntil is exclusive
+
+### BS-031 — Impl PASS / Domain CONFIRMED
+
+- Expected: status=STABLE; agreed=offer-5; active=offer-5; valid=false; expiredState=false; timeCreatesConflicts=false; counterBlocked=true; aClaimedWhileValid=4; aClaimedAfterExpire=0; bClaimedAfterPropose=3; aClaimedAfterB=0; expiredCheckpointConflicts=0; liveAStillClaimed=4; liveBClaimed=3; liveCheckpointConflicts=1; liveCombined=7
+- Actual: status=STABLE; agreed=offer-5; active=offer-5; valid=false; expiredState=false; timeCreatesConflicts=false; counterBlocked=true; aClaimedWhileValid=4; aClaimedAfterExpire=0; bClaimedAfterPropose=3; aClaimedAfterB=0; expiredCheckpointConflicts=0; liveAStillClaimed=4; liveBClaimed=3; liveCheckpointConflicts=1; liveCombined=7
+- Invariant: I-037 I-038 I-025 I-035 I-040
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: accepted Offer expiry keeps STABLE; stockClaims drops A; B is the only claim; live control checkpoint records combined=7
+
+### BS-032 — Impl PASS / Domain CONFIRMED
+
+- Expected: agreedStaysA=true; activeIsB=true; waitingOnB=true; bAcceptable=true; agreedAfterB=offer-7; statusAfterB=STABLE; history=2
+- Actual: agreedStaysA=true; activeIsB=true; waitingOnB=true; bAcceptable=true; agreedAfterB=offer-7; statusAfterB=STABLE; history=2
+- Invariant: I-011 I-037
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: new Offer after agreed expiry becomes active; A stays agreed until B is accepted
+
+### BS-033 — Impl PASS / Domain CONFIRMED
+
+- Expected: blocked=true; acceptances=0; agreed=null
+- Actual: blocked=true; acceptances=0; agreed=null
+- Invariant: I-028
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: expired Offer cannot be revived by ACCEPT
+
+### BS-034 — Impl PASS / Domain CONFIRMED
+
+- Expected: buyerCounterBlocked=true; sellerCounterBlocked=true; bothAreCounters=true; replacementIsNotCounter=true; countersLeftNoOffer=true; replacementCreated=true
+- Actual: buyerCounterBlocked=true; sellerCounterBlocked=true; bothAreCounters=true; replacementIsNotCounter=true; countersLeftNoOffer=true; replacementCreated=true
+- Invariant: I-035
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: I-035: isCounterReason (BUYER_CHANGE / SELLER_COUNTEROFFER) cannot reply to an expired Offer; PRICE_CHANGE may replace it
+
+### BS-035 — Impl PASS / Domain CONFIRMED
+
+- Expected: before=WAITING_BUYER; after=WAITING_BUYER; expiredState=false; invented=false; sameActive=true; sameAgreed=true; sameWaitingSince=true; sameLastSellerActivity=true; waitMs=86400000
+- Actual: before=WAITING_BUYER; after=WAITING_BUYER; expiredState=false; invented=false; sameActive=true; sameAgreed=true; sameWaitingSince=true; sameLastSellerActivity=true; waitMs=86400000
+- Invariant: I-039 I-041
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: silence must not create a fake FSM state or rewrite waiting facts; waitMs is derived from clock
+
+### BS-036 — Impl PASS / Domain CONFIRMED
+
+- Expected: same=true
+- Actual: same=true
+- Invariant: I-040
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: determinism regression: same start + same commands → same snapshot; not a proof of all nondeterminism sources
+
 ## Final decision
 
 ```text
-Model version: v0.1.13
+Model version: v0.1.14 / SPEC v0.3
 Status: experiment implemented; production architecture not started
 
 Scope of this evidence: every CONFIRMED below confirms a SPECIFIC experimental behavior
 under the mock clock, mock catalog and example policies — NOT the basket model as a whole.
-The model as a whole cannot be declared confirmed while expiration/silence/stock-allocation
-questions (OQ-009, OQ-011, OQ-012, OQ-016) remain open.
+The model as a whole cannot be declared confirmed while price/package, negotiation-TTL and
+allocation questions (SPEC OQ-001/OQ-002; experiment OQ-010; OQ-016) remain open.
 
 Changes in this PR (already implemented and tested):
 - I-033: BasketWorld hands out frozen projections; state changes only via domain commands
@@ -431,7 +535,7 @@ Changes in this PR (already implemented and tested):
 - AdviceBasis fingerprints pending substitutions with CONTENT (not only IDs) and records the effective policy as an audit fact
 - rejectReason is validated semantically at apply: a REJECT may not claim a ground (substitution, unavailability, priced offer) that does not exist
 - the COUNTER guard compares every item field except price, so future PurchaseItem fields are protected automatically
-- OQ-009 assumption pinned by test: an expired agreed Offer still provides the price baseline; validUntil gates the ACTIVE Offer only
+- expired agreed Offer still provides the price baseline (I-037, CONFIRMED — no longer an OQ-009 assumption)
 - combination matrix test: multi-item x missing catalog x substitution x expired x offer author x advisor — kind invariants, determinism, and the SEMANTIC end state after apply for every combination
 - ACCEPT_SUBSTITUTION requires the accepting actor to be the counterparty of proposedBy
 - I-035: countering an expired Offer is forbidden in the domain (symmetric with I-028)
@@ -445,29 +549,35 @@ Changes in this PR (already implemented and tested):
 - PartialAvailabilitySeller offers min(requested, stock) of the SAME CatalogLine (sellerId, productId, unit) — a pcs pool is not kg stock
 - cheapestAvailable() removed from domain catalog semantics (ambiguous ≠ cheapest); catalogUnitPrice returns null on disagreement
 - Stage-1 ASSUMPTION recorded (SPEC OQ-002): package/reference quantity never changes unit price — not a proven domain truth
-- GREENMARKET_DOMAIN_SPEC v0.2 is the canonical domain contract (docs/domain); AGENTS.md requires AI executors to read it before any domain change
-- Stock race records combined claims (stock=6, A→4, B→3) at OFFER_CREATION
-- stock claim = valid active Offer quantity; REJECTED/CANCELLED/expired excluded
+- GREENMARKET_DOMAIN_SPEC v0.3 is the canonical domain contract; TZ-BASKET-005 closed experiment OQ-009/OQ-011/OQ-012
+- I-037: validUntil constrains accept/counter of the ACTIVE standing proposal only; it does not revoke Acceptance or agreed baseline
+- I-038: STABLE is agreed==active and no pending substitutions — Offer validity is not a STABLE exit
+- I-039: silence is the absence of a command; it does not REJECT/CANCEL/EXPIRED or move pointers
+- I-040: DeterministicClock + advance() move only the clock; time creates no facts; validUntil is exclusive
+- I-041: time/silence do not enter EXPIRED
+- BS-029…036: silence-while-valid, silence-until-expiry, agreed expiry, new Offer after expiry, no revive, no counter, no fake FSM state, time determinism
+- I-025 claims are the stockClaims() projection (same predicate as detection); stockConflicts is a detection-event log, not a claims registry
+- BS-031: after A expires, stockClaims drops A and keeps B; the live control checkpoint records combined=7
 - I-029: only the counterparty may accept an Offer
 - Offer items: quantity > 0, finite price/qty; applyAdvice requires matching snapshot basis
 - TZ-001…004 ship as four dependent PRs (domain → assistants → runtime → /sim), each with its own runner
 - removed duplicate SellerPurchase.rejected; REJECTED is FSM status only
 
-Still open after this experiment (future domain work, not blockers for TZ-001…004):
-- OQ-001, OQ-002 — resolution / price policy
-- OQ-009 — pointer/status when an *already agreed* Offer later expires without a replacement
-- OQ-011, OQ-012 — silence / waiting facts
+Closed in SPEC v0.3 / TZ-BASKET-005:
+- OQ-009 CLOSED — agreed Offer expiry keeps pointers and STABLE; validity still forbids accept/counter
+- OQ-011 CLOSED for Stage-1 silence — no command ⇒ no lifecycle change; waiting facts are observation, not a sufficiency proof
+- OQ-012 CLOSED for passage of time — no SELLER_UNRESPONSIVE / auto-EXPIRED; negotiation TTL remains OQ-005
 
-Known dependency: the assistant layer uses Offer validity (isOfferValid) in its decisions and
-in AdviceBasis, while OQ-009 (agreed-Offer expiration) is still open. Assistant semantics for
-that case is therefore an ASSUMPTION and must be revisited when OQ-009 is resolved.
+Still open:
+- SPEC OQ-001 / OQ-002 — price semantics / package quantity
+- SPEC OQ-003 — duplicate ListItems
+- SPEC OQ-005 / experiment OQ-010 — negotiation TTL
+- experiment OQ-016 — allocation
 
-No new domain concepts required. Existing model required several invariant/behavior corrections.
-IMPORTANT: the model is NOT final. Implementation PASS here does not close the open OQs above;
-OQ-009/OQ-011/OQ-012 (agreed-Offer expiration, silence semantics) must be resolved before the
-model is transferred to production architecture. The assistant layer is validated against ONE
-deterministic example policy family: this PR proves the Advice/basis/apply contract is executable
-and safe for THAT family — it does NOT prove the contract sufficient for arbitrary LLM/real
-policies. 'Policy-agnostic' refers to the contract shape (injected parameters), not to evidence.
-Recommended next step: resolve OQ-009/OQ-011/OQ-012 as a separate domain iteration
+Assistant compatibility: isOfferValid still means standing-proposal validity. STABLE is
+checked first (WAIT TERMINAL_STATUS). An expired agreed Offer remains the price baseline
+when a later live active Offer is evaluated (I-037). Advice shape is unchanged.
+
+The model is still experimental. PASS does not close remaining OPEN questions.
+Recommended next step: price semantics (SPEC OQ-001/OQ-002) or production-architecture gate
 ```

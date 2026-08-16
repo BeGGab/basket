@@ -728,9 +728,8 @@ export function runTz004(): void {
   });
   assert.equal(unavailable.requireSp(uSp).status, "REJECTED");
 
-  // --- OQ-009 assumption, pinned: the agreed baseline SURVIVES the agreed Offer's expiration.
-  //     The agreement is a negotiation fact; validUntil gates acceptance of the ACTIVE Offer only.
-  //     This is an explicit assumption to revisit when OQ-009 is resolved. ---
+  // --- I-037: the agreed baseline SURVIVES the agreed Offer's expiration.
+  //     The agreement is a negotiation fact; validUntil gates acceptance/counter of the ACTIVE Offer. ---
   const agreedExpired = tomatoesWorld();
   agreedExpired.world.proposeOffer({
     sellerPurchaseId: agreedExpired.spId,
@@ -750,8 +749,50 @@ export function runTz004(): void {
   const agreedOffer = agreedExpired.world.offerById(agreedExpired.world.requireSp(agreedExpired.spId).agreedOfferId!);
   assert.equal(agreedExpired.world.isOfferValid(agreedOffer), false, "precondition: the agreed Offer expired");
   const baselineSurvives = adviseBuyer(agreedExpired.world, agreedExpired.spId);
-  assert(baselineSurvives.kind === "COUNTER", "expired agreed Offer still provides the price baseline (OQ-009 assumption)");
+  assert(baselineSurvives.kind === "COUNTER", "expired agreed Offer still provides the price baseline (I-037)");
   assert.equal(baselineSurvives.items[0]?.price, 15);
+
+  // STABLE + expired agreed==active: assistant does not try to accept/counter — WAIT TERMINAL_STATUS.
+  const stableExpired = tomatoesWorld();
+  stableExpired.world.proposeOffer({
+    sellerPurchaseId: stableExpired.spId,
+    actor: "SELLER",
+    items: [{ productId: "tomatoes", quantity: 2, unit: "kg", price: 15 }],
+    reason: "PRICE_CHANGE",
+    validUntil: "2026-01-01T00:00:05.000Z",
+  });
+  stableExpired.world.acceptOffer(stableExpired.world.requireSp(stableExpired.spId).activeOfferId!, "BUYER");
+  assert.equal(stableExpired.world.requireSp(stableExpired.spId).status, "STABLE");
+  stableExpired.world.advance(10_000);
+  assert.equal(stableExpired.world.requireSp(stableExpired.spId).status, "STABLE", "I-038: expiry does not exit STABLE");
+  const afterStableExpiry = adviseBuyer(stableExpired.world, stableExpired.spId);
+  assert.equal(afterStableExpiry.kind, "WAIT");
+  assert.equal(afterStableExpiry.waitReason, "TERMINAL_STATUS");
+
+  // Pre-expiry STABLE WAIT becomes stale after the standing proposal expires (activeOfferValid
+  // flipped). Re-advise is still WAIT(TERMINAL_STATUS) — agreement is not revoked.
+  const stableThenExpire = tomatoesWorld();
+  stableThenExpire.world.proposeOffer({
+    sellerPurchaseId: stableThenExpire.spId,
+    actor: "SELLER",
+    items: [{ productId: "tomatoes", quantity: 2, unit: "kg", price: 15 }],
+    reason: "PRICE_CHANGE",
+    validUntil: "2026-01-01T00:00:05.000Z",
+  });
+  stableThenExpire.world.acceptOffer(stableThenExpire.world.requireSp(stableThenExpire.spId).activeOfferId!, "BUYER");
+  const waitWhileValid = adviseBuyer(stableThenExpire.world, stableThenExpire.spId);
+  assert.equal(waitWhileValid.kind, "WAIT");
+  assert.equal(waitWhileValid.waitReason, "TERMINAL_STATUS");
+  stableThenExpire.world.advance(10_000);
+  assert.throws(
+    () => applyAdvice(stableThenExpire.world, stableThenExpire.spId, waitWhileValid),
+    /stale.*validity|expired/,
+    "STABLE WAIT computed while the standing proposal was live is stale after expiry"
+  );
+  const waitAfterExpiry = adviseBuyer(stableThenExpire.world, stableThenExpire.spId);
+  assert.equal(waitAfterExpiry.kind, "WAIT");
+  assert.equal(waitAfterExpiry.waitReason, "TERMINAL_STATUS");
+  assert.equal(stableThenExpire.world.requireSp(stableThenExpire.spId).status, "STABLE");
 
   // --- Positive substitution choice is a policy parameter, not a hardcoded rule. ---
   const choice = tomatoesWorld();

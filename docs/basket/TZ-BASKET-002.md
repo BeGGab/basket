@@ -65,7 +65,7 @@ FSM transitions + assertions
 - NEGOTIATING / WAITING_SELLER / WAITING_BUYER → друг в друга, STABLE, REJECTED, CANCELLED
 - STABLE → WAITING_SELLER | WAITING_BUYER | NEGOTIATING | CANCELLED (новый оффер после согласия)
 - REJECTED, CANCELLED — терминальные
-- EXPIRED **не** выставляется автоматически по silence или tick (I-026 / OQ-012)
+- EXPIRED **не** выставляется автоматически по silence или `advance`/`tick` (I-041; experiment OQ-012 CLOSED)
 
 Purchase-level статус по-прежнему **производный** (I-020).
 

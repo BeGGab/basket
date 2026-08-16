@@ -1,8 +1,8 @@
 # GreenMarket Domain Specification
 
-Version: 0.2
+Version: 0.3
 Status: EXPERIMENTAL
-Update basis: analysis of pr_11
+Update basis: TZ-BASKET-005 (expiration / silence / time)
 Scope: Stage 1 Basket Experiment
 Purpose: a single domain contract for the core code, emulators, scenarios, tests, and the later AI layer.
 
@@ -262,9 +262,11 @@ advance to the corresponding actual-delivery rule. **CONFIRMED**
 
 ## 19. STABLE
 
-STABLE means the commercial terms of the SellerPurchase are agreed. STABLE does NOT mean: paid,
-reserved, requested-quantity guaranteed, actually delivered, or handed to delivery. Thus
-`STABLE ≠ stock guarantee`. **CONFIRMED**
+STABLE means the commercial terms of the SellerPurchase are agreed (`agreedOfferId` equals
+`activeOfferId`, no pending mandatory substitutions). STABLE does NOT mean: paid, reserved,
+requested-quantity guaranteed, actually delivered, handed to delivery, or that the agreed Offer's
+`validUntil` is still in the future. Thus `STABLE ≠ stock guarantee` and `STABLE ≠ Offer still
+valid`. **CONFIRMED** (v0.3: expiration of an already-agreed Offer does not exit STABLE).
 
 ## 20. Offer
 
@@ -292,7 +294,11 @@ agreedOfferId = Offer #18   (last agreed state)
 activeOfferId = Offer #19   (current proposal)
 ```
 
-The Active Offer does not become agreed automatically. **CONFIRMED**
+The Active Offer does not become agreed automatically.
+
+After an Offer is accepted, both pointers may still name that same Offer. Later expiration of that
+Offer does **not** clear either pointer. A subsequent new Offer becomes the new `activeOfferId`;
+`agreedOfferId` stays on the last accepted Offer until a later Acceptance. **CONFIRMED**
 
 ## 24. Acceptance
 
@@ -387,7 +393,8 @@ Purchase B → 3
 ```
 
 The combined claims must be detectable as a conflict. But conflict detection does NOT mean
-allocation or reservation. **CONFIRMED**
+allocation or reservation. Current claims are the diagnostic projection `stockClaims`;
+`stockConflicts` is the detection-event log, not a claims registry. **CONFIRMED**
 
 ## 35. Partial Availability Seller
 
@@ -406,19 +413,104 @@ Allocation and reservation are outside Stage 1. Do not pre-introduce `GUARANTEED
 `agreed = 20 kg`, `fulfilled = 5 kg` is allowed when the corresponding rule was accepted by the
 buyer. Fulfillment as a production subsystem remains outside Stage 1. **CONFIRMED**
 
-## 38. Expiration
+## 38. Offer validity vs agreement (closes experiment OQ-009 / SPEC OQ-004)
 
-Distinguish Offer validity from negotiation lifetime. `validUntil` belongs to a concrete Offer. A
-general TTL for the whole SellerPurchase negotiation is not yet defined. **OPEN — OQ-005** (see also
-OQ-004 for the expired agreed Offer).
+`validUntil` is a property of one immutable Offer. `isOfferValid(offer)` is true when `validUntil`
+is absent or strictly in the future relative to the world clock (`now < validUntil`). The instant
+`now === validUntil` is already expired.
 
-## 39. Silence
+**Decision.** Validity constrains *standing-proposal operations* on the **active** Offer only:
 
-Silence is not automatically `REJECTED` or `EXPIRED`. Observable facts may be `waitingSince`,
-`lastSellerActivity`, `silenceDuration`. A formal FSM state is introduced only after its necessity
-is proven. **CONFIRMED**
+- an expired Offer cannot be accepted (I-028);
+- an expired active Offer cannot be countered (I-035);
+- replacing an expired standing proposal requires a **new** Offer with a non-counter reason.
 
-## 40. SellerPurchase lifecycle
+Validity does **not** revoke a recorded Acceptance. An already-agreed Offer that later expires:
+
+| Question | Answer |
+| --- | --- |
+| `agreedOfferId` | stays A |
+| `activeOfferId` | stays A (until a new Offer is proposed) |
+| Is A historical? | yes — Offer is immutable history |
+| Is A still the baseline? | yes — the Acceptance is the commercial fact |
+| May SellerPurchase stay STABLE? | yes, if A is still the active pointer and no pending mandatory substitutions |
+| New FSM state? | no |
+| May a party propose a new Offer? | yes (`PRICE_CHANGE`, `TIME_DISCOUNT`, … — not a counter) |
+| New Offer B after A expired | `activeOfferId = B`, `agreedOfferId = A`; B may be accepted if valid |
+| Does A still claim stock? | no — `stockClaims` excludes expired Offers (I-025); STABLE ≠ stock guarantee (I-018) |
+
+**Rationale.** Acceptance is a completed historical fact. `validUntil` answers “may this standing
+proposal still be accepted or countered?”, not “does the already-recorded agreement evaporate?”.
+STABLE means agreement, not a live lease (I-017 / I-018).
+
+**Affected:** Offer, Acceptance, `agreedOfferId`, `activeOfferId`, STABLE, `isOfferValid`, Assistant
+baseline (agreed price survives expiration), stock claims (`stockClaims` excludes expired Offers).
+
+**Affected invariants:** I-011, I-017, I-018, I-025, I-028, I-035, I-037, I-038.
+
+**Affected scenarios:** BS-012, BS-031, BS-032, BS-033, BS-034.
+
+A general TTL for the whole SellerPurchase negotiation is still undefined. **OPEN — SPEC OQ-005**
+(experiment OQ-010).
+
+## 39. Silence (closes experiment OQ-011)
+
+**Decision.** Silence is the *absence of a domain command*, not a domain entity and not an FSM
+state. It does not become `REJECT` or `CANCEL` without an explicit command. `markWaiting` is an
+emulator command (SlowSeller), not silence; silence scenarios must not call it.
+
+For **Stage-1 silence semantics**, `waitingSince`, `lastSellerActivity`, and the world clock are
+the observation facts the experiment records. A derived duration may be computed from those
+facts; it is not stored as its own entity. The experiment does **not** prove that these three
+facts are sufficient for every future negotiation/waiting policy.
+
+| Situation | Effect on SellerPurchase |
+| --- | --- |
+| Active Offer valid + actor does nothing | status, `activeOfferId`, `agreedOfferId` unchanged |
+| Active Offer expired + actor does nothing | same pointers and status; `isOfferValid` becomes false |
+| Silence before expiration vs after | same: no command ⇒ no lifecycle change; only computed validity differs |
+
+**Rationale.** Inventing REJECT/CANCEL/EXPIRED from inaction would be a hidden business policy.
+The experiment records waiting facts so observers (UI, Assistant) can *see* silence; they must not
+*rewrite* the negotiation.
+
+**Affected:** `waitingSince`, `lastSellerActivity`, SellerPurchase status, Assistant `WAIT`.
+
+**Affected invariants:** I-026, I-039.
+
+**Affected scenarios:** BS-013, BS-022, BS-026, BS-029, BS-030, BS-035.
+
+## 40. Time (closes experiment OQ-012)
+
+**Decision.**
+
+1. **Time source.** The world's `DeterministicClock` (`Clock.now()`) is the sole source of
+   *current* time. Domain operations read the clock; they do not take a "now" parameter.
+   `Offer.validUntil` is input data of that Offer (when the standing proposal stops being
+   acceptable). It is not a source of current time.
+2. **`advance(durationMs)` is a domain operation.** It moves the clock and nothing else. It does
+   not create Offers, Acceptances, Substitutions, stock-conflict events, or FSM states, and it
+   does not clear pointers. It does **not** recompute STABLE eligibility — passage of time
+   changes derived `isOfferValid`, not STABLE (I-038).
+3. **Emulator/runtime `tick()` is not a domain operation.** It may call `advance` and then actor
+   responses. Domain semantics must not live only in `tick()`.
+4. **What passage of time does.** It changes computed `isOfferValid`. It does **not** enter
+   `EXPIRED`, `REJECTED`, or `CANCELLED`. `EXPIRED` remains in the status union so the FSM can
+   refuse an automatic transition into it (I-026 / I-041); no domain command currently enters it.
+5. **`SELLER_UNRESPONSIVE` is not a domain state.** It would be a derived observation from
+   `waitingSince` / `lastSellerActivity` / clock, if a UI ever needs it.
+
+**Rationale.** Time is a fact the world owns. Treating `tick()` as the place where expiration
+“happens” would give the emulator a private domain. Treating silence as a new FSM state would
+multiply statuses without a command.
+
+**Affected:** `DeterministicClock`, `advance`, `isOfferValid`, FSM (`EXPIRED` unused by time).
+
+**Affected invariants:** I-040, I-041.
+
+**Affected scenarios:** BS-022, BS-030, BS-031, BS-035, BS-036.
+
+## 41. SellerPurchase lifecycle
 
 Minimal model:
 
@@ -426,22 +518,24 @@ Minimal model:
 DRAFT → NEGOTIATING / WAITING → STABLE
 ```
 
-Separate branches: `REJECTED`, `CANCELLED`, `EXPIRED`. Not every observable circumstance should
-become a separate FSM state. **ASSUMED**
+Separate branches: `REJECTED`, `CANCELLED`. `EXPIRED` exists in the status union so the FSM can
+refuse an automatic transition into it; time and silence do not enter it (I-041). Not every
+observable circumstance should become a separate FSM state. **CONFIRMED** for the time/silence
+boundary; the rest of the chart remains **ASSUMED**.
 
-## 41. Purchase status
+## 42. Purchase status
 
 Purchase status is derived from SellerPurchases; it is not a second source of truth. E.g.
 `A → STABLE`, `B → NEGOTIATING`, `C → REJECTED` may yield a derived Purchase status
 `PARTIALLY_STABLE`. **CONFIRMED**
 
-## 42. Stage 1 boundaries
+## 43. Stage 1 boundaries
 
 Outside the core model: Order, Payment, Reservation, Allocation, Delivery. After STABLE there may be
 mock actions `pay()`, `reserve()`, `sendToDelivery()`, but this does not imply production subsystems.
 **CONFIRMED**
 
-## 43. Determinism
+## 44. Determinism
 
 For the same initial world and the same scenario, the result must be deterministic. Verification must
 cover not only the event stream but a canonical snapshot of the WHOLE observable domain state:
@@ -449,7 +543,7 @@ Purchase, SellerPurchase, Offer history, Acceptance history, substitutions, cata
 fulfillments, relevant pointers. **CONFIRMED** (this closes the earlier insufficient check of only
 `status` / `activeOfferId` / `agreedOfferId`).
 
-## 44. Executable Domain Scenarios
+## 45. Executable Domain Scenarios
 
 Each substantive rule must have a reproducible scenario. Minimal set from the current experiment:
 
@@ -463,9 +557,13 @@ ADVICE-STALE-OFFER-001   same Offer id + changed content → stale
 ADVICE-STALE-TIME-001    Advice → clock advances → apply → stale
 COUNTER-MULTI-001        multi-item counter → every line validated
 PARTIAL-FULFILLMENT-001  agreed 20 → fulfilled 5 → valid when buyer policy permits
+SILENCE-VALID-001        active Offer + no command + time < validUntil → same status/pointers
+SILENCE-EXPIRED-001      active Offer + no command + time > validUntil → same status/pointers, not REJECT
+AGREED-EXPIRE-001        accepted A expires, no replacement → STABLE, pointers stay A
+AGREED-EXPIRE-NEW-001    A accepted, A expires, B proposed → agreed=A, active=B, B acceptable
 ```
 
-## 45. Newly discovered rule: CatalogLine identity must propagate through the model
+## 46. Newly discovered rule: CatalogLine identity must propagate through the model
 
 pr_11 showed it is not enough to define `CatalogLine = sellerId + productId + unit` only for catalog
 lookup. This identity must be used consistently through:
@@ -476,14 +574,14 @@ Catalog → Resolution → Purchase → SellerPurchase → Offer → Stock → E
 
 Otherwise different layers get different representations of the same commercial line. **CONFIRMED**
 
-## 46. Newly discovered rule: no silent collapsing
+## 47. Newly discovered rule: no silent collapsing
 
 If two objects differ in a field that is part of their domain identity, they must not be silently
 merged. In particular `product + kg` and `product + pcs` cannot be reduced to one position.
 Similarly, a second ListItem must not be silently dropped merely because `productId` matches, until a
 corresponding aggregation policy is defined. **CONFIRMED**
 
-## 47. Open Questions
+## 48. Open Questions
 
 These SPEC OQs are the canonical domain-level questions. They are **not** the same numbering as
 the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
@@ -495,8 +593,15 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
   **OPEN**
 - **OQ-003 — Duplicate ListItems.** What to do with `Tomatoes / 2 kg` and `Tomatoes / 5 kg` in one
   List? **OPEN**
-- **OQ-004 — Expired agreed Offer.** What happens to `agreedOfferId` if the agreed Offer expired?
-  **OPEN** (maps to experiment OQ-009)
+- **OQ-004 — Expired agreed Offer.** **CLOSED** in v0.3 (maps to experiment OQ-009). See §38:
+  pointers stay; A remains the baseline; STABLE is not exited; validity still forbids accept/counter
+  of the standing proposal.
+- **Experiment OQ-011 — Silence facts.** **CLOSED** in v0.3 for Stage-1 silence semantics. See §39:
+  silence is not an entity. Stage-1 tests record `waitingSince` + `lastSellerActivity` + clock as
+  observation facts. Not a proof of sufficiency for all future waiting policies.
+- **Experiment OQ-012 — Passage of time.** **CLOSED** in v0.3 for how time is represented. See §40:
+  `SELLER_UNRESPONSIVE` / auto-`EXPIRED` are not domain states; `advance` is the time operation.
+  Negotiation lifetime / timeout policy remains **OPEN — SPEC OQ-005**.
 - **OQ-005 — Negotiation lifetime.** Is a separate TTL for the whole SellerPurchase negotiation
   needed? **OPEN** (maps to experiment OQ-010)
 - **OQ-006 — Allocation.** At which stage does allocation/reservation become necessary? **OPEN**
@@ -507,7 +612,7 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
   expensive than the reference price: `AUTO_ACCEPT` or `ASK_BUYER`? **OPEN** (maps to experiment
   OQ-002)
 
-## 48. Evolution Log
+## 49. Evolution Log
 
 | Version | Source | Change |
 | --- | --- | --- |
@@ -525,8 +630,11 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
 | v0.2 | pr_11 | duplicate ListItem behavior moved to OPEN (SPEC OQ-003); experiment surfaces `DUPLICATE_LINE` |
 | v0.2 | pr_11 | package-quantity unit-price assumption recorded as OPEN (SPEC OQ-002), not as proven truth |
 | v0.2 | pr_11 | determinism verified by full observable snapshot |
+| v0.3 | TZ-BASKET-005 | `validUntil` is standing-proposal validity only; agreed Offer expiry does not clear pointers or exit STABLE (SPEC OQ-004 / exp OQ-009 CLOSED) |
+| v0.3 | TZ-BASKET-005 | silence is absence of a command; no auto REJECT/CANCEL/EXPIRED (exp OQ-011 CLOSED) |
+| v0.3 | TZ-BASKET-005 | world clock + `advance` are the time model; `tick` is not a domain operation (exp OQ-012 CLOSED) |
 
-## 49. Rule for the next PR
+## 50. Rule for the next PR
 
 Before starting the next PR the developer (human or AI) must:
 
@@ -544,9 +652,28 @@ If a PR surfaces new knowledge:
 Observation → Domain decision → SPEC update → Invariant → Scenario → Implementation → Regression test
 ```
 
-## 50. Current main technical conclusion
+## 51. Current main technical conclusion
 
-After pr_11 the core architectural hypothesis became much cleaner:
+After v0.3, Offer time is split cleanly:
+
+```
+validUntil     → may this ACTIVE standing proposal be accepted / countered?
+Acceptance     → historical fact; becomes agreedOfferId
+advance(clock) → recomputes isOfferValid; does not invent states
+silence        → no command ⇒ no lifecycle change
+```
+
+```
+OQ-009 CLOSED    agreed Offer expiry keeps pointers and STABLE
+OQ-011 CLOSED    Stage-1 silence: no command ⇒ no lifecycle change
+OQ-012 CLOSED    passage of time: no SELLER_UNRESPONSIVE / auto-EXPIRED
+
+OQ-001 OPEN      price semantics (unit vs line)
+OQ-002 OPEN      package quantity vs unit price
+OQ-005 OPEN      negotiation lifetime / TTL
+```
+
+CatalogLine identity from v0.2 remains:
 
 ```
 CatalogLine
@@ -563,9 +690,7 @@ sellerId + productId + unit
     └── Offer comparison
 ```
 
-The unified CatalogLine identity is now a domain rule, not a detail of one matcher.
-
-The remaining main open question of the next level:
+The remaining CatalogLine-level open question:
 
 ```
 productId + unit → PurchaseItem → quantity

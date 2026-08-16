@@ -2,6 +2,7 @@ import { comparableRows, priceableSellerLines } from "./catalog";
 import { DeterministicClock } from "./clock";
 import { transition } from "./fsm";
 import { resolve } from "./resolution";
+import { isCounterReason } from "./types";
 import type {
   Acceptance,
   Actor,
@@ -19,8 +20,10 @@ import type {
   ReadonlyPurchase,
   ReadonlySellerPurchase,
   ReadonlyShoppingList,
+  ReadonlyStockClaim,
   ReadonlyStockConflict,
   ReadonlySubstitution,
+  StockClaim,
   ResolutionPolicy,
   SellerPurchase,
   ShoppingList,
@@ -137,10 +140,13 @@ export class BasketWorld {
     return this.clock.now().toISOString();
   }
 
-  /** Advance time and re-evaluate STABLE/validity without inventing EXPIRED as a silence state. */
+  /**
+   * Domain time operation (I-040): move the world clock and nothing else.
+   * `isOfferValid` is computed from the clock; status, pointers, and logs are unchanged.
+   * Does not enter EXPIRED (I-041).
+   */
   advance(durationMs: number): void {
     this.clock.advance(durationMs);
-    for (const sp of this.spById.values()) this.refreshStatus(sp);
   }
 
   /** Stores a defensive copy: catalog changes only happen through `setCatalog`/`setStock` (I-034). */
@@ -315,7 +321,7 @@ export class BasketWorld {
     // I-035: a counter is a reply to a live proposal. Countering an expired Offer is forbidden —
     // like acceptOffer (I-028); replacing an expired Offer requires an explicit new proposal
     // with a non-counter reason (PRICE_CHANGE, TIME_DISCOUNT, ...).
-    if ((input.reason === "BUYER_CHANGE" || input.reason === "SELLER_COUNTEROFFER") && sp.activeOfferId) {
+    if (isCounterReason(input.reason) && sp.activeOfferId) {
       const active = this.requireOffer(sp.activeOfferId);
       if (!this.isOfferValid(active)) {
         throw new Error(
@@ -491,9 +497,21 @@ export class BasketWorld {
     };
   }
 
+  /**
+   * Standing-proposal validity (I-037): may this Offer be accepted or countered *now*.
+   * `validUntil` is an exclusive end: the instant `now === validUntil` is already expired.
+   */
   isOfferValid(offer: Offer): boolean {
     if (!offer.validUntil) return true;
     return Date.parse(offer.validUntil) > this.clock.now().getTime();
+  }
+
+  /**
+   * I-025 diagnostic: current claims on one seller commercial line.
+   * Same predicate as stock-conflict detection. Frozen; not a claims registry entity.
+   */
+  stockClaims(sellerId: string, productId: string, unit: string): readonly ReadonlyStockClaim[] {
+    return Object.freeze(this.collectClaims(sellerId, productId, unit).map((claim) => Object.freeze({ ...claim })));
   }
 
   isStable(sellerPurchaseId: string): boolean {
@@ -536,12 +554,8 @@ export class BasketWorld {
     const agreed = sp.agreedOfferId ? this.requireOffer(sp.agreedOfferId) : null;
     const active = sp.activeOfferId ? this.requireOffer(sp.activeOfferId) : null;
     const pending = this.pendingMandatorySubs(sp);
-    const stable =
-      agreed !== null &&
-      active !== null &&
-      agreed.id === active.id &&
-      pending.length === 0 &&
-      this.isOfferValid(agreed);
+    // I-038: STABLE is the accepted agreement, not a live lease on validUntil.
+    const stable = agreed !== null && active !== null && agreed.id === active.id && pending.length === 0;
     if (stable) {
       this.applyStatus(sp, "STABLE");
       this.recordStockConflict(sp, agreed.items, "STABLE");
@@ -550,18 +564,17 @@ export class BasketWorld {
     if (agreed && active && agreed.id !== active.id) {
       this.applyStatus(sp, active.actor === "BUYER" ? "WAITING_SELLER" : "WAITING_BUYER");
     }
-    // OQ-009 remains OPEN: an already-agreed Offer that later expires does not
-    // auto-change SellerPurchase status. Validity only prevents *entering* STABLE.
   }
 
   /**
-   * Competing claim = quantity on the other SellerPurchase's **valid active** commercial proposal.
+   * Current claims on a seller commercial line (I-025).
+   * Claim = quantity on that SellerPurchase's **valid active** commercial proposal.
    * REJECTED and CANCELLED are ignored. Expired Offers (`isOfferValid` = false) are not claims.
    */
-  private claimedByOthers(sp: SellerPurchase, productId: string, unit: string): number {
-    let sum = 0;
+  private collectClaims(sellerId: string, productId: string, unit: string): StockClaim[] {
+    const claims: StockClaim[] = [];
     for (const other of this.spById.values()) {
-      if (other.id === sp.id || other.sellerId !== sp.sellerId) continue;
+      if (other.sellerId !== sellerId) continue;
       if (other.status === "REJECTED" || other.status === "CANCELLED") continue;
       if (!other.activeOfferId) continue;
       const offer = this.requireOffer(other.activeOfferId);
@@ -569,10 +582,18 @@ export class BasketWorld {
       for (const item of offer.items) {
         // Claims compete only within the same commercial line: tomatoes/kg and tomatoes/pcs
         // draw on different stock pools (identity is (productId, unit)).
-        if (item.productId === productId && item.unit === unit) sum += item.quantity;
+        if (item.productId === productId && item.unit === unit) {
+          claims.push({ sellerPurchaseId: other.id, offerId: offer.id, quantity: item.quantity });
+        }
       }
     }
-    return sum;
+    return claims;
+  }
+
+  private claimedByOthers(sp: SellerPurchase, productId: string, unit: string): number {
+    return this.collectClaims(sp.sellerId, productId, unit)
+      .filter((claim) => claim.sellerPurchaseId !== sp.id)
+      .reduce((sum, claim) => sum + claim.quantity, 0);
   }
 
   private assertOfferItems(items: PurchaseItem[]): void {
