@@ -263,3 +263,67 @@ After the current commercial item is replaced (primary gone from `sp.items`), sn
 ## PRICE-TOTAL-001 — Derived total bounds
 
 `unitLineTotal` only multiplies. Quantity `> 0` is I-030. Invalid I-030/I-046 inputs yield no derived total; `lineTotalAbsence` names the reason. Not a new TZ-006 quantity rule.
+
+## PACKAGE-SEM-001 — Package as a unit through Acceptance
+
+`1 package @ 60` can be offered, accepted, and snapshotted. Derived total is 60. Contents are not claimed.
+
+## PACKAGE-SEM-002 — Package bases are not stored
+
+External `5 kg` vs `20 kg` package bases are experimenter knowledge. Current identity cannot represent them. Different prices distinguish Offers, not contents (**OPEN — SPEC OQ-002A**).
+
+## PACKAGE-SEM-003 — Catalog package size ≠ requested quantity
+
+List `1 package` / `2 package` stays 1 / 2. Catalog `quantity = 5` is not copied and not converted to kg.
+
+## PACKAGE-SEM-004 — No kg↔package conversion
+
+List `2 kg` against a `package` catalog is UNRESOLVED. No automatic `1 PACKAGE` and no ASK_BUYER policy (**OPEN — SPEC OQ-002A**).
+
+## PACKAGE-SEM-005 — No partial package
+
+Requested `2 kg` vs external `5 kg` package has no `partialPackage` concept (**OPEN — SPEC OQ-002A**).
+
+## PACKAGE-SEM-006 — No whole-package-only / split
+
+Requested `6 kg` vs external `5 kg` package has no split or whole-only concept (**OPEN — SPEC OQ-002A**).
+
+## VOLUME-PRICE-001 — Linear unit pricing
+
+`5 kg @ 15 = 75` and `20 kg @ 15 = 300`. Existing model, no change.
+
+## VOLUME-PRICE-002 — Volume discount as two Offers
+
+`5 kg @ 15` and `20 kg @ 12` are distinct Offers. No `VolumePrice` entity.
+
+## VOLUME-PRICE-003 — Same quantity, different price
+
+Agreed `20 kg @ 15`, current `20 kg @ 12`. Offer A is not mutated.
+
+## VOLUME-PRICE-004 — Same total, different basis
+
+`5×20` and `10×10` both derive 100 and remain different Offers.
+
+## VOLUME-PRICE-005 — Concrete quantity-dependent Offers
+
+`3@20`, `7@17`, `12@14` are Offers. This does not introduce a tier schedule.
+
+## VOLUME-PRICE-005B — Standing schedule absent
+
+A quantity-range price list is not a domain object (**OPEN — SPEC OQ-002B**).
+
+## VOLUME-PRICE-006 — Quantity change is a new Offer
+
+Buyer `5 kg → 10 kg` does not mutate Offer #1.
+
+## VOLUME-PRICE-007 — Reprice after quantity increase
+
+`5 kg @ 15` then `10 kg @ 12`. Offer #1 stays `5 kg @ 15`.
+
+## VOLUME-PRICE-008 — Price basis in snapshot
+
+Snapshot shows `20 kg @ 12`, not stored `price = 240`. Derived total is 240.
+
+## SNAPSHOT-VOL-001 — Canonical volume snapshot
+
+Requested 20 kg, agreed 15, current 12, alternative 14, derived totals visible. Package contents field is absent (**OPEN — SPEC OQ-002A**).

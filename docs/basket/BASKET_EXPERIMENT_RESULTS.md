@@ -1,17 +1,17 @@
 # GreenMarket — Basket Experiment Results
 
-**Status:** Evidence from TZ-BASKET-001…005 mock run  
+**Status:** Evidence from TZ-BASKET-001…007 mock run  
 **Experiment version:** v0.1  
-**Model version:** v0.1.15 / SPEC v0.4 (price is per unit; catalog quantity is Stage-1 reference size; package/volume business semantics remain OPEN)
+**Model version:** v0.1.16 / SPEC v0.5 (package is a unit; concrete volume deals are Offers; contents and standing schedules remain OPEN)
 
 ## How to read results
 
 - **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).
 - **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).
-- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004 and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, not a policy.
+- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, VOLUME-PRICE-005B, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, not a policy.
 - Do not treat Impl PASS as confirmation of an unresolved OQ.
 - Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.
-- All 56 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
+- All 72 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
 
 ## Purpose
 
@@ -66,6 +66,12 @@ Record evidence from the mock domain and seller emulator.
 | PACKAGE-002 | PASS | OPEN (SPEC-OQ-002) | none | Stage-1: different catalog qty + different unit price is AMBIGUOUS. Volume-pricing policy is not decided |
 | PACKAGE-003 | PASS | OPEN (SPEC-OQ-002) | none | MODEL GAP: current identity cannot represent distinct package bases |
 | PACKAGE-004 | PASS | OPEN (SPEC-OQ-002) | none | MODEL GAP: package contents / conversion are not in the model; business semantics remain OPEN |
+| PACKAGE-SEM-001 | PASS | CONFIRMED | none | package is representable as a unit through Offer, Acceptance, and snapshot; contents are not claimed |
+| PACKAGE-SEM-002 | PASS | OPEN (SPEC-OQ-002A) | none | MODEL GAP: current identity cannot represent distinct package bases |
+| PACKAGE-SEM-003 | PASS | CONFIRMED | none | catalog package size is not requested quantity and is not converted into kg |
+| PACKAGE-SEM-004 | PASS | OPEN (SPEC-OQ-002A) | none | 2 kg vs package catalog is unresolved; no auto-conversion and no conversion policy decided |
+| PACKAGE-SEM-005 | PASS | OPEN (SPEC-OQ-002A) | none | MODEL GAP: requested 2 kg vs external 5 kg package has no partial-package concept |
+| PACKAGE-SEM-006 | PASS | OPEN (SPEC-OQ-002A) | none | MODEL GAP: requested 6 kg vs external 5 kg package has no whole-package-only or split concept |
 | PRICE-ABSENT-001 | PASS | CONFIRMED | none | priceless Offer has no derived total; a second priceless Offer is not a bypass to agreed/STABLE |
 | PRICE-CATALOG-QTY-001 | PASS | CONFIRMED | none | requested PurchaseItem.quantity is not catalog reference quantity |
 | PRICE-LIST-QTY-ABSENT-001 | PASS | CONFIRMED | none | ListItem without quantity cannot become a PurchaseItem; MISSING_QUANTITY, not silent 1 |
@@ -77,6 +83,16 @@ Record evidence from the mock domain and seller emulator.
 | PRICE-UNIT-001 | PASS | CONFIRMED | none | price is per kg; derived total is not a stored linePrice |
 | PRICE-UNIT-002 | PASS | CONFIRMED | none | 2kg@15 vs 1kg@30 are different Offers; equal derived totals are arithmetic, not commercial equivalence |
 | PRICE-ZERO-001 | PASS | CONFIRMED | none | price 0 is a real unit price; derived total 0 is not a missing price |
+| SNAPSHOT-VOL-001 | PASS | OPEN (SPEC-OQ-002A) | none | canonical snapshot distinguishes requested/agreed/current/alt/derived; package contents remain absent |
+| VOLUME-PRICE-001 | PASS | CONFIRMED | none | linear unit pricing: 5×15=75 and 20×15=300; no model change |
+| VOLUME-PRICE-002 | PASS | CONFIRMED | none | concrete volume discount is two Offers; VolumePrice entity is not required for this deal |
+| VOLUME-PRICE-003 | PASS | CONFIRMED | none | same quantity, different unit price: agreed=A current=B; Offer A is not mutated |
+| VOLUME-PRICE-004 | PASS | CONFIRMED | none | equal derived totals are arithmetic, not Offer identity |
+| VOLUME-PRICE-005 | PASS | CONFIRMED | none | concrete quantity-dependent deals are Offers; this does not introduce a tier schedule |
+| VOLUME-PRICE-005B | PASS | OPEN (SPEC-OQ-002B) | none | MODEL GAP: a standing quantity-range price schedule is not a domain object |
+| VOLUME-PRICE-006 | PASS | CONFIRMED | none | quantity change is a new Offer; Offer #1 is not mutated |
+| VOLUME-PRICE-007 | PASS | CONFIRMED | none | seller reprice after quantity increase is a new Offer; Offer #1 stays 5 kg @ 15 |
+| VOLUME-PRICE-008 | PASS | CONFIRMED | none | snapshot keeps unit-price basis 20 kg @ 12; derived total 240 is not stored as price |
 
 ## Scenario records
 
@@ -620,6 +636,78 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: MODEL GAP: package contents / conversion are not in the model; business semantics remain OPEN
 
+### PACKAGE-SEM-001 — Impl PASS / Domain CONFIRMED
+
+- Expected: quantity=1; unit=package; price=60; derivedTotal=60; accepted=true; agreedQty=1; agreedUnit=package; agreedPrice=60; stable=true
+- Actual: quantity=1; unit=package; price=60; derivedTotal=60; accepted=true; agreedQty=1; agreedUnit=package; agreedPrice=60; stable=true
+- Invariant: I-045 I-042 I-046
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: package is representable as a unit through Offer, Acceptance, and snapshot; contents are not claimed
+
+### PACKAGE-SEM-002 — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: externalBases=5kg,20kg; identityKeyCount=1; samePriceOfferHasContents=false; differentPriceUnresolved=true; differentPriceReason=AMBIGUOUS_PRICE; offersDistinguishPriceNotContents=true
+- Actual: externalBases=5kg,20kg; identityKeyCount=1; samePriceOfferHasContents=false; differentPriceUnresolved=true; differentPriceReason=AMBIGUOUS_PRICE; offersDistinguishPriceNotContents=true
+- Invariant: I-047 I-045 I-036
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: package contents / basis (not introduced)
+- Workaround: none
+- Decision: MODEL GAP: current identity cannot represent distinct package bases
+
+### PACKAGE-SEM-003 — Impl PASS / Domain CONFIRMED
+
+- Expected: catalogQty=5; requestedOne=1; purchasedOne=1; requestedTwo=2; purchasedTwo=2; copiedFromCatalog=false; convertedToKg=false
+- Actual: catalogQty=5; requestedOne=1; purchasedOne=1; requestedTwo=2; purchasedTwo=2; copiedFromCatalog=false; convertedToKg=false
+- Invariant: I-045 I-047
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: catalog package size is not requested quantity and is not converted into kg
+
+### PACKAGE-SEM-004 — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: resolvedKind=UNRESOLVED; sellerPurchases=0; reason=UNAVAILABLE; convertedToPackage=false; askedBuyer=false
+- Actual: resolvedKind=UNRESOLVED; sellerPurchases=0; reason=UNAVAILABLE; convertedToPackage=false; askedBuyer=false
+- Invariant: I-036 I-047
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: kg↔package conversion policy (not introduced)
+- Workaround: none
+- Decision: 2 kg vs package catalog is unresolved; no auto-conversion and no conversion policy decided
+
+### PACKAGE-SEM-005 — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: requested=2; requestedUnit=kg; externalPackageKg=5; sellerPurchases=0; partialPackageConcept=false
+- Actual: requested=2; requestedUnit=kg; externalPackageKg=5; sellerPurchases=0; partialPackageConcept=false
+- Invariant: I-047
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: partial package (not introduced)
+- Workaround: none
+- Decision: MODEL GAP: requested 2 kg vs external 5 kg package has no partial-package concept
+
+### PACKAGE-SEM-006 — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: requested=6; requestedUnit=kg; externalPackageKg=5; sellerPurchases=0; wholePackageOnlyConcept=false; splitConcept=false
+- Actual: requested=6; requestedUnit=kg; externalPackageKg=5; sellerPurchases=0; wholePackageOnlyConcept=false; splitConcept=false
+- Invariant: I-047
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: whole package / split (not introduced)
+- Workaround: none
+- Decision: MODEL GAP: requested 6 kg vs external 5 kg package has no whole-package-only or split concept
+
 ### PRICE-ABSENT-001 — Impl PASS / Domain CONFIRMED
 
 - Expected: hasPrice=false; derivedTotal=null; absence=MISSING_PRICE; storedLinePrice=false; acceptBlocked=true; secondAcceptBlocked=true; firstAfterSecondBlocked=true; agreedOfferId=null; stable=false; adviceKind=WAIT; adviceReason=MISSING_ITEM_PRICE; catalogRefUnchanged=15
@@ -752,10 +840,130 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: price 0 is a real unit price; derived total 0 is not a missing price
 
+### SNAPSHOT-VOL-001 — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: requestedQty=20; requestedUnit=kg; agreedPrice=15; agreedDerived=300; currentPrice=12; currentDerived=240; altProduct=tomato_b; altPrice=14; packageContentsStored=false; snapshotHasPackageField=false
+- Actual: requestedQty=20; requestedUnit=kg; agreedPrice=15; agreedDerived=300; currentPrice=12; currentDerived=240; altProduct=tomato_b; altPrice=14; packageContentsStored=false; snapshotHasPackageField=false
+- Invariant: I-023 I-042 I-047 I-048
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: snapshot package contents (not introduced)
+- Workaround: none
+- Decision: canonical snapshot distinguishes requested/agreed/current/alt/derived; package contents remain absent
+
+### VOLUME-PRICE-001 — Impl PASS / Domain CONFIRMED
+
+- Expected: smallTotal=75; bulkTotal=300; sameUnitPrice=true; newOffer=true
+- Actual: smallTotal=75; bulkTotal=300; sameUnitPrice=true; newOffer=true
+- Invariant: I-042 I-048
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: linear unit pricing: 5×15=75 and 20×15=300; no model change
+
+### VOLUME-PRICE-002 — Impl PASS / Domain CONFIRMED
+
+- Expected: distinct=true; qtyA=5; priceA=15; totalA=75; qtyB=20; priceB=12; totalB=240; volumeEntity=false
+- Actual: distinct=true; qtyA=5; priceA=15; totalA=75; qtyB=20; priceB=12; totalB=240; volumeEntity=false
+- Invariant: I-044 I-048 I-042
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: concrete volume discount is two Offers; VolumePrice entity is not required for this deal
+
+### VOLUME-PRICE-003 — Impl PASS / Domain CONFIRMED
+
+- Expected: aUnchanged=15; agreed=offer-5; active=offer-7; sameQty=true
+- Actual: aUnchanged=15; agreed=offer-5; active=offer-7; sameQty=true
+- Invariant: I-006 I-044 I-048
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: same quantity, different unit price: agreed=A current=B; Offer A is not mutated
+
+### VOLUME-PRICE-004 — Impl PASS / Domain CONFIRMED
+
+- Expected: totalA=100; totalB=100; sameTotal=true; sameOffer=false; priceA=20; priceB=10
+- Actual: totalA=100; totalB=100; sameTotal=true; sameOffer=false; priceA=20; priceB=10
+- Invariant: I-042 I-044 I-048
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: equal derived totals are arithmetic, not Offer identity
+
+### VOLUME-PRICE-005 — Impl PASS / Domain CONFIRMED
+
+- Expected: distinct=true; totalA=60; totalB=119; totalC=168; aUnchanged=20
+- Actual: distinct=true; totalA=60; totalB=119; totalC=168; aUnchanged=20
+- Invariant: I-048 I-044
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: concrete quantity-dependent deals are Offers; this does not introduce a tier schedule
+
+### VOLUME-PRICE-005B — Impl PASS / Domain OPEN (SPEC-OQ-002B)
+
+- Expected: concreteOffer=true; scheduleOnOffer=false; scheduleOnSnapshot=false; scheduleOnWorld=false
+- Actual: concreteOffer=true; scheduleOnOffer=false; scheduleOnSnapshot=false; scheduleOnWorld=false
+- Invariant: I-048
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002B
+- Model violation: none
+- New concept: quantity-range price schedule (not introduced)
+- Workaround: none
+- Decision: MODEL GAP: a standing quantity-range price schedule is not a domain object
+
+### VOLUME-PRICE-006 — Impl PASS / Domain CONFIRMED
+
+- Expected: newOffer=true; aQty=5; aPrice=15; bQty=10; bPrice=15; aUnchangedQty=5
+- Actual: newOffer=true; aQty=5; aPrice=15; bQty=10; bPrice=15; aUnchangedQty=5
+- Invariant: I-006 I-044 I-048
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: quantity change is a new Offer; Offer #1 is not mutated
+
+### VOLUME-PRICE-007 — Impl PASS / Domain CONFIRMED
+
+- Expected: aQty=5; aPrice=15; bQty=10; bPrice=12; aUnchanged=15; newOffer=true
+- Actual: aQty=5; aPrice=15; bQty=10; bPrice=12; aUnchanged=15; newOffer=true
+- Invariant: I-006 I-044 I-048
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: seller reprice after quantity increase is a new Offer; Offer #1 stays 5 kg @ 15
+
+### VOLUME-PRICE-008 — Impl PASS / Domain CONFIRMED
+
+- Expected: product=tomatoes; quantity=20; unit=kg; price=12; derivedTotal=240; storedLinePrice=false; priceIsNotTotal=true
+- Actual: product=tomatoes; quantity=20; unit=kg; price=12; derivedTotal=240; storedLinePrice=false; priceIsNotTotal=true
+- Invariant: I-042 I-023 I-048
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: snapshot keeps unit-price basis 20 kg @ 12; derived total 240 is not stored as price
+
 ## Final decision
 
 ```text
-Model version: v0.1.15 / SPEC v0.4
+Model version: v0.1.16 / SPEC v0.5
 Status: experiment implemented; production architecture not started
 
 Scope of this evidence: every CONFIRMED below confirms a SPECIFIC experimental behavior
@@ -808,12 +1016,14 @@ Changes in this PR (already implemented and tested):
 - OQ-006 / OQ-008 closed
 - PartialAvailabilitySeller offers min(requested, stock) of the SAME CatalogLine (sellerId, productId, unit) — a pcs pool is not kg stock
 - cheapestAvailable() removed from domain catalog semantics (ambiguous ≠ cheapest); catalogUnitPrice returns null on disagreement
-- GREENMARKET_DOMAIN_SPEC v0.4 is the canonical domain contract; TZ-BASKET-006 closed SPEC OQ-001; SPEC OQ-002 remains OPEN
+- GREENMARKET_DOMAIN_SPEC v0.5 is the canonical domain contract; TZ-BASKET-006 closed SPEC OQ-001; TZ-BASKET-007 splits OQ-002 into OQ-002A/OQ-002B without closing either
 - I-042: price is the price of one unit; derived total = quantity * price; no stored linePrice
 - I-043: changing quantity does not reread price as a line total
 - I-044: Offer stores (product, quantity, unit, price); a change is a new Offer
-- I-045: catalog quantity is Stage-1 reference size — not identity, multiplier, or conversion; SPEC OQ-002 business semantics remain OPEN
+- I-045: catalog quantity is Stage-1 reference size — not identity, multiplier, or conversion
 - I-046: acceptOffer requires a finite price on every item; unitLineTotal only multiplies under I-030/I-046 bounds and is not a hidden validator
+- I-047: package contents / size in another unit is not a stored fact; external 1 package = 5 kg is experimenter knowledge
+- I-048: a concrete volume-priced deal is an Offer; a standing quantity-range schedule is not introduced
 - snapshot.alternatives is a List projection (AlternativeProjection); current SP items are only a binding set
 - createPurchaseFromList surfaces MISSING_QUANTITY instead of inventing quantity 1
 - I-037: validUntil constrains accept/counter of the ACTIVE standing proposal only; it does not revoke Acceptance or agreed baseline
@@ -838,13 +1048,19 @@ TZ-BASKET-006
 Status: PASS for Stage-1 representation / OQ-001
 OQ-001: CLOSED — price = price of one unit
 Stage-1 representation: catalog quantity is not a multiplier/conversion (I-045)
-OQ-002: OPEN — package/volume business semantics (PACKAGE-002/003/004 are limitation evidence)
-Model change required: YES (projections, I-046, MISSING_QUANTITY)
-New concept required: YES if/when OQ-002 is closed — NOT introduced
+OQ-002: split by TZ-BASKET-007 into OQ-002A / OQ-002B
+
+TZ-BASKET-007
+Status: PASS for Stage-1 representation; no new entity
+OQ-002A: OPEN — package is a unit; contents/conversion/partial remain MODEL GAP (I-047)
+OQ-002B: Stage-1 — concrete volume deal = Offer (I-048); standing schedule OPEN
+Model change required: NO new entity
+New concept required: YES if/when OQ-002A contents or OQ-002B schedule is closed — NOT introduced
 Production architecture changed: NO
 
 Still open:
-- SPEC OQ-002 — package/volume business semantics
+- SPEC OQ-002A — package contents / conversion / partial package
+- SPEC OQ-002B — standing quantity-range price schedule
 - SPEC OQ-003 — duplicate ListItems
 - SPEC OQ-005 / experiment OQ-010 — negotiation TTL
 - SPEC OQ-008 / experiment OQ-002 — alternative price *policy*
