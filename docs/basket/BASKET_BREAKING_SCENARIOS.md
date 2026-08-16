@@ -137,7 +137,7 @@ The pointer `activeOfferId` is required (I-011). This scenario checks what it po
 
 ## BS-022 — Silence After Expiration
 
-Expired Offer plus no new seller response. Silence is not REJECT/CANCEL/EXPIRED (I-039). Status and pointers stay; only computed `isOfferValid` becomes false.
+Expired Offer plus no new seller response. Silence is not a command and is not `markWaiting`. Status stays whatever the last real command left (typically `WAITING_BUYER` after a seller Offer). Not REJECT/CANCEL/EXPIRED (I-039). Only computed `isOfferValid` becomes false.
 
 ## BS-023 — Conflicting Full Promises
 
@@ -182,7 +182,7 @@ Offer A is active. Buyer does nothing. `time > validUntil`. Same pointers and st
 
 ## BS-031 — Accepted Offer expires
 
-Offer A is accepted (`agreedOfferId = A`, `activeOfferId = A`). Time passes `validUntil`. No replacement Offer. SellerPurchase stays STABLE; both pointers stay A; A is no longer valid as a standing proposal (I-037 / I-038).
+Offer A is accepted (`agreedOfferId = A`, `activeOfferId = A`). Time passes `validUntil`. No replacement Offer. SellerPurchase stays STABLE; both pointers stay A; A is no longer valid as a standing proposal (I-037 / I-038). COUNTER of A is still forbidden (I-035). A is not a stock claim (I-025). `advance` creates no new facts (I-040).
 
 ## BS-032 — Accepted Offer expires, then a new Offer appears
 

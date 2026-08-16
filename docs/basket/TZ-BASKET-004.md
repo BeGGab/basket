@@ -126,8 +126,10 @@ counter). Это согласовано с I-037 / I-028 / I-035 после за
 - `validUntil` ограничивает только принятие / counter ACTIVE Offer;
 - STABLE проверяется раньше validity: истёкший согласованный Offer при `agreed == active` даёт
   `WAIT(TERMINAL_STATUS)`, а не попытку принять истёкшее предложение;
-- basis фиксирует временную валидность только active Offer; истечение agreed Offer basis не
-  инвалидирует.
+- basis фиксирует временную валидность **active** Offer. Если `agreed == active` (STABLE), истечение
+  этого Offer меняет `activeOfferValid` и делает ранее вычисленный Advice stale — это запрет
+  применить ACCEPT/COUNTER к истёкшему standing proposal, не отзыв соглашения.
+- если после истечения A появился живой active B, истечение agreed A basis не инвалидирует.
 
 Это подтверждённая семантика SPEC v0.3 (I-037 / I-038), а не assistant-only interpretation.
 Слой ассистентов подтверждает конкретное экспериментальное поведение поверх модели, а не

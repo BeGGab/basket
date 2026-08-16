@@ -769,6 +769,31 @@ export function runTz004(): void {
   assert.equal(afterStableExpiry.kind, "WAIT");
   assert.equal(afterStableExpiry.waitReason, "TERMINAL_STATUS");
 
+  // Pre-expiry STABLE WAIT becomes stale after the standing proposal expires (activeOfferValid
+  // flipped). Re-advise is still WAIT(TERMINAL_STATUS) — agreement is not revoked.
+  const stableThenExpire = tomatoesWorld();
+  stableThenExpire.world.proposeOffer({
+    sellerPurchaseId: stableThenExpire.spId,
+    actor: "SELLER",
+    items: [{ productId: "tomatoes", quantity: 2, unit: "kg", price: 15 }],
+    reason: "PRICE_CHANGE",
+    validUntil: "2026-01-01T00:00:05.000Z",
+  });
+  stableThenExpire.world.acceptOffer(stableThenExpire.world.requireSp(stableThenExpire.spId).activeOfferId!, "BUYER");
+  const waitWhileValid = adviseBuyer(stableThenExpire.world, stableThenExpire.spId);
+  assert.equal(waitWhileValid.kind, "WAIT");
+  assert.equal(waitWhileValid.waitReason, "TERMINAL_STATUS");
+  stableThenExpire.world.advance(10_000);
+  assert.throws(
+    () => applyAdvice(stableThenExpire.world, stableThenExpire.spId, waitWhileValid),
+    /stale.*validity|expired/,
+    "STABLE WAIT computed while the standing proposal was live is stale after expiry"
+  );
+  const waitAfterExpiry = adviseBuyer(stableThenExpire.world, stableThenExpire.spId);
+  assert.equal(waitAfterExpiry.kind, "WAIT");
+  assert.equal(waitAfterExpiry.waitReason, "TERMINAL_STATUS");
+  assert.equal(stableThenExpire.world.requireSp(stableThenExpire.spId).status, "STABLE");
+
   // --- Positive substitution choice is a policy parameter, not a hardcoded rule. ---
   const choice = tomatoesWorld();
   choice.world.proposeOffer({

@@ -76,7 +76,7 @@ Silence = **отсутствие domain command**, не сущность и не
 ### OQ-012 — время
 
 1. Источник времени — `DeterministicClock` мира (`Clock.now()`). Domain operations читают часы, не принимают timestamp.
-2. `advance(durationMs)` — domain operation: двигает часы и пересчитывает derived STABLE eligibility. Не создаёт Offers / Acceptances / статусы и не чистит pointers.
+2. `advance(durationMs)` — domain operation: двигает **только** часы. Не создаёт Offers / Acceptances / stock-conflict events / статусы и не чистит pointers. STABLE от часов не зависит (I-038). `validUntil` — exclusive end (`now === validUntil` уже expired).
 3. Emulator/runtime `tick()` — **не** domain operation.
 4. Passage of time меняет только computed `isOfferValid`. Не входит в `EXPIRED` / `REJECTED` / `CANCELLED`.
 5. `SELLER_UNRESPONSIVE` — не domain state.
@@ -92,7 +92,7 @@ Silence = **отсутствие domain command**, не сущность и не
 - **I-037** — `validUntil` ограничивает accept/counter active standing proposal; не отзывает Acceptance
 - **I-038** — STABLE = `agreed == active` и нет pending mandatory substitutions; validity не вход/выход
 - **I-039** — silence не меняет status / pointers и не изобретает REJECT/CANCEL/EXPIRED
-- **I-040** — clock + `advance` — модель времени; `tick()` не domain operation
+- **I-040** — clock + `advance` двигает только часы; `tick()` не domain operation; `validUntil` — exclusive end
 - **I-041** — time/silence не входят в `EXPIRED`
 
 ## Сценарии
@@ -103,7 +103,12 @@ Regression: BS-012, BS-013, BS-021, BS-022, BS-024, BS-026, BS-028 — Domain CO
 
 ## Implementation
 
-Единственное смысловое изменение кода: `refreshStatus` больше не требует `isOfferValid(agreed)` для STABLE (I-038). Assistant Advice shape не менялся: STABLE проверяется раньше validity → `WAIT(TERMINAL_STATUS)`; истёкший agreed Offer остаётся price baseline при живом следующем active Offer.
+Смысловые изменения кода:
+
+- `refreshStatus` больше не требует `isOfferValid(agreed)` для STABLE (I-038);
+- `advance()` двигает только часы и больше не вызывает `refreshStatus` (I-040) — время не пишет stock-conflict events и не пересчитывает FSM.
+
+Assistant Advice shape не менялся: STABLE проверяется раньше validity → `WAIT(TERMINAL_STATUS)`; истёкший agreed Offer остаётся price baseline при живом следующем active Offer. Pre-expiry STABLE WAIT становится stale после expiry (`activeOfferValid` flipped); повторный advise снова `WAIT(TERMINAL_STATUS)`.
 
 ## Assistant compatibility
 

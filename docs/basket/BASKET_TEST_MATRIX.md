@@ -27,7 +27,7 @@
 | BS-019 | Alternative across sellers | ✓ | ✓ |  | resolution ordering |
 | BS-020 | Simultaneous seller changes | ✓ | ✓ | ✓ | TZ002-THREE-SELLERS |
 | BS-021 | Expired + new Offer | ✓ | ✓ |  | new Offer becomes active; expired stays historical (I-011) |
-| BS-022 | Silence after expiration | ✓ | ✓ |  | TTL/state |
+| BS-022 | Silence after expiration | ✓ | ✓ |  | I-039 not a command; status stays WAITING_BUYER |
 | BS-023 | Conflicting promises | ✓ | ✓ |  | stock=6 combined=7 OFFER_CREATION; both STABLE |
 | BS-024 | Accepted + new Offer | ✓ | ✓ | ✓ | TZ002-SNAPSHOT agreed ≠ current |
 | BS-025 | Accepted substitution + new Offer | ✓ | ✓ |  | history |

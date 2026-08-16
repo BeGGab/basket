@@ -38,7 +38,7 @@ Offer expiration is three separate things:
 - **I-037:** `validUntil` constrains acceptance and counter of the **active** standing proposal only. It does not revoke a recorded Acceptance, clear `agreedOfferId` / `activeOfferId`, or remove the agreed Offer as a price baseline. An expired agreed Offer is still the commercial baseline and may keep STABLE, but it is not a stock claim (I-025).
 - **I-038:** STABLE is the presence of an accepted agreement (`agreedOfferId === activeOfferId` and no pending mandatory substitutions). Current Offer validity is not a STABLE entry or exit condition — the Acceptance already happened while the Offer was valid (I-028).
 - **I-039:** Silence is the absence of a domain command. It does not change SellerPurchase status, `activeOfferId`, or `agreedOfferId`, and does not invent `REJECTED`, `CANCELLED`, or `EXPIRED`.
-- **I-040:** The world's `DeterministicClock` is the sole time source. `advance` is the domain operation that moves time and re-evaluates derived STABLE eligibility. Emulator/runtime `tick()` is not a domain operation.
+- **I-040:** The world's `DeterministicClock` is the sole time source. `advance` moves the clock and nothing else: it does not create Offers, Acceptances, Substitutions, stock-conflict events, or FSM transitions, and it does not clear pointers. `isOfferValid` is computed from the clock (`validUntil` is an exclusive end). Emulator/runtime `tick()` is not a domain operation.
 - **I-041:** Passage of time and silence do not transition a SellerPurchase to `EXPIRED`. `EXPIRED` is reserved so the FSM can refuse that automatic transition (I-026).
 
 ## Substitution

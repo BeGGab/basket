@@ -42,7 +42,7 @@ Record evidence from the mock domain and seller emulator.
 | BS-019 | PASS | CONFIRMED | none | close OQ-006: Resolution before seller partitioning |
 | BS-020 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-021 | PASS | CONFIRMED | none | I-011: new Offer becomes active; expired Offer stays historical |
-| BS-022 | PASS | CONFIRMED | none | I-039: silence after expiration does not REJECT or change pointers |
+| BS-022 | PASS | CONFIRMED | none | I-039: silence after expiration is not a command — status stays WAITING_BUYER |
 | BS-023 | PASS | OPEN (OQ-016) | none | detection-event log only; Allocation/Reservation remain OQ-016 |
 | BS-024 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-025 | PASS | CONFIRMED | none | keep v0.1 |
@@ -50,8 +50,8 @@ Record evidence from the mock domain and seller emulator.
 | BS-027 | PASS | OPEN (OQ-001) | none | keep v0.1 |
 | BS-028 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-029 | PASS | CONFIRMED | none | silence while valid changes nothing but the clock |
-| BS-030 | PASS | CONFIRMED | none | silence until expiration is not implicit REJECT |
-| BS-031 | PASS | CONFIRMED | none | accepted Offer expiry keeps STABLE and both pointers |
+| BS-030 | PASS | CONFIRMED | none | silence until expiration is not implicit REJECT; validUntil is exclusive |
+| BS-031 | PASS | CONFIRMED | none | accepted Offer expiry keeps STABLE and pointers; no claim; no counter; time creates no facts |
 | BS-032 | PASS | CONFIRMED | none | new Offer after agreed expiry becomes active; A stays agreed until B is accepted |
 | BS-033 | PASS | CONFIRMED | none | expired Offer cannot be revived by ACCEPT |
 | BS-034 | PASS | CONFIRMED | none | expired Offer cannot be countered |
@@ -314,15 +314,15 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-022 — Impl PASS / Domain CONFIRMED
 
-- Expected: offerValid=false; status=WAITING_SELLER; hasWaitingSince=true
-- Actual: offerValid=false; status=WAITING_SELLER; hasWaitingSince=true
-- Invariant: I-026 I-039
+- Expected: offerValid=false; status=WAITING_BUYER; hasWaitingSince=true; invented=false
+- Actual: offerValid=false; status=WAITING_BUYER; hasWaitingSince=true; invented=false
+- Invariant: I-026 I-039 I-040
 - Hypothesis: CONFIRMED
 - Open question: none
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: I-039: silence after expiration does not REJECT or change pointers
+- Decision: I-039: silence after expiration is not a command — status stays WAITING_BUYER
 
 ### BS-023 — Impl PASS / Domain OPEN (OQ-016)
 
@@ -362,9 +362,9 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-026 — Impl PASS / Domain CONFIRMED
 
-- Expected: offerValid=true; status=WAITING_SELLER
-- Actual: offerValid=true; status=WAITING_SELLER
-- Invariant: I-039 I-026
+- Expected: offerValid=true; status=WAITING_BUYER
+- Actual: offerValid=true; status=WAITING_BUYER
+- Invariant: I-039 I-026 I-040
 - Hypothesis: CONFIRMED
 - Open question: none
 - Model violation: none
@@ -410,27 +410,27 @@ Record evidence from the mock domain and seller emulator.
 
 ### BS-030 — Impl PASS / Domain CONFIRMED
 
-- Expected: status=WAITING_BUYER; active=offer-5; agreed=null; valid=false; rejected=false; expiredState=false
-- Actual: status=WAITING_BUYER; active=offer-5; agreed=null; valid=false; rejected=false; expiredState=false
-- Invariant: I-039 I-028
+- Expected: status=WAITING_BUYER; active=offer-5; agreed=null; valid=false; rejected=false; expiredState=false; atExactValidUntil=true
+- Actual: status=WAITING_BUYER; active=offer-5; agreed=null; valid=false; rejected=false; expiredState=false; atExactValidUntil=true
+- Invariant: I-039 I-028 I-040
 - Hypothesis: CONFIRMED
 - Open question: none
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: silence until expiration is not implicit REJECT
+- Decision: silence until expiration is not implicit REJECT; validUntil is exclusive
 
 ### BS-031 — Impl PASS / Domain CONFIRMED
 
-- Expected: status=STABLE; agreed=offer-5; active=offer-5; valid=false; expiredState=false
-- Actual: status=STABLE; agreed=offer-5; active=offer-5; valid=false; expiredState=false
-- Invariant: I-037 I-038
+- Expected: status=STABLE; agreed=offer-5; active=offer-5; valid=false; expiredState=false; timeCreatesConflicts=false; counterBlocked=true; claimDropped=true
+- Actual: status=STABLE; agreed=offer-5; active=offer-5; valid=false; expiredState=false; timeCreatesConflicts=false; counterBlocked=true; claimDropped=true
+- Invariant: I-037 I-038 I-025 I-035 I-040
 - Hypothesis: CONFIRMED
 - Open question: none
 - Model violation: none
 - New concept: none
 - Workaround: none
-- Decision: accepted Offer expiry keeps STABLE and both pointers
+- Decision: accepted Offer expiry keeps STABLE and pointers; no claim; no counter; time creates no facts
 
 ### BS-032 — Impl PASS / Domain CONFIRMED
 
@@ -553,7 +553,7 @@ Changes in this PR (already implemented and tested):
 - I-037: validUntil constrains accept/counter of the ACTIVE standing proposal only; it does not revoke Acceptance or agreed baseline
 - I-038: STABLE is agreed==active and no pending substitutions — Offer validity is not a STABLE exit
 - I-039: silence is the absence of a command; it does not REJECT/CANCEL/EXPIRED or move pointers
-- I-040: DeterministicClock + advance() are the domain time model; emulator tick() is not a domain operation
+- I-040: DeterministicClock + advance() move only the clock; time creates no facts; validUntil is exclusive
 - I-041: time/silence do not enter EXPIRED
 - BS-029…036: silence-while-valid, silence-until-expiry, agreed expiry, new Offer after expiry, no revive, no counter, no fake FSM state, time determinism
 - Stock race records combined claims (stock=6, A→4, B→3) at OFFER_CREATION

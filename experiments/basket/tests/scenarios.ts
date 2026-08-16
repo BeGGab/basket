@@ -894,12 +894,11 @@ export function runAllScenarios(): ScenarioResult[] {
         reason: "PRICE_CHANGE",
         validUntil: "2026-12-31T00:00:00.000Z",
       });
-      w.markWaiting(sp);
       w.advance(3_600_000);
       return prove(
         "BS-026",
-        "I-039 I-026",
-        { offerValid: true, status: "WAITING_SELLER" },
+        "I-039 I-026 I-040",
+        { offerValid: true, status: "WAITING_BUYER" },
         { offerValid: w.isOfferValid(w.lastOffer(sp)!), status: w.requireSp(sp).status },
         "I-039: silence while valid is not expiration and does not change status",
         "CONFIRMED",
@@ -1106,18 +1105,18 @@ export function runAllScenarios(): ScenarioResult[] {
         validUntil: "2026-01-01T00:00:01.000Z",
       });
       w.advance(10_000);
-      w.markWaiting(sp);
       const s = w.requireSp(sp);
       return prove(
         "BS-022",
-        "I-026 I-039",
-        { offerValid: false, status: "WAITING_SELLER", hasWaitingSince: true },
+        "I-026 I-039 I-040",
+        { offerValid: false, status: "WAITING_BUYER", hasWaitingSince: true, invented: false },
         {
           offerValid: w.isOfferValid(w.lastOffer(sp)!),
           status: s.status,
           hasWaitingSince: Boolean(s.waitingSince),
+          invented: s.status === "EXPIRED" || s.status === "REJECTED",
         },
-        "I-039: silence after expiration does not REJECT or change pointers",
+        "I-039: silence after expiration is not a command — status stays WAITING_BUYER",
         "CONFIRMED",
         "none"
       );
@@ -1177,11 +1176,11 @@ export function runAllScenarios(): ScenarioResult[] {
         reason: "PRICE_CHANGE",
         validUntil: "2026-01-01T00:00:01.000Z",
       });
-      w.advance(10_000);
+      w.advance(1_000);
       const s = w.requireSp(sp);
       return prove(
         "BS-030",
-        "I-039 I-028",
+        "I-039 I-028 I-040",
         {
           status: "WAITING_BUYER",
           active: offer.id,
@@ -1189,6 +1188,7 @@ export function runAllScenarios(): ScenarioResult[] {
           valid: false,
           rejected: false,
           expiredState: false,
+          atExactValidUntil: true,
         },
         {
           status: s.status,
@@ -1197,8 +1197,9 @@ export function runAllScenarios(): ScenarioResult[] {
           valid: w.isOfferValid(offer),
           rejected: s.status === "REJECTED",
           expiredState: s.status === "EXPIRED",
+          atExactValidUntil: w.nowIso() === "2026-01-01T00:00:01.000Z",
         },
-        "silence until expiration is not implicit REJECT"
+        "silence until expiration is not implicit REJECT; validUntil is exclusive"
       );
     })
   );
@@ -1206,29 +1207,56 @@ export function runAllScenarios(): ScenarioResult[] {
   results.push(
     run("BS-031", () => {
       const w = new BasketWorld();
-      w.setCatalog(catalog());
+      w.setCatalog({
+        names: { tomatoes: "Tomatoes" },
+        availability: [{ sellerId: "seller-a", productId: "tomatoes", quantity: 20, unit: "kg", price: 15, stock: 6 }],
+      });
       const list = w.createList("bs031");
-      w.addItem(list.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+      w.addItem(list.id, { productId: "tomatoes", quantity: 4, unit: "kg", alternatives: [] });
       const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
       const a = w.proposeOffer({
         sellerPurchaseId: sp,
         actor: "SELLER",
-        items: tomatoes(2, 15),
+        items: tomatoes(4, 15),
         reason: "PRICE_CHANGE",
         validUntil: "2026-01-01T00:00:05.000Z",
       });
       w.acceptOffer(a.id, "BUYER");
+      const conflictsBeforeTime = w.stockConflicts.length;
       w.advance(10_000);
+      const conflictsAfterTime = w.stockConflicts.length;
       const s = w.requireSp(sp);
+      const counterBlocked = threw(
+        () =>
+          w.proposeOffer({
+            sellerPurchaseId: sp,
+            actor: "BUYER",
+            items: tomatoes(4, 14),
+            reason: "BUYER_CHANGE",
+          }),
+        /I-035|expired/
+      );
+      const listB = w.createList("bs031-b");
+      w.addItem(listB.id, { productId: "tomatoes", quantity: 3, unit: "kg", alternatives: [] });
+      const spB = w.createPurchaseFromList(listB.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      w.proposeOffer({
+        sellerPurchaseId: spB,
+        actor: "SELLER",
+        items: tomatoes(3, 15),
+        reason: "PRICE_CHANGE",
+      });
       return prove(
         "BS-031",
-        "I-037 I-038",
+        "I-037 I-038 I-025 I-035 I-040",
         {
           status: "STABLE",
           agreed: a.id,
           active: a.id,
           valid: false,
           expiredState: false,
+          timeCreatesConflicts: false,
+          counterBlocked: true,
+          claimDropped: true,
         },
         {
           status: s.status,
@@ -1236,8 +1264,11 @@ export function runAllScenarios(): ScenarioResult[] {
           active: s.activeOfferId,
           valid: w.isOfferValid(a),
           expiredState: s.status === "EXPIRED",
+          timeCreatesConflicts: conflictsAfterTime !== conflictsBeforeTime,
+          counterBlocked,
+          claimDropped: w.stockConflicts.filter((c) => c.purchaseId === w.requireSp(spB).purchaseId).length === 0,
         },
-        "accepted Offer expiry keeps STABLE and both pointers"
+        "accepted Offer expiry keeps STABLE and pointers; no claim; no counter; time creates no facts"
       );
     })
   );
@@ -1538,7 +1569,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("- I-037: validUntil constrains accept/counter of the ACTIVE standing proposal only; it does not revoke Acceptance or agreed baseline");
   lines.push("- I-038: STABLE is agreed==active and no pending substitutions — Offer validity is not a STABLE exit");
   lines.push("- I-039: silence is the absence of a command; it does not REJECT/CANCEL/EXPIRED or move pointers");
-  lines.push("- I-040: DeterministicClock + advance() are the domain time model; emulator tick() is not a domain operation");
+  lines.push("- I-040: DeterministicClock + advance() move only the clock; time creates no facts; validUntil is exclusive");
   lines.push("- I-041: time/silence do not enter EXPIRED");
   lines.push("- BS-029…036: silence-while-valid, silence-until-expiry, agreed expiry, new Offer after expiry, no revive, no counter, no fake FSM state, time determinism");
   lines.push("- Stock race records combined claims (stock=6, A→4, B→3) at OFFER_CREATION");

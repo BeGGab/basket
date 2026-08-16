@@ -415,7 +415,8 @@ buyer. Fulfillment as a production subsystem remains outside Stage 1. **CONFIRME
 ## 38. Offer validity vs agreement (closes experiment OQ-009 / SPEC OQ-004)
 
 `validUntil` is a property of one immutable Offer. `isOfferValid(offer)` is true when `validUntil`
-is absent or still in the future relative to the world clock.
+is absent or strictly in the future relative to the world clock (`now < validUntil`). The instant
+`now === validUntil` is already expired.
 
 **Decision.** Validity constrains *standing-proposal operations* on the **active** Offer only:
 
@@ -454,7 +455,8 @@ A general TTL for the whole SellerPurchase negotiation is still undefined. **OPE
 ## 39. Silence (closes experiment OQ-011)
 
 **Decision.** Silence is the *absence of a domain command*, not a domain entity and not an FSM
-state. It does not become `REJECT` or `CANCEL` without an explicit command.
+state. It does not become `REJECT` or `CANCEL` without an explicit command. `markWaiting` is an
+emulator command (SlowSeller), not silence; silence scenarios must not call it.
 
 Observable facts already suffice: `waitingSince`, `lastSellerActivity`, and the world clock.
 A derived duration may be computed from those facts; it is not stored as its own entity.
@@ -481,9 +483,9 @@ The experiment records waiting facts so observers (UI, Assistant) can *see* sile
 
 1. **Time source.** The world's `DeterministicClock` (`Clock.now()`) is the sole source of time.
    Domain operations read the clock; they do not take a timestamp parameter.
-2. **`advance(durationMs)` is a domain operation.** It moves the clock and re-evaluates *derived*
-   status (STABLE eligibility). It does not create Offers, Acceptances, Substitutions, or FSM
-   states, and it does not clear pointers.
+2. **`advance(durationMs)` is a domain operation.** It moves the clock and nothing else. It does
+   not create Offers, Acceptances, Substitutions, stock-conflict events, or FSM states, and it
+   does not clear pointers. STABLE eligibility does not depend on the clock (I-038).
 3. **Emulator/runtime `tick()` is not a domain operation.** It may call `advance` and then actor
    responses. Domain semantics must not live only in `tick()`.
 4. **What passage of time does.** It changes computed `isOfferValid`. It does **not** enter
@@ -500,7 +502,7 @@ multiply statuses without a command.
 
 **Affected invariants:** I-040, I-041.
 
-**Affected scenarios:** BS-035, BS-036.
+**Affected scenarios:** BS-022, BS-030, BS-031, BS-035, BS-036.
 
 ## 41. SellerPurchase lifecycle
 

@@ -138,12 +138,12 @@ export class BasketWorld {
   }
 
   /**
-   * Domain time operation (I-040): move the world clock and re-evaluate derived STABLE eligibility.
-   * Does not create Offers/Acceptances, does not clear pointers, does not enter EXPIRED (I-041).
+   * Domain time operation (I-040): move the world clock and nothing else.
+   * `isOfferValid` is computed from the clock; status, pointers, and logs are unchanged.
+   * Does not enter EXPIRED (I-041).
    */
   advance(durationMs: number): void {
     this.clock.advance(durationMs);
-    for (const sp of this.spById.values()) this.refreshStatus(sp);
   }
 
   /** Stores a defensive copy: catalog changes only happen through `setCatalog`/`setStock` (I-034). */
@@ -494,7 +494,10 @@ export class BasketWorld {
     };
   }
 
-  /** Standing-proposal validity (I-037): may this Offer be accepted or countered *now*. */
+  /**
+   * Standing-proposal validity (I-037): may this Offer be accepted or countered *now*.
+   * `validUntil` is an exclusive end: the instant `now === validUntil` is already expired.
+   */
   isOfferValid(offer: Offer): boolean {
     if (!offer.validUntil) return true;
     return Date.parse(offer.validUntil) > this.clock.now().getTime();
