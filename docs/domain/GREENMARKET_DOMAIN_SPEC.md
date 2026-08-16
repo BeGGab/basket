@@ -144,8 +144,9 @@ Tomatoes / kg / 20 kg
 
 all belong to the same commercial line `Tomatoes / kg`. Catalog `quantity` is a reference/package
 size on that row: it is not identity, not a price multiplier, and not a conversion into another
-unit (I-045). Volume pricing and package-contents conversion are a MODEL GAP — not introduced.
-**CONFIRMED**
+unit (I-045). That is a Stage-1 representation constraint. Whether the future domain should
+support volume pricing or package-contents conversion remains **OPEN — OQ-002**.
+**CONFIRMED** (Stage-1 constraint only)
 
 ## 9. Unit
 
@@ -204,44 +205,46 @@ Tomatoes   quantity = 2   unit = kg   price = 15
 The derived total is not a stored field. `linePrice` does not exist. A missing `price` yields no
 derived total (it is not invented as 0).
 
-`(quantity=2, price=15)` and `(quantity=1, price=30)` are different stored facts. They share a
-derived total only after this rule is applied. The raw triple does not self-label “line” vs
-“unit”; the domain rule does.
+`(quantity=2, price=15)` and `(quantity=1, price=30)` are different stored facts. They may share
+a derived arithmetic total after this rule is applied. That equality is a numeric consequence,
+not a claim that the two deals are commercially equivalent.
 
 Changing `quantity` does not reinterpret `price` as a line total (I-043). Changing quantity or
 price requires a new Offer (I-044 / I-006). Requested `PurchaseItem.quantity` is the buyer amount
-in `unit`; it is not copied from catalog `quantity`.
+in `unit`; it is not copied from catalog `quantity`. A ListItem without quantity cannot become a
+PurchaseItem — it is surfaced as `MISSING_QUANTITY`. Acceptance requires a finite `price` on
+every item (I-046).
 
-**Rationale.** Catalog lookup, assistants, stock, and Offer comparison already compare `price` as
-per-unit. A line-price reading would treat `(2 kg, 15)` and `(1 kg, 15)` as the same unit
-economics.
+**Rationale.** The stored triple has no `linePrice`. A line-price reading would treat
+`(2 kg, 15)` and `(1 kg, 15)` as the same unit economics. Catalog lookup and assistants are
+*consistent* with unit-price; they are not the source of the rule (Rule 49).
 
-**Affected invariants:** I-030, I-036, I-042, I-043, I-044.
+**Affected invariants:** I-030, I-036, I-042, I-043, I-044, I-046.
 
 **Affected scenarios:** PRICE-UNIT-001, PRICE-UNIT-002, PRICE-OFFER-001, PRICE-QTY-001,
-PRICE-ABSENT-001, PRICE-CATALOG-QTY-001, PRICE-SNAPSHOT-001.
+PRICE-ABSENT-001, PRICE-CATALOG-QTY-001, PRICE-SNAPSHOT-001, PRICE-REGRESSION-001.
 
-## 13.1 Package / reference quantity (closes SPEC OQ-002)
+## 13.1 Package / reference quantity (Stage-1 constraint; OQ-002 remains OPEN)
 
-**Decision.** Catalog `quantity` is a reference/package size of that catalog row (I-045).
-`unit = "package"` is a commercial unit like `kg`: `1 package @ 60` means 60 per package.
+**Stage-1 representation (CONFIRMED).** Catalog `quantity` is a reference/package size of that
+catalog row (I-045). `unit = "package"` is a commercial unit like `kg`: `1 package @ 60` means
+60 per package. Catalog `quantity` does not scale `price` and is not a conversion into another
+unit. This specification does **not** introduce `Package` or `Price` entities and does not
+auto-convert 60 MAD/package into 12 MAD/kg.
 
-The current `(quantity, unit, price)` triple cannot represent:
+**Business semantics (OPEN — OQ-002).** The experiment shows that the current identity
+`(sellerId, productId, unit)` cannot *represent* volume pricing (same line, different package
+sizes, different unit prices → `AMBIGUOUS_PRICE`) or package contents (`1 package = 5 kg`).
+That is a MODEL GAP / limitation of Stage-1 representation. It is **not** a decision that
+volume pricing or package-contents conversion must not exist in the future domain.
 
-- `1 package = 5 kg` (contents / unit conversion);
-- volume pricing: same CatalogLine identity, different package sizes, different unit prices
-  (those rows are `AMBIGUOUS_PRICE`).
-
-Those require a new domain concept. This specification does **not** introduce `Package` or
-`Price` entities and does not auto-convert 60 MAD/package into 12 MAD/kg.
-
-**Rationale.** CatalogLine identity is `(sellerId, productId, unit)`. Putting package size into
-that identity, or treating catalog `quantity` as a hidden kg conversion, would be a new rule
-smuggled through an existing field.
+**Rationale.** Putting package size into CatalogLine identity, or treating catalog `quantity` as
+a hidden kg conversion, would smuggle a new rule through an existing field. The next experiment
+must decide the business semantics before any new concept is added.
 
 **Affected invariants:** I-036, I-045.
 
-**Affected scenarios:** PACKAGE-001, PACKAGE-002, PACKAGE-003.
+**Affected scenarios:** PACKAGE-001 (representation), PACKAGE-002 / PACKAGE-003 (OPEN — OQ-002).
 
 Alternative *selection policy* (AUTO_ACCEPT / BEST_PRICE / ASK_BUYER) is a different question and
 stays **OPEN — SPEC OQ-008**.
@@ -346,8 +349,9 @@ The Active Offer does not become agreed automatically.
 After an Offer is accepted, both pointers may still name that same Offer. Later expiration of that
 Offer does **not** clear either pointer. A subsequent new Offer becomes the new `activeOfferId`;
 `agreedOfferId` stays on the last accepted Offer until a later Acceptance. The SellerPurchase
-snapshot exposes agreed items, current items, pending substitutions, and List alternatives as a
-**representation** (catalog unit price, no selection policy). **CONFIRMED**
+snapshot exposes agreed items, current items, pending substitutions, and a List-alternative
+**projection** (requested qty/unit vs catalog qty/unit/price; no selection policy). The
+projection is not a commercial entity. **CONFIRMED**
 
 ## 24. Acceptance
 
@@ -646,9 +650,10 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
 
 - **OQ-001 — Price semantics.** **CLOSED** in v0.4. See §13: `price` is the price of one `unit`.
   A derived line total is `quantity * price` and is not stored.
-- **OQ-002 — Package quantity pricing.** **CLOSED** in v0.4 for Stage-1 representation. See §13.1:
-  catalog `quantity` is a reference/package size — not a multiplier and not a unit conversion.
-  Package-contents (`1 package = 5 kg`) and volume pricing require a new concept (not introduced).
+- **OQ-002 — Package / volume pricing business semantics.** **OPEN.** Stage-1 records a
+  representation constraint (see §13.1 / I-045): catalog `quantity` is not a multiplier or unit
+  conversion. Whether the domain should later support volume pricing or package contents is
+  undecided. PACKAGE-002 / PACKAGE-003 are evidence of the current limitation, not a policy.
 - **OQ-003 — Duplicate ListItems.** What to do with `Tomatoes / 2 kg` and `Tomatoes / 5 kg` in one
   List? **OPEN**
 - **OQ-004 — Expired agreed Offer.** **CLOSED** in v0.3 (maps to experiment OQ-009). See §38:
@@ -692,7 +697,7 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
 | v0.3 | TZ-BASKET-005 | silence is absence of a command; no auto REJECT/CANCEL/EXPIRED (exp OQ-011 CLOSED) |
 | v0.3 | TZ-BASKET-005 | world clock + `advance` are the time model; `tick` is not a domain operation (exp OQ-012 CLOSED) |
 | v0.4 | TZ-BASKET-006 | `price` is the price of one `unit`; no stored `linePrice` (SPEC OQ-001 CLOSED) |
-| v0.4 | TZ-BASKET-006 | catalog `quantity` is reference size only; package contents / volume pricing are a MODEL GAP (SPEC OQ-002 CLOSED for Stage-1 representation) |
+| v0.4 | TZ-BASKET-006 | catalog `quantity` is Stage-1 reference size only (I-045); SPEC OQ-002 remains OPEN for package/volume business semantics |
 
 ## 50. Rule for the next PR
 
@@ -718,7 +723,7 @@ After v0.4, price is split cleanly from package size, and Offer time from v0.3 r
 
 ```
 price          → price of one unit (derived total = quantity × price; not stored)
-catalog qty    → reference/package size; not a conversion and not volume pricing
+catalog qty    → Stage-1 reference size (volume/package-contents business semantics OPEN)
 validUntil     → may this ACTIVE standing proposal be accepted / countered?
 Acceptance     → historical fact; becomes agreedOfferId
 advance(clock) → recomputes isOfferValid; does not invent states
@@ -731,7 +736,7 @@ OQ-011 CLOSED    Stage-1 silence: no command ⇒ no lifecycle change
 OQ-012 CLOSED    passage of time: no SELLER_UNRESPONSIVE / auto-EXPIRED
 
 OQ-001 CLOSED    price = price of one unit
-OQ-002 CLOSED    catalog quantity = reference size; contents/volume = MODEL GAP
+OQ-002 OPEN      package/volume business semantics (Stage-1: catalog qty is not a multiplier)
 OQ-005 OPEN      negotiation lifetime / TTL
 OQ-003 OPEN      duplicate ListItems
 OQ-008 OPEN      alternative price policy (not a representation question)

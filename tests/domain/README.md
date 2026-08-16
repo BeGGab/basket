@@ -43,6 +43,10 @@ npx tsx experiments/basket/tests/run.ts
 | `PRICE-ZERO-001` | price 0 is a unit price, not a missing price | `scenarios.ts` PRICE-ZERO-001 |
 | `PRICE-LIST-QTY-ABSENT-001` | omitted List quantity defaults to 1, not catalog qty | `scenarios.ts` PRICE-LIST-QTY-ABSENT-001 |
 | `ALT-UNIT-001` | alternative in another unit is not converted | `scenarios.ts` ALT-UNIT-001 |
+| `ALT-PACK-001` | list qty vs alt catalog pack size exposed | `scenarios.ts` ALT-PACK-001 |
+| `ALT-STABILITY-001` | alternatives survive offer/substitution change | `scenarios.ts` ALT-STABILITY-001 |
+| `PRICE-REGRESSION-001` | hike/discount still use unit price | `scenarios.ts` PRICE-REGRESSION-001 |
+| `PRICE-TOTAL-001` | invalid quantity/price → no derived total | `scenarios.ts` PRICE-TOTAL-001 |
 | *(SPEC OQ-003)* | duplicate ListItems of same `(productId, unit)` | `run.ts` `DUPLICATE_LINE` (explicit, not silent collapse) |
 
 A PR that confirms a new domain rule MUST add or update a row here **and** the executable test.

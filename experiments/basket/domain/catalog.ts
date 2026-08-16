@@ -18,9 +18,10 @@ type Row = Readonly<CatalogOffer>;
  * array order (that would be a hidden price policy).
  *
  * CONFIRMED (SPEC v0.4 / I-042 / I-045): `price` is per one `unit`. Catalog `quantity` is a
- * reference/package size — not identity, not a price multiplier, not a unit conversion.
+ * Stage-1 reference/package size — not identity, not a price multiplier, not a unit conversion.
  * "1 kg @ 15" and "20 kg @ 15" are the same line at the same unit price. Same identity with
- * different prices is AMBIGUOUS (including volume pricing). `1 package = 5 kg` is a MODEL GAP.
+ * different prices is AMBIGUOUS. Volume pricing / package-contents business semantics remain
+ * SPEC OQ-002 OPEN.
  */
 export interface CatalogLineQuery {
   sellerId?: string;

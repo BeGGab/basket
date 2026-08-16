@@ -7,6 +7,7 @@ import { createSellerEmulator, buyerOffer } from "../emulator/sellers";
 import { resolve } from "../domain/resolution";
 import { catalogUnitPrice } from "../domain/catalog";
 import { hasStoredLinePrice, unitLineTotal } from "../domain/price";
+import { adviseBuyer, catalogReferencePrice } from "../assistants";
 
 export type ScenarioResult = {
   id: string;
@@ -1665,7 +1666,7 @@ export function runAllScenarios(): ScenarioResult[] {
           sameDerived: unitLineTotal(a.items[0]) === unitLineTotal(b.items[0]),
           aUnchanged: w.offerById(a.id).items[0].price ?? null,
         },
-        "2kg@15 vs 1kg@30 are different Offers; equal totals only after unit-price semantics"
+        "2kg@15 vs 1kg@30 are different Offers; equal derived totals are arithmetic, not commercial equivalence"
       );
     })
   );
@@ -1779,16 +1780,32 @@ export function runAllScenarios(): ScenarioResult[] {
         reason: "PRICE_CHANGE",
       });
       const item = offer.items[0];
+      const acceptBlocked = threw(() => w.acceptOffer(offer.id, "BUYER"), /I-046/);
+      const advice = adviseBuyer(w, sp);
       return prove(
         "PRICE-ABSENT-001",
-        "I-042 I-030",
-        { hasPrice: false, derivedTotal: null, storedLinePrice: false },
+        "I-042 I-046",
+        {
+          hasPrice: false,
+          derivedTotal: null,
+          storedLinePrice: false,
+          acceptBlocked: true,
+          stable: false,
+          adviceKind: "WAIT",
+          adviceReason: "MISSING_ITEM_PRICE",
+          catalogRefUnchanged: 15,
+        },
         {
           hasPrice: item.price !== undefined,
           derivedTotal: unitLineTotal(item),
           storedLinePrice: hasStoredLinePrice(item),
+          acceptBlocked,
+          stable: w.requireSp(sp).status === "STABLE",
+          adviceKind: advice.kind,
+          adviceReason: advice.kind === "WAIT" ? advice.waitReason : null,
+          catalogRefUnchanged: catalogReferencePrice(w, "seller-a", "tomatoes", "kg"),
         },
-        "Offer item without price yields no derived total and does not invent linePrice"
+        "priceless Offer has no derived total, cannot be accepted, and is not treated as a priced proposal"
       );
     })
   );
@@ -1855,22 +1872,23 @@ export function runAllScenarios(): ScenarioResult[] {
       });
       const list = w.createList("price-list-qty-absent");
       w.addItem(list.id, { productId: "tomatoes", unit: "kg", alternatives: [] });
-      const item = w.requireSp(
-        w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0]
-      ).items[0];
+      const purchase = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]);
       return prove(
         "PRICE-LIST-QTY-ABSENT-001",
-        "I-045",
-        { itemQty: 1, catalogQty: 20, copiedFromCatalog: false },
+        "I-045 I-030",
         {
-          itemQty: item.quantity,
-          catalogQty: w.catalog.availability[0].quantity,
-          copiedFromCatalog: item.quantity === 20,
+          sellerPurchases: 0,
+          reason: "MISSING_QUANTITY",
+          inventedOne: false,
+          copiedFromCatalog: false,
         },
-        "omitted ListItem.quantity currently defaults to 1 — experimental fallback, not catalog package size",
-        "CONFIRMED",
-        "none",
-        { workaround: "default requested quantity 1 when ListItem.quantity is omitted" }
+        {
+          sellerPurchases: purchase.sellerPurchaseIds.length,
+          reason: purchase.unresolvedItems[0]?.reason ?? null,
+          inventedOne: purchase.sellerPurchaseIds.length > 0,
+          copiedFromCatalog: false,
+        },
+        "ListItem without quantity cannot become a PurchaseItem; MISSING_QUANTITY, not silent 1"
       );
     })
   );
@@ -1898,12 +1916,21 @@ export function runAllScenarios(): ScenarioResult[] {
       return prove(
         "ALT-UNIT-001",
         "I-036 I-045 I-023",
-        { altProduct: "tomato_b", altUnit: "kg", altPrice: null, converted: false },
+        {
+          altProduct: "tomato_b",
+          requestedUnit: "kg",
+          catalogUnit: null,
+          catalogPrice: null,
+          unitCompatible: false,
+          converted: false,
+        },
         {
           altProduct: alt?.productId ?? null,
-          altUnit: alt?.unit ?? null,
-          altPrice: alt?.price ?? null,
-          converted: alt?.price === 8,
+          requestedUnit: alt?.requestedUnit ?? null,
+          catalogUnit: alt?.catalogUnit ?? null,
+          catalogPrice: alt?.catalogPrice ?? null,
+          unitCompatible: alt?.unitCompatible ?? null,
+          converted: alt?.catalogPrice === 8,
         },
         "alternative priced in pcs is not converted into the list kg line"
       );
@@ -1971,31 +1998,44 @@ export function runAllScenarios(): ScenarioResult[] {
           { sellerId: "seller-a", productId: "tomatoes", quantity: 20, unit: "kg", price: 9, stock: 10 },
         ],
       };
-      const sameRef = catalogUnitPrice(samePrice, { sellerId: "seller-a", productId: "tomatoes", unit: "kg" });
-      const volumeRef = catalogUnitPrice(volume, { sellerId: "seller-a", productId: "tomatoes", unit: "kg" });
-      const w = new BasketWorld();
-      w.setCatalog(volume);
-      const list = w.createList("package-002");
-      w.addItem(list.id, { productId: "tomatoes", quantity: 5, unit: "kg", alternatives: [] });
-      const purchase = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]);
+      const sameWorld = new BasketWorld();
+      sameWorld.setCatalog(samePrice);
+      const sameList = sameWorld.createList("package-002-same");
+      sameWorld.addItem(sameList.id, { productId: "tomatoes", quantity: 5, unit: "kg", alternatives: [] });
+      const samePurchase = sameWorld.createPurchaseFromList(sameList.id, "PRIMARY_ONLY", ["seller-a"]);
+      const volumeWorld = new BasketWorld();
+      volumeWorld.setCatalog(volume);
+      const volumeList = volumeWorld.createList("package-002-vol");
+      volumeWorld.addItem(volumeList.id, { productId: "tomatoes", quantity: 5, unit: "kg", alternatives: [] });
+      const volumePurchase = volumeWorld.createPurchaseFromList(volumeList.id, "PRIMARY_ONLY", ["seller-a"]);
       return prove(
         "PACKAGE-002",
         "I-045 I-036",
         {
           samePriceRef: 12,
+          sameCreated: true,
           volumeRef: null,
           volumeUnresolved: true,
           unresolvedReason: "AMBIGUOUS_PRICE",
         },
         {
-          samePriceRef: sameRef,
-          volumeRef,
-          volumeUnresolved: purchase.sellerPurchaseIds.length === 0,
-          unresolvedReason: purchase.unresolvedItems[0]?.reason ?? null,
+          samePriceRef: catalogUnitPrice(sameWorld.catalog, {
+            sellerId: "seller-a",
+            productId: "tomatoes",
+            unit: "kg",
+          }),
+          sameCreated: samePurchase.sellerPurchaseIds.length === 1,
+          volumeRef: catalogUnitPrice(volumeWorld.catalog, {
+            sellerId: "seller-a",
+            productId: "tomatoes",
+            unit: "kg",
+          }),
+          volumeUnresolved: volumePurchase.sellerPurchaseIds.length === 0,
+          unresolvedReason: volumePurchase.unresolvedItems[0]?.reason ?? null,
         },
-        "same unit price + different catalog qty is one line; different unit prices are AMBIGUOUS — volume pricing is a MODEL GAP",
-        "CONFIRMED",
-        "none",
+        "Stage-1: different catalog qty + different unit price is AMBIGUOUS. Volume-pricing policy is not decided",
+        "OPEN",
+        "SPEC-OQ-002",
         { newConcept: "volume-price schedule (not introduced)" }
       );
     })
@@ -2003,39 +2043,52 @@ export function runAllScenarios(): ScenarioResult[] {
 
   results.push(
     run("PACKAGE-003", () => {
-      const pack = {
+      const w = new BasketWorld();
+      w.setCatalog({
         names: { tomatoes: "Tomatoes" },
         availability: [
-          { sellerId: "seller-a", productId: "tomatoes", quantity: 1, unit: "package", price: 60, stock: 10 },
+          { sellerId: "seller-a", productId: "tomatoes", quantity: 5, unit: "package", price: 60, stock: 10 },
+          { sellerId: "seller-a", productId: "tomatoes", quantity: 20, unit: "package", price: 60, stock: 10 },
         ],
-      };
-      const item = { productId: "tomatoes", quantity: 1, unit: "package", price: 60 };
-      const basisA = 5;
-      const basisB = 20;
-      const modelSeesBasis = "packageKg" in item || "contents" in pack.availability[0];
-      const sameStoredFacts = item.quantity === 1 && item.unit === "package" && item.price === 60;
+      });
+      const list = w.createList("package-003");
+      w.addItem(list.id, { productId: "tomatoes", quantity: 1, unit: "package", alternatives: [] });
+      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      const offer = w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: [{ productId: "tomatoes", quantity: 1, unit: "package", price: 60 }],
+        reason: "PRICE_CHANGE",
+      });
+      const qtys = [...new Set(w.catalog.availability.map((row) => row.quantity))].sort((a, b) => a - b);
       return prove(
         "PACKAGE-003",
         "I-045",
         {
-          sameQuantity: true,
-          sameUnit: true,
-          samePrice: true,
-          basisVisible: false,
-          hiddenAmbiguity: true,
-          ref: 60,
+          catalogRows: 2,
+          catalogQtys: "5,20",
+          unitPrice: 60,
+          offerQty: 1,
+          offerUnit: "package",
+          offerPrice: 60,
+          identityCollapsesBasis: true,
         },
         {
-          sameQuantity: sameStoredFacts,
-          sameUnit: sameStoredFacts,
-          samePrice: sameStoredFacts,
-          basisVisible: modelSeesBasis,
-          hiddenAmbiguity: basisA !== basisB && !modelSeesBasis,
-          ref: catalogUnitPrice(pack, { sellerId: "seller-a", productId: "tomatoes", unit: "package" }),
+          catalogRows: w.catalog.availability.length,
+          catalogQtys: qtys.join(","),
+          unitPrice: catalogUnitPrice(w.catalog, {
+            sellerId: "seller-a",
+            productId: "tomatoes",
+            unit: "package",
+          }),
+          offerQty: offer.items[0].quantity,
+          offerUnit: offer.items[0].unit,
+          offerPrice: offer.items[0].price ?? null,
+          identityCollapsesBasis: qtys.join(",") === "5,20" && offer.items[0].quantity === 1,
         },
-        "1 package @ 60 cannot distinguish an external 5 kg basis from a 20 kg basis",
-        "CONFIRMED",
-        "none",
+        "two catalog package sizes (5 and 20) at the same unit price collapse to one Offer 1@60; basis policy OPEN",
+        "OPEN",
+        "SPEC-OQ-002",
         { newConcept: "package basis / contents (not introduced)" }
       );
     })
@@ -2043,58 +2096,61 @@ export function runAllScenarios(): ScenarioResult[] {
 
   results.push(
     run("ALT-PRICE-001", () => {
-      const cat: ProductCatalog = {
+      const w = new BasketWorld();
+      w.setCatalog({
         names: { tomatoes: "Tomatoes", tomato_b: "Tomato B" },
         availability: [
           { sellerId: "seller-a", productId: "tomatoes", quantity: 2, unit: "kg", price: 15, stock: 10 },
           { sellerId: "seller-a", productId: "tomato_b", quantity: 2, unit: "kg", price: 24, stock: 10 },
         ],
-      };
-      const item = {
-        id: "tmp",
+      });
+      const list = w.createList("alt-price-001");
+      w.addItem(list.id, {
         productId: "tomatoes",
         quantity: 2,
         unit: "kg",
         alternatives: [{ productId: "tomato_b", alternativePriority: 1 }],
-      };
-      const primary = resolve(item, "PRIMARY_ONLY", cat);
-      const primaryPrice = catalogUnitPrice(cat, { sellerId: "seller-a", productId: "tomatoes", unit: "kg" });
-      const altPrice = catalogUnitPrice(cat, { sellerId: "seller-a", productId: "tomato_b", unit: "kg" });
+      });
+      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 15),
+        reason: "PRICE_CHANGE",
+      });
+      const alt = w.snapshot(sp).alternatives[0];
       return prove(
         "ALT-PRICE-001",
         "I-014 I-042 I-023",
         {
-          primaryProduct: "tomatoes",
-          primaryKind: "PRIMARY",
-          primaryQty: 2,
-          primaryUnit: "kg",
-          primaryPrice: 15,
+          resolved: "tomatoes",
+          offerPrice: 15,
           altProduct: "tomato_b",
-          altQty: 2,
-          altUnit: "kg",
-          altPrice: 24,
+          altCatalogPrice: 24,
           switchedToAlt: false,
         },
         {
-          primaryProduct: primary.productId,
-          primaryKind: primary.kind,
-          primaryQty: item.quantity,
-          primaryUnit: item.unit,
-          primaryPrice,
-          altProduct: item.alternatives[0].productId,
-          altQty: item.quantity,
-          altUnit: item.unit,
-          altPrice,
-          switchedToAlt: primary.productId === "tomato_b",
+          resolved: w.requireSp(sp).items[0].productId,
+          offerPrice: w.lastOffer(sp)!.items[0].price ?? null,
+          altProduct: alt?.productId ?? null,
+          altCatalogPrice: alt?.catalogPrice ?? null,
+          switchedToAlt: w.requireSp(sp).items[0].productId === "tomato_b",
         },
-        "primary cheaper than alternative: both are representable; PRIMARY_ONLY does not auto-accept the alt"
+        "BasketWorld lifecycle: primary 15 and alt 24 are both visible; PRIMARY_ONLY does not switch"
       );
     })
   );
 
   results.push(
     run("ALT-PRICE-002", () => {
-      const cat: ProductCatalog = {
+      const cheapFirst: ProductCatalog = {
+        names: { tomatoes: "Tomatoes", tomato_b: "Tomato B" },
+        availability: [
+          { sellerId: "seller-a", productId: "tomato_b", quantity: 2, unit: "kg", price: 15, stock: 10 },
+          { sellerId: "seller-a", productId: "tomatoes", quantity: 2, unit: "kg", price: 24, stock: 10 },
+        ],
+      };
+      const dearFirst: ProductCatalog = {
         names: { tomatoes: "Tomatoes", tomato_b: "Tomato B" },
         availability: [
           { sellerId: "seller-a", productId: "tomatoes", quantity: 2, unit: "kg", price: 24, stock: 10 },
@@ -2108,30 +2164,51 @@ export function runAllScenarios(): ScenarioResult[] {
         unit: "kg",
         alternatives: [{ productId: "tomato_b", alternativePriority: 1 }],
       };
-      const primary = resolve(item, "PRIMARY_ONLY", cat);
-      const first = resolve(item, "FIRST_AVAILABLE", cat);
-      const primaryPrice = catalogUnitPrice(cat, { sellerId: "seller-a", productId: "tomatoes", unit: "kg" });
-      const altPrice = catalogUnitPrice(cat, { sellerId: "seller-a", productId: "tomato_b", unit: "kg" });
+      const firstCheapCatalog = resolve(item, "FIRST_AVAILABLE", cheapFirst);
+      const firstDearCatalog = resolve(item, "FIRST_AVAILABLE", dearFirst);
+      const hypotheticalBest =
+        (catalogUnitPrice(cheapFirst, { sellerId: "seller-a", productId: "tomato_b", unit: "kg" }) ?? 99) <
+        (catalogUnitPrice(cheapFirst, { sellerId: "seller-a", productId: "tomatoes", unit: "kg" }) ?? 99)
+          ? "tomato_b"
+          : "tomatoes";
+      const w = new BasketWorld();
+      w.setCatalog(cheapFirst);
+      const list = w.createList("alt-price-002");
+      w.addItem(list.id, {
+        productId: "tomatoes",
+        quantity: 2,
+        unit: "kg",
+        alternatives: [{ productId: "tomato_b", alternativePriority: 1 }],
+      });
+      const purchase = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]);
+      const sp = purchase.sellerPurchaseIds[0];
+      w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: [{ productId: "tomatoes", quantity: 2, unit: "kg", price: 24 }],
+        reason: "PRICE_CHANGE",
+      });
+      const alt = w.snapshot(sp).alternatives[0];
       return prove(
         "ALT-PRICE-002",
-        "I-014 I-042",
+        "I-014 I-023",
         {
-          primaryProduct: "tomatoes",
-          primaryPrice: 24,
-          altPrice: 15,
-          primaryOnlyPickedAlt: false,
-          firstAvailablePickedAlt: false,
-          bestPriceInvented: false,
+          firstIgnoresCatalogOrder: true,
+          hypotheticalBest: "tomato_b",
+          firstPickedBest: false,
+          worldResolved: "tomatoes",
+          altVisible: 15,
         },
         {
-          primaryProduct: primary.productId,
-          primaryPrice,
-          altPrice,
-          primaryOnlyPickedAlt: primary.productId === "tomato_b",
-          firstAvailablePickedAlt: first.productId === "tomato_b",
-          bestPriceInvented: first.productId === "tomato_b" && (altPrice ?? 0) < (primaryPrice ?? 0),
+          firstIgnoresCatalogOrder: firstCheapCatalog.productId === firstDearCatalog.productId,
+          hypotheticalBest,
+          firstPickedBest: firstCheapCatalog.productId === hypotheticalBest,
+          worldResolved: w.requireSp(sp).items[0].productId,
+          altVisible: alt?.catalogPrice ?? null,
         },
-        "primary dearer than alternative: representation only; FIRST_AVAILABLE is not BEST_PRICE"
+        "FIRST_AVAILABLE ≠ hypothetical cheapest across catalog order; BEST_PRICE policy remains OPEN",
+        "OPEN",
+        "SPEC-OQ-008"
       );
     })
   );
@@ -2184,9 +2261,9 @@ export function runAllScenarios(): ScenarioResult[] {
           currentUnit: "kg",
           currentPrice: 12,
           altProduct: "tomato_b",
-          altQty: 2,
-          altUnit: "kg",
-          altPrice: 24,
+          requestedQty: 2,
+          requestedUnit: "kg",
+          catalogPrice: 24,
           storedLinePrice: false,
         },
         {
@@ -2199,12 +2276,192 @@ export function runAllScenarios(): ScenarioResult[] {
           currentUnit: current?.unit ?? null,
           currentPrice: current?.price ?? null,
           altProduct: alt?.productId ?? null,
-          altQty: alt?.quantity ?? null,
-          altUnit: alt?.unit ?? null,
-          altPrice: alt?.price ?? null,
+          requestedQty: alt?.requestedQuantity ?? null,
+          requestedUnit: alt?.requestedUnit ?? null,
+          catalogPrice: alt?.catalogPrice ?? null,
           storedLinePrice: hasStoredLinePrice(agreed ?? {}) || hasStoredLinePrice(current ?? {}),
         },
         "canonical snapshot: agreed 15 / current 12 / alternative 24 — representation only"
+      );
+    })
+  );
+
+  results.push(
+    run("ALT-PACK-001", () => {
+      const w = new BasketWorld();
+      w.setCatalog({
+        names: { tomatoes: "Tomatoes", tomato_b: "Tomato B" },
+        availability: [
+          { sellerId: "seller-a", productId: "tomatoes", quantity: 2, unit: "kg", price: 15, stock: 10 },
+          { sellerId: "seller-a", productId: "tomato_b", quantity: 5, unit: "kg", price: 24, stock: 10 },
+        ],
+      });
+      const list = w.createList("alt-pack-001");
+      w.addItem(list.id, {
+        productId: "tomatoes",
+        quantity: 2,
+        unit: "kg",
+        alternatives: [{ productId: "tomato_b", alternativePriority: 1 }],
+      });
+      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      const alt = w.snapshot(sp).alternatives[0];
+      return prove(
+        "ALT-PACK-001",
+        "I-023 I-045",
+        {
+          requestedQty: 2,
+          catalogQty: 5,
+          unitCompatible: true,
+          referenceQtyMatches: false,
+          catalogPrice: 24,
+        },
+        {
+          requestedQty: alt?.requestedQuantity ?? null,
+          catalogQty: alt?.catalogQuantity ?? null,
+          unitCompatible: alt?.unitCompatible ?? null,
+          referenceQtyMatches: alt?.referenceQtyMatches ?? null,
+          catalogPrice: alt?.catalogPrice ?? null,
+        },
+        "projection exposes list 2 kg vs alt catalog pack 5 kg; no silent pack rewrite and no policy"
+      );
+    })
+  );
+
+  results.push(
+    run("ALT-STABILITY-001", () => {
+      const w = new BasketWorld();
+      w.setCatalog({
+        names: { tomatoes: "Tomatoes", tomato_b: "Tomato B", baguette: "Baguette" },
+        availability: [
+          { sellerId: "seller-a", productId: "tomatoes", quantity: 2, unit: "kg", price: 15, stock: 10 },
+          { sellerId: "seller-a", productId: "tomato_b", quantity: 2, unit: "kg", price: 24, stock: 10 },
+          { sellerId: "seller-a", productId: "baguette", quantity: 1, unit: "pcs", price: 11, stock: 10 },
+        ],
+      });
+      const list = w.createList("alt-stab-001");
+      w.addItem(list.id, {
+        productId: "tomatoes",
+        quantity: 2,
+        unit: "kg",
+        alternatives: [{ productId: "tomato_b", alternativePriority: 1 }],
+      });
+      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      const a = w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 15),
+        reason: "PRICE_CHANGE",
+      });
+      const afterOffer = w.snapshot(sp).alternatives.some((row) => row.productId === "tomato_b");
+      w.acceptOffer(a.id, "BUYER");
+      w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 12),
+        reason: "PRICE_CHANGE",
+      });
+      const afterNewOffer = w.snapshot(sp).alternatives.some((row) => row.productId === "tomato_b");
+      w.proposeSubstitution({
+        sellerPurchaseId: sp,
+        originalProductId: "tomatoes",
+        replacementProductId: "baguette",
+        proposedBy: "SELLER",
+      });
+      const afterSub = w.snapshot(sp).alternatives.some((row) => row.productId === "tomato_b");
+      w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: [{ productId: "baguette", quantity: 1, unit: "pcs", price: 11 }],
+        reason: "SUBSTITUTION",
+      });
+      const afterReplacement = w.snapshot(sp).alternatives.some((row) => row.productId === "tomato_b");
+      return prove(
+        "ALT-STABILITY-001",
+        "I-023",
+        { afterOffer: true, afterNewOffer: true, afterSub: true, afterReplacement: true },
+        { afterOffer, afterNewOffer, afterSub, afterReplacement },
+        "snapshot alternatives stay bound to the List + offer history when current items change"
+      );
+    })
+  );
+
+  results.push(
+    run("PRICE-REGRESSION-001", () => {
+      const w = new BasketWorld();
+      w.setCatalog(catalog());
+      const list = w.createList("price-reg-001");
+      w.addItem(list.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      const agreed = w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 15),
+        reason: "PRICE_CHANGE",
+      });
+      w.acceptOffer(agreed.id, "BUYER");
+      w.proposeOffer({
+        sellerPurchaseId: sp,
+        actor: "SELLER",
+        items: tomatoes(2, 18),
+        reason: "PRICE_CHANGE",
+      });
+      const hike = adviseBuyer(w, sp);
+      const discountWorld = new BasketWorld();
+      discountWorld.setCatalog(catalog());
+      const dList = discountWorld.createList("price-reg-disc");
+      discountWorld.addItem(dList.id, { productId: "tomatoes", quantity: 2, unit: "kg", alternatives: [] });
+      const dSp = discountWorld.createPurchaseFromList(dList.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      const dA = discountWorld.proposeOffer({
+        sellerPurchaseId: dSp,
+        actor: "SELLER",
+        items: tomatoes(2, 15),
+        reason: "PRICE_CHANGE",
+      });
+      discountWorld.acceptOffer(dA.id, "BUYER");
+      discountWorld.proposeOffer({
+        sellerPurchaseId: dSp,
+        actor: "SELLER",
+        items: tomatoes(2, 12),
+        reason: "TIME_DISCOUNT",
+      });
+      const discount = adviseBuyer(discountWorld, dSp);
+      return prove(
+        "PRICE-REGRESSION-001",
+        "I-042 I-043",
+        {
+          hikeKind: "COUNTER",
+          hikeAt: 15,
+          hikeNotLineTotal: true,
+          discountKind: "ACCEPT_ACTIVE",
+          catalogRef: 15,
+          agreedDerived: 30,
+        },
+        {
+          hikeKind: hike.kind,
+          hikeAt: hike.kind === "COUNTER" ? hike.items[0]?.price ?? null : null,
+          hikeNotLineTotal: hike.kind === "COUNTER" && hike.items[0]?.price === 15,
+          discountKind: discount.kind,
+          catalogRef: catalogReferencePrice(w, "seller-a", "tomatoes", "kg"),
+          agreedDerived: unitLineTotal(w.offerById(agreed.id).items[0]),
+        },
+        "existing hike/discount paths treat 15 as MAD/kg, not as a 30 MAD line total"
+      );
+    })
+  );
+
+  results.push(
+    run("PRICE-TOTAL-001", () => {
+      return prove(
+        "PRICE-TOTAL-001",
+        "I-042 I-046",
+        { negQty: null, nanQty: null, infPrice: null, ok: 30 },
+        {
+          negQty: unitLineTotal({ quantity: -2, price: 15 }),
+          nanQty: unitLineTotal({ quantity: Number.NaN, price: 15 }),
+          infPrice: unitLineTotal({ quantity: 2, price: Number.POSITIVE_INFINITY }),
+          ok: unitLineTotal({ quantity: 2, price: 15 }),
+        },
+        "unitLineTotal is IEEE-754 under I-030 bounds; invalid quantity/price yield null, not a fake total"
       );
     })
   );
@@ -2218,16 +2475,16 @@ export function formatResults(rows: ScenarioResult[]): string {
     "",
     "**Status:** Evidence from TZ-BASKET-001…005 mock run  ",
     "**Experiment version:** v0.1  ",
-    "**Model version:** v0.1.15 / SPEC v0.4 (price is per unit; catalog quantity is reference size only; package contents / volume pricing are a MODEL GAP)",
+    "**Model version:** v0.1.15 / SPEC v0.4 (price is per unit; catalog quantity is Stage-1 reference size; package/volume business semantics remain OPEN)",
     "",
     "## How to read results",
     "",
     "- **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).",
     "- **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).",
-    "- **Domain `OPEN`** — implementation is deterministic, but the business semantics are still an open question (see `openQuestion`).",
+    "- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003 and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, not a policy.",
     "- Do not treat Impl PASS as confirmation of an unresolved OQ.",
     "- Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.",
-    "- All 51 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped.",
+    "- All 55 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.",
     "",
     "## Purpose",
     "",
@@ -2263,8 +2520,8 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("");
   lines.push("Scope of this evidence: every CONFIRMED below confirms a SPECIFIC experimental behavior");
   lines.push("under the mock clock, mock catalog and example policies — NOT the basket model as a whole.");
-  lines.push("The model as a whole cannot be declared confirmed while duplicate-line, negotiation-TTL and");
-  lines.push("allocation questions (SPEC OQ-003; experiment OQ-010; OQ-016) remain open.");
+  lines.push("The model as a whole cannot be declared confirmed while package/volume business semantics,");
+  lines.push("duplicate-line, negotiation-TTL and allocation questions (SPEC OQ-002/003; experiment OQ-010; OQ-016) remain open.");
   lines.push("");
   lines.push("Changes in this PR (already implemented and tested):");
   lines.push("- I-033: BasketWorld hands out frozen projections; state changes only via domain commands");
@@ -2315,9 +2572,10 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("- I-042: price is the price of one unit; derived total = quantity * price; no stored linePrice");
   lines.push("- I-043: changing quantity does not reread price as a line total");
   lines.push("- I-044: Offer stores (product, quantity, unit, price); a change is a new Offer");
-  lines.push("- I-045: catalog quantity is reference size only — not identity, multiplier, or unit conversion");
-  lines.push("- snapshot.alternatives is a representation of List alternatives + catalog unit price; no BEST_PRICE");
-  lines.push("- createPurchaseFromList no longer copies catalog.quantity into PurchaseItem.quantity");
+  lines.push("- I-045: catalog quantity is Stage-1 reference size — not identity, multiplier, or conversion; SPEC OQ-002 business semantics remain OPEN");
+  lines.push("- I-046: acceptOffer requires a finite price on every item; unitLineTotal is IEEE-754 under I-030 bounds");
+  lines.push("- snapshot.alternatives is AlternativeProjection (requested vs catalog qty/unit/price), not a commercial entity");
+  lines.push("- createPurchaseFromList surfaces MISSING_QUANTITY instead of inventing quantity 1");
   lines.push("- I-037: validUntil constrains accept/counter of the ACTIVE standing proposal only; it does not revoke Acceptance or agreed baseline");
   lines.push("- I-038: STABLE is agreed==active and no pending substitutions — Offer validity is not a STABLE exit");
   lines.push("- I-039: silence is the absence of a command; it does not REJECT/CANCEL/EXPIRED or move pointers");
@@ -2337,23 +2595,25 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("- OQ-012 CLOSED for passage of time — no SELLER_UNRESPONSIVE / auto-EXPIRED; negotiation TTL remains OQ-005");
   lines.push("");
   lines.push("TZ-BASKET-006");
-  lines.push("Status: PASS");
+  lines.push("Status: PASS for Stage-1 representation / OQ-001");
   lines.push("OQ-001: CLOSED — price = price of one unit");
-  lines.push("OQ-002: CLOSED — catalog quantity is reference size; package contents / volume pricing = MODEL GAP");
-  lines.push("Model change required: YES (diagnostic unitLineTotal + snapshot.alternatives + stop catalog-qty fallback)");
-  lines.push("New concept required: YES for package-contents / volume pricing — NOT introduced");
+  lines.push("Stage-1 representation: catalog quantity is not a multiplier/conversion (I-045)");
+  lines.push("OQ-002: OPEN — package/volume business semantics (PACKAGE-002/003 are limitation evidence)");
+  lines.push("Model change required: YES (projections, I-046, MISSING_QUANTITY)");
+  lines.push("New concept required: YES if/when OQ-002 is closed — NOT introduced");
   lines.push("Production architecture changed: NO");
   lines.push("");
   lines.push("Still open:");
+  lines.push("- SPEC OQ-002 — package/volume business semantics");
   lines.push("- SPEC OQ-003 — duplicate ListItems");
   lines.push("- SPEC OQ-005 / experiment OQ-010 — negotiation TTL");
-  lines.push("- SPEC OQ-008 / experiment OQ-002 — alternative price *policy* (representation is closed)");
+  lines.push("- SPEC OQ-008 / experiment OQ-002 — alternative price *policy*");
   lines.push("- experiment OQ-016 — allocation");
   lines.push("");
   lines.push("Assistant compatibility: isOfferValid still means standing-proposal validity. STABLE is");
   lines.push("checked first (WAIT TERMINAL_STATUS). An expired agreed Offer remains the price baseline");
-  lines.push("when a later live active Offer is evaluated (I-037). Advice shape is unchanged.");
-  lines.push("Assistants already compared unit prices; I-042 confirms that reading.");
+  lines.push("when a later live active Offer is evaluated (I-037). Assistants WAIT on MISSING_ITEM_PRICE.");
+  lines.push("Assistant unit-price comparisons are consistent with I-042; they are not the source of I-042.");
   lines.push("");
   lines.push("The model is still experimental. PASS does not close remaining OPEN questions.");
   lines.push("Recommended next step: SPEC OQ-003 (duplicate ListItems), then OQ-005/TTL, then allocation");

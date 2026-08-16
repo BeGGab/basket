@@ -210,7 +210,7 @@ Same initial snapshot + same commands + same timestamps → identical full obser
 
 ## PRICE-UNIT-002 — Line vs unit distinguishability
 
-`(2 kg, 15)` and `(1 kg, 30)` are different stored facts. They share a derived total only after unit-price semantics. The raw triple does not self-label “line” vs “unit”.
+`(2 kg, 15)` and `(1 kg, 30)` are different stored facts. A shared derived total is arithmetic, not commercial equivalence.
 
 ## PRICE-OFFER-001 — Immutable Offer price
 
@@ -226,7 +226,7 @@ A PurchaseItem without `price` has no derived total. The model does not invent `
 
 ## PRICE-CATALOG-QTY-001 — Catalog quantity is not requested quantity
 
-List asks 2 kg. Catalog row `quantity = 20`. PurchaseItem.quantity is 2, not 20 (I-045).
+List asks 2 kg. Catalog row `quantity = 20`. PurchaseItem.quantity is 2, not 20 (I-045). A ListItem without quantity is `MISSING_QUANTITY`, not silent `1`.
 
 ## PACKAGE-001 — Package as a unit
 

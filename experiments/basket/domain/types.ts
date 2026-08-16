@@ -1,3 +1,7 @@
+import type { ReadonlyAlternativeProjection } from "./projections";
+
+export type { AlternativeProjection, ReadonlyAlternativeProjection } from "./projections";
+
 export type Actor = "BUYER" | "SELLER" | "SYSTEM";
 
 export type OfferReason =
@@ -154,23 +158,12 @@ export interface StockClaim {
   quantity: number;
 }
 
-/** List alternative as a snapshot representation — catalog unit price, not a selected Offer. */
-export interface SnapshotAlternative {
-  productId: string;
-  quantity: number | null;
-  unit: string | null;
-  price: number | null;
-  alternativePriority: number;
-}
-
-export type ReadonlySnapshotAlternative = Readonly<SnapshotAlternative>;
-
 export interface Snapshot {
   agreed: { offerId: string | null; items: readonly Readonly<PurchaseItem>[] };
   current: { offerId: string | null; items: readonly Readonly<PurchaseItem>[] };
   pendingSubstitutions: readonly ReadonlySubstitution[];
-  /** Representation only (I-023). No AUTO_ACCEPT / BEST_PRICE. */
-  alternatives: readonly ReadonlySnapshotAlternative[];
+  /** Projection only (I-023). Not a commercial entity. No AUTO_ACCEPT / BEST_PRICE. */
+  alternatives: readonly ReadonlyAlternativeProjection[];
 }
 
 /**

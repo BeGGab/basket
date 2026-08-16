@@ -2,7 +2,7 @@
 
 **Проект:** GreenMarket  
 **Stage:** 1 — экспериментальный Basket Domain  
-**Тип:** domain experiment / закрытие SPEC OQ-001 и OQ-002  
+**Тип:** domain experiment / закрытие SPEC OQ-001; Stage-1 constraint для catalog quantity; OQ-002 остаётся OPEN  
 **Приёмка:** Pull Request (отдельный от PR-15 / TZ-BASKET-005)  
 **Статус:** Implemented  
 **Основание:** `docs/domain/GREENMARKET_DOMAIN_SPEC.md` v0.3 → v0.4
@@ -23,7 +23,7 @@ GREENMARKET_DOMAIN_SPEC.md is the canonical source. This PR updates SPEC first, 
 
 Номера I-038…I-041 уже заняты TZ-BASKET-005. Новые инварианты: **I-042…I-045**.
 
-Experiment-log OQ-001 / OQ-002 (`BASKET_OPEN_QUESTIONS.md`: resolution policies / alternative *policy*) — **другие вопросы**. Их это ТЗ не закрывает. Закрываются **SPEC OQ-001** и **SPEC OQ-002** (experiment OQ-030).
+Experiment-log OQ-001 / OQ-002 (`BASKET_OPEN_QUESTIONS.md`: resolution policies / alternative *policy*) — **другие вопросы**. Их это ТЗ не закрывает. Закрывается **SPEC OQ-001**. **SPEC OQ-002** остаётся OPEN для бизнес-семантики package/volume; Stage-1 фиксирует только constraint I-045.
 
 ## Цель
 
@@ -55,29 +55,23 @@ Tomatoes  quantity=2  unit=kg  price=15
 
 Смена `quantity` не превращает `price` в line price (I-043). Смена quantity/price — новый Offer (I-044).
 
-### SPEC OQ-002 — Package / reference quantity — CLOSED for Stage-1 representation
+### SPEC OQ-002 — Package / volume — Stage-1 constraint; бизнес OPEN
 
-Catalog `quantity` — reference/package size строки каталога. Не часть CatalogLine identity, не множитель цены, не конверсия в другую unit.
+**Stage-1 (CONFIRMED, I-045):** catalog `quantity` не multiplier и не conversion. `1 package @ 60` = 60 за package.
 
-`unit = "package"` — обычная коммерческая единица, как `kg`. `1 package @ 60` = 60 за один package.
+**Бизнес-семантика (OPEN):** volume pricing и package contents (`1 package = 5 kg`) текущая модель не представляет. Это ограничение representation, не решение «volume pricing не должен существовать».
 
-Текущая модель **не** выражает:
+`PurchaseItem.quantity` обязателен; List без quantity → `MISSING_QUANTITY`.
 
-- `1 package = 5 kg` (содержимое / unit conversion);
-- volume pricing: тот же `(sellerId, productId, unit)`, разные package size, разные unit price (строки AMBIGUOUS).
-
-Это **MODEL GAP**. Сущность Package/Price не вводится.
-
-`PurchaseItem.quantity` — запрошенное количество в `unit`. Оно не копируется из catalog `quantity`.
-
-Alternative **policy** (AUTO_ACCEPT / BEST_PRICE / ASK_BUYER) остаётся **OPEN — SPEC OQ-008 / experiment OQ-002**.
+Alternative **policy** остаётся **OPEN — SPEC OQ-008**.
 
 ## Invariants
 
 - **I-042** — `price` всегда относительно `unit`
 - **I-043** — смена `quantity` не меняет семантику `price`
 - **I-044** — Offer хранит `(product, quantity, unit, price)`; изменение требует нового Offer
-- **I-045** — catalog `quantity` не identity, не multiplier, не conversion
+- **I-045** — catalog `quantity` не identity, не multiplier, не conversion (Stage-1; OQ-002 OPEN)
+- **I-046** — ACCEPT требует finite price; `unitLineTotal` — IEEE-754 в границах I-030
 
 ## Сценарии
 
@@ -116,7 +110,7 @@ Alternative **policy** (AUTO_ACCEPT / BEST_PRICE / ASK_BUYER) остаётся *
 ## Критерии приёмки
 
 - [x] SPEC OQ-001 CLOSED (unit price)
-- [x] SPEC OQ-002 CLOSED for Stage-1 representation (package size ≠ conversion / volume price)
+- [x] SPEC OQ-002 остаётся OPEN для бизнеса; Stage-1 constraint записан (I-045)
 - [x] executable tests на unit/package ambiguity
 - [x] Offer price semantics
 - [x] canonical snapshot
@@ -131,14 +125,13 @@ Alternative **policy** (AUTO_ACCEPT / BEST_PRICE / ASK_BUYER) остаётся *
 
 ```text
 TZ-BASKET-006
-Status: PASS
+Status: PASS for Stage-1 representation / OQ-001
 
 OQ-001: CLOSED     price = price of one unit
-OQ-002: CLOSED     catalog quantity is reference size only;
-                   package contents / volume pricing = MODEL GAP
-                   (new concept required, not introduced)
+Stage-1:           catalog quantity is not a multiplier/conversion
+OQ-002: OPEN       package/volume business semantics
 
-Model change required: YES (documentation + diagnostic projection + stop catalog-qty fallback)
-New concept required: YES for package-contents / volume pricing — NOT introduced
+Model change required: YES
+New concept required: YES if/when OQ-002 is closed — NOT introduced
 Production architecture changed: NO
 ```

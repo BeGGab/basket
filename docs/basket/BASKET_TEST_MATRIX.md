@@ -2,7 +2,7 @@
 
 **Status:** Experimental Baseline v0.1
 
-`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 51 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
+`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 55 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
 
 | ID | Scenario | Model | Emulator | /sim demo | Main check |
 |---|---|:---:|:---:|:---:|---|
@@ -57,6 +57,10 @@
 | PRICE-ZERO-001 | 2 kg @ 0 | ✓ |  |  | 0 is a unit price |
 | PRICE-LIST-QTY-ABSENT-001 | omitted list qty | ✓ |  |  | default 1 ≠ catalog qty |
 | ALT-UNIT-001 | alt in pcs, list in kg | ✓ |  |  | no unit conversion |
+| ALT-PACK-001 | list 2 kg vs alt pack 5 kg | ✓ |  |  | projection, no policy |
+| ALT-STABILITY-001 | offer/sub/replace | ✓ |  |  | alternatives persist |
+| PRICE-REGRESSION-001 | hike/discount | ✓ |  |  | 15 is MAD/kg |
+| PRICE-TOTAL-001 | invalid qty/price | ✓ |  |  | unitLineTotal → null |
 
 TZ-004 assistant demos on `/sim` (DISCOUNT / HIKE / SELLER) are training overlays, not rows in this BS matrix.
 

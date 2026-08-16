@@ -14,7 +14,8 @@ export type WaitReason =
   | "NO_ACTIVE_OFFER"
   | "OFFER_EXPIRED"
   | "OWN_OFFER_ACTIVE"
-  | "NO_CATALOG_PRICE";
+  | "NO_CATALOG_PRICE"
+  | "MISSING_ITEM_PRICE";
 
 /** Machine-readable reason for REJECT — mirrors WaitReason so refusals stay explainable. */
 export type RejectReason =

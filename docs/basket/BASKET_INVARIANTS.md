@@ -67,7 +67,7 @@ Offer expiration is three separate things:
 ## History/projection
 
 - **I-022:** Historical events and current projections must remain distinguishable.
-- **I-023:** Snapshot state must expose agreed Offer, active/current Offer, pending substitutions, and List alternatives as a representation projection (catalog unit price; no AUTO_ACCEPT / BEST_PRICE).
+- **I-023:** Snapshot state must expose agreed Offer, active/current Offer, pending substitutions, and a List-alternative **projection** (`AlternativeProjection` in `domain/projections.ts` — not a commercial entity). The projection compares requested qty/unit with catalog qty/unit/price and does not select AUTO_ACCEPT / BEST_PRICE. It stays bound to the source List plus this SellerPurchase's offer history, not only the current `sp.items`.
 
 ## Boundaries
 
@@ -84,4 +84,5 @@ Offer expiration is three separate things:
 - **I-042:** `PurchaseItem.price` and `CatalogOffer.price` are the price of one `unit`. A commercial line total is the derived product `quantity * price`. That total is not a stored field (`linePrice` does not exist). A missing `price` yields no derived total.
 - **I-043:** Changing `quantity` does not reinterpret `price` as a line/position total. `(2 kg, 15)` and `(4 kg, 15)` have the same unit price; only the derived total changes. A quantity change on an Offer is a new Offer (I-044), not a silent reread of `price`.
 - **I-044:** Each Offer item stores the price basis `(productId, quantity, unit, price)`. Changing any of those facts requires a new Offer. Acceptance does not mutate the previous Offer (I-006 / I-008).
-- **I-045:** Catalog `quantity` is a reference/package size of that row. It is not CatalogLine identity, not a price multiplier, and not a conversion (`1 package = 5 kg` is not a domain fact). `unit = "package"` is a commercial unit like `kg`. Same identity + different prices is `AMBIGUOUS_PRICE`, including the volume-pricing case. Requested `PurchaseItem.quantity` is not copied from catalog `quantity`.
+- **I-045:** Catalog `quantity` is a Stage-1 reference/package size of that row. It is not CatalogLine identity, not a price multiplier, and not a conversion. `unit = "package"` is a commercial unit like `kg`. Same identity + different prices is `AMBIGUOUS_PRICE`. Requested `PurchaseItem.quantity` is not copied from catalog `quantity`. A ListItem without quantity is `MISSING_QUANTITY`, not a silent `1`. This does **not** decide future volume-pricing / package-contents policy (**SPEC OQ-002 OPEN**).
+- **I-046:** Acceptance is a commercial fact: every Offer item must have a finite `price ≥ 0`. A standing proposal may omit `price`; `acceptOffer` refuses it before recording Acceptance. `unitLineTotal` is IEEE-754 `quantity * price` under I-030 bounds — not a money type.

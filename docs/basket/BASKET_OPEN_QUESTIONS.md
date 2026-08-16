@@ -36,7 +36,7 @@ These are hypotheses to resolve through experiments, not implementation requirem
 - **OQ-016:** Does the future domain need Allocation? OPEN. BS-011/BS-023 only confirm a detection-event log, not an allocation model. Canonical statement: **SPEC OQ-006**.
 - **OQ-017:** Does the future domain need Reservation?
 - **OQ-029:** Duplicate ListItems of the same `(productId, unit)` with different quantities (e.g. tomatoes 2 kg and 5 kg in one List). OPEN. Canonical statement: **SPEC OQ-003** in `docs/domain/GREENMARKET_DOMAIN_SPEC.md`. The experiment currently surfaces the second line as `DUPLICATE_LINE` rather than silently aggregating or dropping it.
-- **OQ-030:** CLOSED (SPEC v0.4 §13.1 / I-045 / PACKAGE-001…003). Catalog `quantity` is a reference/package size — not a price multiplier and not a unit conversion. `1 package = 5 kg` and volume pricing (same identity, different package sizes, different unit prices) are a MODEL GAP; no Package entity was introduced. Canonical statement: **SPEC OQ-002 CLOSED** for Stage-1 representation.
+- **OQ-030:** OPEN for package/volume **business** semantics. Canonical statement: **SPEC OQ-002**. Stage-1 constraint (I-045 / PACKAGE-001): catalog `quantity` is not a multiplier or conversion. PACKAGE-002 / PACKAGE-003 show the current model cannot represent volume pricing or hidden package basis — that is a limitation, not a closed policy.
 
 ## Purchase state
 
