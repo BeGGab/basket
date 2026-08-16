@@ -1,8 +1,8 @@
 # GreenMarket Domain Specification
 
-Version: 0.3
+Version: 0.4
 Status: EXPERIMENTAL
-Update basis: TZ-BASKET-005 (expiration / silence / time)
+Update basis: TZ-BASKET-006 (price semantics / package quantity)
 Scope: Stage 1 Basket Experiment
 Purpose: a single domain contract for the core code, emulators, scenarios, tests, and the later AI layer.
 
@@ -142,8 +142,10 @@ Tomatoes / kg / 5 kg
 Tomatoes / kg / 20 kg
 ```
 
-all belong to the same commercial line `Tomatoes / kg`. `quantity` may still affect price; whether
-quantity affects unit price is still open. **CONFIRMED**
+all belong to the same commercial line `Tomatoes / kg`. Catalog `quantity` is a reference/package
+size on that row: it is not identity, not a price multiplier, and not a conversion into another
+unit (I-045). Volume pricing and package-contents conversion are a MODEL GAP — not introduced.
+**CONFIRMED**
 
 ## 9. Unit
 
@@ -189,15 +191,60 @@ Reference price is a fact/anchor for policy. An unambiguous catalog match may yi
 price; ambiguity yields no reference price. Reference lookup must not itself make a commercial
 decision. **CONFIRMED**
 
-## 13. Price semantics
+## 13. Price semantics (closes SPEC OQ-001)
 
-The experiment surfaced a contradiction between two interpretations: `price = unit price` vs
-`price = line/position price`. The current implementation and part of the policy use unit-price
-semantics, but the final domain semantics are not yet proven.
+**Decision.** `PurchaseItem.price` and `CatalogOffer.price` are the price of **one** `unit`
+(I-042). Example:
 
-This affects: quantity changes, reference price, price hike, discount, COUNTER, package pricing.
+```
+Tomatoes   quantity = 2   unit = kg   price = 15
+→ derived total = 2 × 15 = 30
+```
 
-**OPEN — OQ-001.** Until resolved, new price policies must not be treated as finally confirmed.
+The derived total is not a stored field. `linePrice` does not exist. A missing `price` yields no
+derived total (it is not invented as 0).
+
+`(quantity=2, price=15)` and `(quantity=1, price=30)` are different stored facts. They share a
+derived total only after this rule is applied. The raw triple does not self-label “line” vs
+“unit”; the domain rule does.
+
+Changing `quantity` does not reinterpret `price` as a line total (I-043). Changing quantity or
+price requires a new Offer (I-044 / I-006). Requested `PurchaseItem.quantity` is the buyer amount
+in `unit`; it is not copied from catalog `quantity`.
+
+**Rationale.** Catalog lookup, assistants, stock, and Offer comparison already compare `price` as
+per-unit. A line-price reading would treat `(2 kg, 15)` and `(1 kg, 15)` as the same unit
+economics.
+
+**Affected invariants:** I-030, I-036, I-042, I-043, I-044.
+
+**Affected scenarios:** PRICE-UNIT-001, PRICE-UNIT-002, PRICE-OFFER-001, PRICE-QTY-001,
+PRICE-ABSENT-001, PRICE-CATALOG-QTY-001, PRICE-SNAPSHOT-001.
+
+## 13.1 Package / reference quantity (closes SPEC OQ-002)
+
+**Decision.** Catalog `quantity` is a reference/package size of that catalog row (I-045).
+`unit = "package"` is a commercial unit like `kg`: `1 package @ 60` means 60 per package.
+
+The current `(quantity, unit, price)` triple cannot represent:
+
+- `1 package = 5 kg` (contents / unit conversion);
+- volume pricing: same CatalogLine identity, different package sizes, different unit prices
+  (those rows are `AMBIGUOUS_PRICE`).
+
+Those require a new domain concept. This specification does **not** introduce `Package` or
+`Price` entities and does not auto-convert 60 MAD/package into 12 MAD/kg.
+
+**Rationale.** CatalogLine identity is `(sellerId, productId, unit)`. Putting package size into
+that identity, or treating catalog `quantity` as a hidden kg conversion, would be a new rule
+smuggled through an existing field.
+
+**Affected invariants:** I-036, I-045.
+
+**Affected scenarios:** PACKAGE-001, PACKAGE-002, PACKAGE-003.
+
+Alternative *selection policy* (AUTO_ACCEPT / BEST_PRICE / ASK_BUYER) is a different question and
+stays **OPEN — SPEC OQ-008**.
 
 ## 14. Purchase
 
@@ -298,7 +345,9 @@ The Active Offer does not become agreed automatically.
 
 After an Offer is accepted, both pointers may still name that same Offer. Later expiration of that
 Offer does **not** clear either pointer. A subsequent new Offer becomes the new `activeOfferId`;
-`agreedOfferId` stays on the last accepted Offer until a later Acceptance. **CONFIRMED**
+`agreedOfferId` stays on the last accepted Offer until a later Acceptance. The SellerPurchase
+snapshot exposes agreed items, current items, pending substitutions, and List alternatives as a
+**representation** (catalog unit price, no selection policy). **CONFIRMED**
 
 ## 24. Acceptance
 
@@ -561,6 +610,15 @@ SILENCE-VALID-001        active Offer + no command + time < validUntil → same 
 SILENCE-EXPIRED-001      active Offer + no command + time > validUntil → same status/pointers, not REJECT
 AGREED-EXPIRE-001        accepted A expires, no replacement → STABLE, pointers stay A
 AGREED-EXPIRE-NEW-001    A accepted, A expires, B proposed → agreed=A, active=B, B acceptable
+PRICE-UNIT-001           2 kg × 15 stored as unit price; no linePrice field
+PRICE-UNIT-002           2 kg × 15 vs 1 kg × 30 distinguishable; derived totals equal only after I-042
+PRICE-OFFER-001          price 15 → 12 is a new immutable Offer
+PACKAGE-001              1 package @ 60 representable; 1 package = 5 kg is a MODEL GAP
+PACKAGE-002              catalog qty 5 → 20: same unit price ok; different unit price AMBIGUOUS
+PACKAGE-003              same quantity + unit=package, different external basis → basis invisible
+ALT-PRICE-001            primary cheaper than alternative — representation only
+ALT-PRICE-002            primary dearer than alternative — no BEST_PRICE
+PRICE-SNAPSHOT-001       agreed / current / alternative visible together
 ```
 
 ## 46. Newly discovered rule: CatalogLine identity must propagate through the model
@@ -586,11 +644,11 @@ corresponding aggregation policy is defined. **CONFIRMED**
 These SPEC OQs are the canonical domain-level questions. They are **not** the same numbering as
 the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
 
-- **OQ-001 — Price semantics.** Is `price` a unit price or a line price? **OPEN**
-- **OQ-002 — Package quantity pricing.** May quantity/package size change the unit price
-  (`1 kg → 15/kg`, `20 kg → 12/kg`)? Stage 1 **assumes** that package/reference `quantity` never
-  changes the unit price — this is a deliberate experimental assumption, not a proven domain truth.
-  **OPEN**
+- **OQ-001 — Price semantics.** **CLOSED** in v0.4. See §13: `price` is the price of one `unit`.
+  A derived line total is `quantity * price` and is not stored.
+- **OQ-002 — Package quantity pricing.** **CLOSED** in v0.4 for Stage-1 representation. See §13.1:
+  catalog `quantity` is a reference/package size — not a multiplier and not a unit conversion.
+  Package-contents (`1 package = 5 kg`) and volume pricing require a new concept (not introduced).
 - **OQ-003 — Duplicate ListItems.** What to do with `Tomatoes / 2 kg` and `Tomatoes / 5 kg` in one
   List? **OPEN**
 - **OQ-004 — Expired agreed Offer.** **CLOSED** in v0.3 (maps to experiment OQ-009). See §38:
@@ -633,6 +691,8 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
 | v0.3 | TZ-BASKET-005 | `validUntil` is standing-proposal validity only; agreed Offer expiry does not clear pointers or exit STABLE (SPEC OQ-004 / exp OQ-009 CLOSED) |
 | v0.3 | TZ-BASKET-005 | silence is absence of a command; no auto REJECT/CANCEL/EXPIRED (exp OQ-011 CLOSED) |
 | v0.3 | TZ-BASKET-005 | world clock + `advance` are the time model; `tick` is not a domain operation (exp OQ-012 CLOSED) |
+| v0.4 | TZ-BASKET-006 | `price` is the price of one `unit`; no stored `linePrice` (SPEC OQ-001 CLOSED) |
+| v0.4 | TZ-BASKET-006 | catalog `quantity` is reference size only; package contents / volume pricing are a MODEL GAP (SPEC OQ-002 CLOSED for Stage-1 representation) |
 
 ## 50. Rule for the next PR
 
@@ -654,9 +714,11 @@ Observation → Domain decision → SPEC update → Invariant → Scenario → I
 
 ## 51. Current main technical conclusion
 
-After v0.3, Offer time is split cleanly:
+After v0.4, price is split cleanly from package size, and Offer time from v0.3 remains:
 
 ```
+price          → price of one unit (derived total = quantity × price; not stored)
+catalog qty    → reference/package size; not a conversion and not volume pricing
 validUntil     → may this ACTIVE standing proposal be accepted / countered?
 Acceptance     → historical fact; becomes agreedOfferId
 advance(clock) → recomputes isOfferValid; does not invent states
@@ -668,9 +730,11 @@ OQ-009 CLOSED    agreed Offer expiry keeps pointers and STABLE
 OQ-011 CLOSED    Stage-1 silence: no command ⇒ no lifecycle change
 OQ-012 CLOSED    passage of time: no SELLER_UNRESPONSIVE / auto-EXPIRED
 
-OQ-001 OPEN      price semantics (unit vs line)
-OQ-002 OPEN      package quantity vs unit price
+OQ-001 CLOSED    price = price of one unit
+OQ-002 CLOSED    catalog quantity = reference size; contents/volume = MODEL GAP
 OQ-005 OPEN      negotiation lifetime / TTL
+OQ-003 OPEN      duplicate ListItems
+OQ-008 OPEN      alternative price policy (not a representation question)
 ```
 
 CatalogLine identity from v0.2 remains:

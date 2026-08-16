@@ -18,7 +18,7 @@ Canonical domain semantics: [`docs/domain/GREENMARKET_DOMAIN_SPEC.md`](../../doc
 
 Human-facing demo (TZ-003/004): open `/sim` directly in the Vite app (`react-vite-bootstrap-project`). It is **not** in Customer UI navigation and is not the production `/cart` screen. Assistants on that screen advise; Apply uses the displayed Advice and refuses a stale `basis`.
 
-The experiment ships as a stack of four dependent PRs, one per layer: domain + emulator (TZ-001), assistants (TZ-004), runtime + scenario engine (TZ-002), `/sim` viewer (TZ-003). TZ-BASKET-005 is a later domain iteration on expiration / silence / time (SPEC v0.3). Each layer keeps its own runner: domain scenarios in `tests/run.ts`, engine in `tests/runtime.ts`, assistants in `tests/assistants.ts`. `/sim` is a viewer, not acceptance.
+The experiment ships as a stack of four dependent PRs, one per layer: domain + emulator (TZ-001), assistants (TZ-004), runtime + scenario engine (TZ-002), `/sim` viewer (TZ-003). TZ-BASKET-005 is a later domain iteration on expiration / silence / time (SPEC v0.3). TZ-BASKET-006 closes SPEC OQ-001/OQ-002 (price / package semantics, SPEC v0.4). Each layer keeps its own runner: domain scenarios in `tests/run.ts`, engine in `tests/runtime.ts`, assistants in `tests/assistants.ts`. `/sim` is a viewer, not acceptance.
 
 ## Layout
 

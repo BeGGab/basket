@@ -2,7 +2,7 @@
 
 **Status:** Evidence from TZ-BASKET-001…005 mock run  
 **Experiment version:** v0.1  
-**Model version:** v0.1.14 / SPEC v0.3 (Offer validity is standing-proposal only; agreed expiry keeps pointers and STABLE; silence is not a command; advance is the domain time operation)
+**Model version:** v0.1.15 / SPEC v0.4 (price is per unit; catalog quantity is reference size only; package contents / volume pricing are a MODEL GAP)
 
 ## How to read results
 
@@ -11,7 +11,7 @@
 - **Domain `OPEN`** — implementation is deterministic, but the business semantics are still an open question (see `openQuestion`).
 - Do not treat Impl PASS as confirmation of an unresolved OQ.
 - Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.
-- All 36 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped.
+- All 51 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped.
 
 ## Purpose
 
@@ -21,6 +21,9 @@ Record evidence from the mock domain and seller emulator.
 
 | Scenario | Impl | Domain | Model issue | Decision |
 |---|---|---|---|---|
+| ALT-PRICE-001 | PASS | CONFIRMED | none | primary cheaper than alternative: both are representable; PRIMARY_ONLY does not auto-accept the alt |
+| ALT-PRICE-002 | PASS | CONFIRMED | none | primary dearer than alternative: representation only; FIRST_AVAILABLE is not BEST_PRICE |
+| ALT-UNIT-001 | PASS | CONFIRMED | none | alternative priced in pcs is not converted into the list kg line |
 | BS-001 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-002 | PASS | CONFIRMED | none | keep v0.1 |
 | BS-003 | PASS | CONFIRMED | none | keep v0.1 |
@@ -57,8 +60,56 @@ Record evidence from the mock domain and seller emulator.
 | BS-034 | PASS | CONFIRMED | none | I-035: isCounterReason (BUYER_CHANGE / SELLER_COUNTEROFFER) cannot reply to an expired Offer; PRICE_CHANGE may replace it |
 | BS-035 | PASS | CONFIRMED | none | silence must not create a fake FSM state or rewrite waiting facts; waitMs is derived from clock |
 | BS-036 | PASS | CONFIRMED | none | determinism regression: same start + same commands → same snapshot; not a proof of all nondeterminism sources |
+| PACKAGE-001 | PASS | CONFIRMED | none | 1 package @ 60 is representable as unit=package; 1 package = 5 kg is not in the model |
+| PACKAGE-002 | PASS | CONFIRMED | none | same unit price + different catalog qty is one line; different unit prices are AMBIGUOUS — volume pricing is a MODEL GAP |
+| PACKAGE-003 | PASS | CONFIRMED | none | 1 package @ 60 cannot distinguish an external 5 kg basis from a 20 kg basis |
+| PRICE-ABSENT-001 | PASS | CONFIRMED | none | Offer item without price yields no derived total and does not invent linePrice |
+| PRICE-CATALOG-QTY-001 | PASS | CONFIRMED | none | requested PurchaseItem.quantity is not catalog reference quantity |
+| PRICE-LIST-QTY-ABSENT-001 | PASS | CONFIRMED | none | omitted ListItem.quantity currently defaults to 1 — experimental fallback, not catalog package size |
+| PRICE-OFFER-001 | PASS | CONFIRMED | none | price lives on the Offer item; ACCEPT does not mutate A; agreed stays A until B is accepted |
+| PRICE-QTY-001 | PASS | CONFIRMED | none | quantity change is a new Offer; price stays per-unit and is not reread as a line total |
+| PRICE-SNAPSHOT-001 | PASS | CONFIRMED | none | canonical snapshot: agreed 15 / current 12 / alternative 24 — representation only |
+| PRICE-UNIT-001 | PASS | CONFIRMED | none | price is per kg; derived total is not a stored linePrice |
+| PRICE-UNIT-002 | PASS | CONFIRMED | none | 2kg@15 vs 1kg@30 are different Offers; equal totals only after unit-price semantics |
+| PRICE-ZERO-001 | PASS | CONFIRMED | none | price 0 is a real unit price; derived total 0 is not a missing price |
 
 ## Scenario records
+
+### ALT-PRICE-001 — Impl PASS / Domain CONFIRMED
+
+- Expected: primaryProduct=tomatoes; primaryKind=PRIMARY; primaryQty=2; primaryUnit=kg; primaryPrice=15; altProduct=tomato_b; altQty=2; altUnit=kg; altPrice=24; switchedToAlt=false
+- Actual: primaryProduct=tomatoes; primaryKind=PRIMARY; primaryQty=2; primaryUnit=kg; primaryPrice=15; altProduct=tomato_b; altQty=2; altUnit=kg; altPrice=24; switchedToAlt=false
+- Invariant: I-014 I-042 I-023
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: primary cheaper than alternative: both are representable; PRIMARY_ONLY does not auto-accept the alt
+
+### ALT-PRICE-002 — Impl PASS / Domain CONFIRMED
+
+- Expected: primaryProduct=tomatoes; primaryPrice=24; altPrice=15; primaryOnlyPickedAlt=false; firstAvailablePickedAlt=false; bestPriceInvented=false
+- Actual: primaryProduct=tomatoes; primaryPrice=24; altPrice=15; primaryOnlyPickedAlt=false; firstAvailablePickedAlt=false; bestPriceInvented=false
+- Invariant: I-014 I-042
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: primary dearer than alternative: representation only; FIRST_AVAILABLE is not BEST_PRICE
+
+### ALT-UNIT-001 — Impl PASS / Domain CONFIRMED
+
+- Expected: altProduct=tomato_b; altUnit=kg; altPrice=null; converted=false
+- Actual: altProduct=tomato_b; altUnit=kg; altPrice=null; converted=false
+- Invariant: I-036 I-045 I-023
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: alternative priced in pcs is not converted into the list kg line
 
 ### BS-001 — Impl PASS / Domain CONFIRMED
 
@@ -492,16 +543,160 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: determinism regression: same start + same commands → same snapshot; not a proof of all nondeterminism sources
 
+### PACKAGE-001 — Impl PASS / Domain CONFIRMED
+
+- Expected: quantity=1; unit=package; price=60; derivedTotal=60; kgConversion=null; contentsInModel=false
+- Actual: quantity=1; unit=package; price=60; derivedTotal=60; kgConversion=null; contentsInModel=false
+- Invariant: I-045 I-042
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: package-contents / unit conversion (not introduced)
+- Workaround: none
+- Decision: 1 package @ 60 is representable as unit=package; 1 package = 5 kg is not in the model
+
+### PACKAGE-002 — Impl PASS / Domain CONFIRMED
+
+- Expected: samePriceRef=12; volumeRef=null; volumeUnresolved=true; unresolvedReason=AMBIGUOUS_PRICE
+- Actual: samePriceRef=12; volumeRef=null; volumeUnresolved=true; unresolvedReason=AMBIGUOUS_PRICE
+- Invariant: I-045 I-036
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: volume-price schedule (not introduced)
+- Workaround: none
+- Decision: same unit price + different catalog qty is one line; different unit prices are AMBIGUOUS — volume pricing is a MODEL GAP
+
+### PACKAGE-003 — Impl PASS / Domain CONFIRMED
+
+- Expected: sameQuantity=true; sameUnit=true; samePrice=true; basisVisible=false; hiddenAmbiguity=true; ref=60
+- Actual: sameQuantity=true; sameUnit=true; samePrice=true; basisVisible=false; hiddenAmbiguity=true; ref=60
+- Invariant: I-045
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: package basis / contents (not introduced)
+- Workaround: none
+- Decision: 1 package @ 60 cannot distinguish an external 5 kg basis from a 20 kg basis
+
+### PRICE-ABSENT-001 — Impl PASS / Domain CONFIRMED
+
+- Expected: hasPrice=false; derivedTotal=null; storedLinePrice=false
+- Actual: hasPrice=false; derivedTotal=null; storedLinePrice=false
+- Invariant: I-042 I-030
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: Offer item without price yields no derived total and does not invent linePrice
+
+### PRICE-CATALOG-QTY-001 — Impl PASS / Domain CONFIRMED
+
+- Expected: requested=2; catalogQty=20; itemQty=2; copiedFromCatalog=false
+- Actual: requested=2; catalogQty=20; itemQty=2; copiedFromCatalog=false
+- Invariant: I-045 I-043
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: requested PurchaseItem.quantity is not catalog reference quantity
+
+### PRICE-LIST-QTY-ABSENT-001 — Impl PASS / Domain CONFIRMED
+
+- Expected: itemQty=1; catalogQty=20; copiedFromCatalog=false
+- Actual: itemQty=1; catalogQty=20; copiedFromCatalog=false
+- Invariant: I-045
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: default requested quantity 1 when ListItem.quantity is omitted
+- Decision: omitted ListItem.quantity currently defaults to 1 — experimental fallback, not catalog package size
+
+### PRICE-OFFER-001 — Impl PASS / Domain CONFIRMED
+
+- Expected: sameProduct=true; sameQuantity=true; sameUnit=true; differentPrice=true; aUnchanged=15; offersDistinct=true; agreed=offer-5; active=offer-7
+- Actual: sameProduct=true; sameQuantity=true; sameUnit=true; differentPrice=true; aUnchanged=15; offersDistinct=true; agreed=offer-5; active=offer-7
+- Invariant: I-006 I-008 I-044
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: price lives on the Offer item; ACCEPT does not mutate A; agreed stays A until B is accepted
+
+### PRICE-QTY-001 — Impl PASS / Domain CONFIRMED
+
+- Expected: newOffer=true; priceStill=15; qtyA=2; qtyB=4; derivedA=30; derivedB=60; aUnchangedQty=2
+- Actual: newOffer=true; priceStill=15; qtyA=2; qtyB=4; derivedA=30; derivedB=60; aUnchangedQty=2
+- Invariant: I-043 I-044
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: quantity change is a new Offer; price stays per-unit and is not reread as a line total
+
+### PRICE-SNAPSHOT-001 — Impl PASS / Domain CONFIRMED
+
+- Expected: agreedProduct=tomatoes; agreedQty=2; agreedUnit=kg; agreedPrice=15; currentProduct=tomatoes; currentQty=2; currentUnit=kg; currentPrice=12; altProduct=tomato_b; altQty=2; altUnit=kg; altPrice=24; storedLinePrice=false
+- Actual: agreedProduct=tomatoes; agreedQty=2; agreedUnit=kg; agreedPrice=15; currentProduct=tomatoes; currentQty=2; currentUnit=kg; currentPrice=12; altProduct=tomato_b; altQty=2; altUnit=kg; altPrice=24; storedLinePrice=false
+- Invariant: I-023 I-042 I-044
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: canonical snapshot: agreed 15 / current 12 / alternative 24 — representation only
+
+### PRICE-UNIT-001 — Impl PASS / Domain CONFIRMED
+
+- Expected: quantity=2; unit=kg; price=15; storedLinePrice=false; derivedTotal=30; snapshotLinePrice=false
+- Actual: quantity=2; unit=kg; price=15; storedLinePrice=false; derivedTotal=30; snapshotLinePrice=false
+- Invariant: I-042
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: price is per kg; derived total is not a stored linePrice
+
+### PRICE-UNIT-002 — Impl PASS / Domain CONFIRMED
+
+- Expected: sameProduct=true; sameUnit=true; sameQuantity=false; samePrice=false; distinguishable=true; derivedA=30; derivedB=30; sameDerived=true; aUnchanged=15
+- Actual: sameProduct=true; sameUnit=true; sameQuantity=false; samePrice=false; distinguishable=true; derivedA=30; derivedB=30; sameDerived=true; aUnchanged=15
+- Invariant: I-042 I-043 I-044
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: 2kg@15 vs 1kg@30 are different Offers; equal totals only after unit-price semantics
+
+### PRICE-ZERO-001 — Impl PASS / Domain CONFIRMED
+
+- Expected: price=0; derivedTotal=0; missing=false
+- Actual: price=0; derivedTotal=0; missing=false
+- Invariant: I-042 I-030
+- Hypothesis: CONFIRMED
+- Open question: none
+- Model violation: none
+- New concept: none
+- Workaround: none
+- Decision: price 0 is a real unit price; derived total 0 is not a missing price
+
 ## Final decision
 
 ```text
-Model version: v0.1.14 / SPEC v0.3
+Model version: v0.1.15 / SPEC v0.4
 Status: experiment implemented; production architecture not started
 
 Scope of this evidence: every CONFIRMED below confirms a SPECIFIC experimental behavior
 under the mock clock, mock catalog and example policies — NOT the basket model as a whole.
-The model as a whole cannot be declared confirmed while price/package, negotiation-TTL and
-allocation questions (SPEC OQ-001/OQ-002; experiment OQ-010; OQ-016) remain open.
+The model as a whole cannot be declared confirmed while duplicate-line, negotiation-TTL and
+allocation questions (SPEC OQ-003; experiment OQ-010; OQ-016) remain open.
 
 Changes in this PR (already implemented and tested):
 - I-033: BasketWorld hands out frozen projections; state changes only via domain commands
@@ -548,8 +743,13 @@ Changes in this PR (already implemented and tested):
 - OQ-006 / OQ-008 closed
 - PartialAvailabilitySeller offers min(requested, stock) of the SAME CatalogLine (sellerId, productId, unit) — a pcs pool is not kg stock
 - cheapestAvailable() removed from domain catalog semantics (ambiguous ≠ cheapest); catalogUnitPrice returns null on disagreement
-- Stage-1 ASSUMPTION recorded (SPEC OQ-002): package/reference quantity never changes unit price — not a proven domain truth
-- GREENMARKET_DOMAIN_SPEC v0.3 is the canonical domain contract; TZ-BASKET-005 closed experiment OQ-009/OQ-011/OQ-012
+- GREENMARKET_DOMAIN_SPEC v0.4 is the canonical domain contract; TZ-BASKET-006 closed SPEC OQ-001/OQ-002
+- I-042: price is the price of one unit; derived total = quantity * price; no stored linePrice
+- I-043: changing quantity does not reread price as a line total
+- I-044: Offer stores (product, quantity, unit, price); a change is a new Offer
+- I-045: catalog quantity is reference size only — not identity, multiplier, or unit conversion
+- snapshot.alternatives is a representation of List alternatives + catalog unit price; no BEST_PRICE
+- createPurchaseFromList no longer copies catalog.quantity into PurchaseItem.quantity
 - I-037: validUntil constrains accept/counter of the ACTIVE standing proposal only; it does not revoke Acceptance or agreed baseline
 - I-038: STABLE is agreed==active and no pending substitutions — Offer validity is not a STABLE exit
 - I-039: silence is the absence of a command; it does not REJECT/CANCEL/EXPIRED or move pointers
@@ -568,16 +768,25 @@ Closed in SPEC v0.3 / TZ-BASKET-005:
 - OQ-011 CLOSED for Stage-1 silence — no command ⇒ no lifecycle change; waiting facts are observation, not a sufficiency proof
 - OQ-012 CLOSED for passage of time — no SELLER_UNRESPONSIVE / auto-EXPIRED; negotiation TTL remains OQ-005
 
+TZ-BASKET-006
+Status: PASS
+OQ-001: CLOSED — price = price of one unit
+OQ-002: CLOSED — catalog quantity is reference size; package contents / volume pricing = MODEL GAP
+Model change required: YES (diagnostic unitLineTotal + snapshot.alternatives + stop catalog-qty fallback)
+New concept required: YES for package-contents / volume pricing — NOT introduced
+Production architecture changed: NO
+
 Still open:
-- SPEC OQ-001 / OQ-002 — price semantics / package quantity
 - SPEC OQ-003 — duplicate ListItems
 - SPEC OQ-005 / experiment OQ-010 — negotiation TTL
+- SPEC OQ-008 / experiment OQ-002 — alternative price *policy* (representation is closed)
 - experiment OQ-016 — allocation
 
 Assistant compatibility: isOfferValid still means standing-proposal validity. STABLE is
 checked first (WAIT TERMINAL_STATUS). An expired agreed Offer remains the price baseline
 when a later live active Offer is evaluated (I-037). Advice shape is unchanged.
+Assistants already compared unit prices; I-042 confirms that reading.
 
 The model is still experimental. PASS does not close remaining OPEN questions.
-Recommended next step: price semantics (SPEC OQ-001/OQ-002) or production-architecture gate
+Recommended next step: SPEC OQ-003 (duplicate ListItems), then OQ-005/TTL, then allocation
 ```

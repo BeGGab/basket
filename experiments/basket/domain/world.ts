@@ -1,4 +1,4 @@
-import { comparableRows, priceableSellerLines } from "./catalog";
+import { catalogUnitPrice, priceableSellerLines } from "./catalog";
 import { DeterministicClock } from "./clock";
 import { transition } from "./fsm";
 import { resolve } from "./resolution";
@@ -239,14 +239,9 @@ export class BasketWorld {
           duplicated = true;
           continue;
         }
-        const fallbackQuantity = comparableRows(this.catalogState, {
-          sellerId: line.sellerId,
-          productId: result.productId,
-          unit: line.unit,
-        })[0]?.quantity;
         bucket.push({
           productId: result.productId,
-          quantity: item.quantity ?? fallbackQuantity ?? 1,
+          quantity: item.quantity ?? 1,
           unit: line.unit,
           price: line.price,
           resolvedFrom: result.resolvedFrom ?? item.productId,
@@ -494,7 +489,59 @@ export class BasketWorld {
       agreed: { offerId: agreed?.id ?? null, items: agreed ? frozenItems(agreed.items) : [] },
       current: { offerId: current?.id ?? null, items: current ? frozenItems(current.items) : [] },
       pendingSubstitutions: Object.freeze(this.pendingMandatorySubs(sp).map(frozenSub)),
+      alternatives: Object.freeze(this.listAlternatives(sp).map((row) => Object.freeze({ ...row }))),
     };
+  }
+
+  /**
+   * I-023 representation: List alternatives with catalog unit prices for this seller.
+   * Not a choice and not an Offer. Missing/ambiguous catalog price stays null.
+   */
+  private listAlternatives(sp: SellerPurchase): Array<{
+    productId: string;
+    quantity: number | null;
+    unit: string | null;
+    price: number | null;
+    alternativePriority: number;
+  }> {
+    const purchase = this.requirePurchase(sp.purchaseId);
+    const list = this.requireList(purchase.listId);
+    const rows: Array<{
+      productId: string;
+      quantity: number | null;
+      unit: string | null;
+      price: number | null;
+      alternativePriority: number;
+    }> = [];
+    for (const item of list.items) {
+      const relevant = sp.items.some(
+        (line) =>
+          line.productId === item.productId ||
+          line.resolvedFrom === item.productId ||
+          item.alternatives.some((alt) => alt.productId === line.productId)
+      );
+      if (!relevant) continue;
+      for (const alt of item.alternatives) {
+        if (alt.productId === item.productId) continue;
+        const unit = item.unit ?? null;
+        const price =
+          unit === null
+            ? null
+            : catalogUnitPrice(this.catalogState, {
+                sellerId: sp.sellerId,
+                productId: alt.productId,
+                unit,
+              });
+        rows.push({
+          productId: alt.productId,
+          quantity: item.quantity ?? null,
+          unit,
+          price,
+          alternativePriority: alt.alternativePriority,
+        });
+      }
+    }
+    return rows;
   }
 
   /**

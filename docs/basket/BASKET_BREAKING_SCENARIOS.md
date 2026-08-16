@@ -203,3 +203,51 @@ Long silence after expiration does not invent `EXPIRED` or any other new lifecyc
 ## BS-036 — Time determinism
 
 Same initial snapshot + same commands + same timestamps → identical full observable world (I-040). Determinism regression only — not a proof that every source of nondeterminism is absent.
+
+## PRICE-UNIT-001 — Unit price
+
+`Tomatoes × 2 kg @ 15` is stored as those three facts. No `linePrice` field is materialized. Derived total is `2 × 15 = 30` (I-042).
+
+## PRICE-UNIT-002 — Line vs unit distinguishability
+
+`(2 kg, 15)` and `(1 kg, 30)` are different stored facts. They share a derived total only after unit-price semantics. The raw triple does not self-label “line” vs “unit”.
+
+## PRICE-OFFER-001 — Immutable Offer price
+
+Offer A `2 kg @ 15`, then Offer B `2 kg @ 12`. A ≠ B. ACCEPT(A) does not mutate A. `agreedOfferId` stays A until B is accepted (I-044).
+
+## PRICE-QTY-001 — Quantity does not redefine price
+
+Offer `2 kg @ 15` then `4 kg @ 15` is a new Offer. Price stays 15 per kg; it is not reread as “15 for 4 kg” (I-043).
+
+## PRICE-ABSENT-001 — Missing price
+
+A PurchaseItem without `price` has no derived total. The model does not invent `0` or `linePrice`.
+
+## PRICE-CATALOG-QTY-001 — Catalog quantity is not requested quantity
+
+List asks 2 kg. Catalog row `quantity = 20`. PurchaseItem.quantity is 2, not 20 (I-045).
+
+## PACKAGE-001 — Package as a unit
+
+`1 package @ 60` is representable. `1 package = 5 kg` is not a domain fact (MODEL GAP).
+
+## PACKAGE-002 — Package size vs unit price
+
+Two catalog rows `5 kg @ 12` and `20 kg @ 12` share one reference. `5 kg @ 12` and `20 kg @ 9` are `AMBIGUOUS_PRICE`. Volume pricing is a MODEL GAP.
+
+## PACKAGE-003 — Hidden package basis
+
+`1 package @ 60` cannot distinguish an external 5 kg basis from a 20 kg basis.
+
+## ALT-PRICE-001 — Primary cheaper than alternative
+
+Primary 15 and alternative 24 are both visible. PRIMARY_ONLY does not switch. No AUTO_ACCEPT.
+
+## ALT-PRICE-002 — Primary dearer than alternative
+
+Primary 24 and alternative 15 are both visible. FIRST_AVAILABLE is not BEST_PRICE.
+
+## PRICE-SNAPSHOT-001 — Canonical price snapshot
+
+Agreed `2 kg @ 15`, current `2 kg @ 12`, alternative `Tomato B × 2 kg @ 24` are visible together. Representation only.
