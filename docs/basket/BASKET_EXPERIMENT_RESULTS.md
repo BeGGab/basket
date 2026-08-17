@@ -93,7 +93,7 @@ Record evidence from the mock domain and seller emulator.
 | PRICE-ZERO-001 | PASS | CONFIRMED | none | price 0 is a real unit price; derived total 0 is not a missing price |
 | SNAPSHOT-VOL-001 | PASS | OPEN (SPEC-OQ-002A) | none | canonical snapshot distinguishes requested/agreed/current/alt/derived; package contents remain absent |
 | SOURCE-010-BASKET | PASS | OPEN (SPEC-OQ-002A) | none | No conversion/tier lookup found in ADD_TO_BASKET itself. The function copies payload.unit and payload.price. Conversion or pricing could occur before this call; this row does not claim the whole basket path |
-| SOURCE-010-CATALOG | PASS | OPEN (SPEC-OQ-002A) | none | Stage-1 source search of mockSellerCatalog.ts only: a kg listing exists; honey category has no 1 kg row; sack/range tokens are SOURCE ABSENT in this file. Token miss is not a market finding and does not test A3 seller classification |
+| SOURCE-010-CATALOG | PASS | OPEN (SPEC-OQ-002A) | none | Stage-1 source search of mockSellerCatalog.ts only: a kg listing exists; honey block has no unit: "1 кг" token; sack/range tokens are SOURCE ABSENT in this file. Token miss is not a market finding and does not test A3 seller classification |
 | SOURCE-010-EMULATOR | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of sellers.ts: minQuantity/maxQuantity/tierPrice/PriceSchedule tokens are SOURCE ABSENT in this file. This is not a CooperativeSeller call-shape regression and not a market finding that sellers have no range rule |
 | SOURCE-010-TREE | PASS | OPEN (SPEC-OQ-002A) | none | experiments/basket **/*.ts has no FLOW-010 run() and no observeCooperativeAccept helper. Executable check of those two artifacts only. Does not search docs or PACKAGE-008 experimenter facts. Not a business-flow observation |
 | SOURCE-010-TZ025 | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of TZ-025: free-text cheese discount is present; quantity-range tokens are SOURCE ABSENT in this file. Token miss is not a business fact and not B3 observation |
@@ -983,15 +983,15 @@ Record evidence from the mock domain and seller emulator.
 
 ### SOURCE-010-CATALOG — Impl PASS / Domain OPEN (SPEC-OQ-002A)
 
-- Expected: hasKgListedSeed=true; honeyCategoryFound=true; honeySeedsPresent=true; honey1kgCount=0; sackContentsTokens=false; quantityRangeTokens=false
-- Actual: hasKgListedSeed=true; honeyCategoryFound=true; honeySeedsPresent=true; honey1kgCount=0; sackContentsTokens=false; quantityRangeTokens=false
+- Expected: hasKgListedSeed=true; honeyCategoryFound=true; honeySeedsPresent=true; honeyKgUnitInBlock=false; sackContentsTokens=false; quantityRangeTokens=false
+- Actual: hasKgListedSeed=true; honeyCategoryFound=true; honeySeedsPresent=true; honeyKgUnitInBlock=false; sackContentsTokens=false; quantityRangeTokens=false
 - Invariant: I-047 I-050
 - Hypothesis: OPEN
 - Open question: SPEC-OQ-002A
 - Model violation: none
 - New concept: SOURCE ABSENT in mockSellerCatalog.ts — not a business-flow observation
 - Workaround: none
-- Decision: Stage-1 source search of mockSellerCatalog.ts only: a kg listing exists; honey category has no 1 kg row; sack/range tokens are SOURCE ABSENT in this file. Token miss is not a market finding and does not test A3 seller classification
+- Decision: Stage-1 source search of mockSellerCatalog.ts only: a kg listing exists; honey block has no unit: "1 кг" token; sack/range tokens are SOURCE ABSENT in this file. Token miss is not a market finding and does not test A3 seller classification
 
 ### SOURCE-010-EMULATOR — Impl PASS / Domain OPEN (SPEC-OQ-002B)
 

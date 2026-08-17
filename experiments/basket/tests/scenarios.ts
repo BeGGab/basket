@@ -10,7 +10,7 @@ import { hasStoredLinePrice, lineTotalAbsence, unitLineTotal } from "../domain/p
 import { adviseBuyer, catalogReferencePrice } from "../assistants";
 import {
   extractNamedDeclaration,
-  honeyCategoryKgCount,
+  honeyCategorySearch,
   mentionsQuantityRangeTokens,
   mentionsSackContents,
   parseListedSeeds,
@@ -3872,7 +3872,7 @@ export function runAllScenarios(): ScenarioResult[] {
     run("SOURCE-010-CATALOG", () => {
       const source = readStage1("catalog");
       const seeds = parseListedSeeds(source);
-      const honeyKg = honeyCategoryKgCount(source);
+      const honeyKg = honeyCategorySearch(source);
       return prove(
         "SOURCE-010-CATALOG",
         "I-047 I-050",
@@ -3880,7 +3880,7 @@ export function runAllScenarios(): ScenarioResult[] {
           hasKgListedSeed: true,
           honeyCategoryFound: true,
           honeySeedsPresent: true,
-          honey1kgCount: 0,
+          honeyKgUnitInBlock: false,
           sackContentsTokens: false,
           quantityRangeTokens: false,
         },
@@ -3888,11 +3888,11 @@ export function runAllScenarios(): ScenarioResult[] {
           hasKgListedSeed: seeds.some((seed) => seed.unit === "1 кг"),
           honeyCategoryFound: honeyKg.blockFound,
           honeySeedsPresent: honeyKg.listedCount > 0,
-          honey1kgCount: honeyKg.kgCount,
+          honeyKgUnitInBlock: honeyKg.kgUnitInBlock,
           sackContentsTokens: mentionsSackContents(source),
           quantityRangeTokens: mentionsQuantityRangeTokens(source),
         },
-        "Stage-1 source search of mockSellerCatalog.ts only: a kg listing exists; honey category has no 1 kg row; sack/range tokens are SOURCE ABSENT in this file. Token miss is not a market finding and does not test A3 seller classification",
+        "Stage-1 source search of mockSellerCatalog.ts only: a kg listing exists; honey block has no unit: \"1 кг\" token; sack/range tokens are SOURCE ABSENT in this file. Token miss is not a market finding and does not test A3 seller classification",
         "OPEN",
         "SPEC-OQ-002A",
         { newConcept: "SOURCE ABSENT in mockSellerCatalog.ts — not a business-flow observation" }

@@ -80,18 +80,21 @@ export function findSeed(seeds: readonly ListedSeed[], name: string): ListedSeed
   return seeds.find((seed) => seed.name === name);
 }
 
-export function honeyCategoryKgCount(source: string): {
+export function mentionsKgUnit(source: string): boolean {
+  return /unit\s*:\s*["']1\s*кг["']/.test(source);
+}
+
+export function honeyCategorySearch(source: string): {
   blockFound: boolean;
   listedCount: number;
-  kgCount: number;
+  kgUnitInBlock: boolean;
 } {
   const block = extractCategoryBlock(source, "honey");
-  if (!block) return { blockFound: false, listedCount: 0, kgCount: 0 };
-  const seeds = parseListedSeeds(block);
+  if (!block) return { blockFound: false, listedCount: 0, kgUnitInBlock: false };
   return {
     blockFound: true,
-    listedCount: seeds.length,
-    kgCount: seeds.filter((seed) => seed.unit === "1 кг").length,
+    listedCount: parseListedSeeds(block).length,
+    kgUnitInBlock: mentionsKgUnit(block),
   };
 }
 

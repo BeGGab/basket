@@ -394,7 +394,7 @@ Two pre-split `productId`s yield two identity keys. This does not prove pack siz
 
 ## SOURCE-010-CATALOG — Stage-1 catalog source search
 
-Reads `mockSellerCatalog.ts`. A `1 кг` listing exists; honey category found; at least one seed present; no `1 кг` honey-block row; sack/range tokens SOURCE ABSENT in this file. Not a potato/tomato price snapshot. Not a business-flow observation (**OPEN — SPEC OQ-002A / OQ-002B**).
+Reads `mockSellerCatalog.ts`. A `1 кг` listing exists; honey category found; at least one seed present; honey block has no `unit: "1 кг"` token; sack/range tokens SOURCE ABSENT in this file. Not a potato/tomato price snapshot. Not a business-flow observation (**OPEN — SPEC OQ-002A / OQ-002B**).
 
 ## SOURCE-010-EMULATOR — Stage-1 emulator source search
 

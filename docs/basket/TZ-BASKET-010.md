@@ -112,7 +112,7 @@ TZ допускал «documented absence» как Variant 1. После review �
 
 ### H5. A3 с одним `honey_flower` не проверяет гипотезу
 
-Один listing 500 g не различает «один товар + упаковки» vs «два товара». A3 = **NOT TESTABLE** из Stage-1 sources. SOURCE-010-CATALOG фиксирует: honey category has no `1 кг` row. Не seller classification.
+Один listing 500 g не различает «один товар + упаковки» vs «два товара». A3 = **NOT TESTABLE** из Stage-1 sources. SOURCE-010-CATALOG фиксирует: honey block has no `unit: "1 кг"` token. Не seller classification.
 
 ### H6. B2 180/180/180/180 неизбежен без механизма range
 
@@ -132,7 +132,7 @@ Replaced by `extractNamedDeclaration`: `function` / `export function` / `const n
 
 ### H11. Exact seed names are not OQ-002 evidence
 
-Potato 55 / tomato 180 / three honey names were removed from SOURCE-010-CATALOG. That row now records only `hasKgListedSeed`, `honey1kgCount`, sack/range tokens (plus `honeyCategoryFound` and `honeySeedsPresent` so a missed honey block cannot silently look like `honey1kgCount=0`). `honeySeedsPresent` means at least one listing matched the seed regex, not that the whole honey block was parsed.
+Potato 55 / tomato 180 / three honey names were removed from SOURCE-010-CATALOG. That row now records `hasKgListedSeed`, sack/range tokens, `honeyCategoryFound`, `honeySeedsPresent`, and `honeyKgUnitInBlock`. `honeySeedsPresent` means at least one listing matched the seed regex. Absence of 1 kg honey is checked on the **whole extracted honey block** (`unit: "1 кг"` / `unit: '1 кг'`), not only on successfully parsed seeds. This is still SOURCE ABSENT of that token, not a business-flow observation.
 
 ### H12. Quantity-range detector is a token heuristic
 
@@ -238,7 +238,7 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 | Source | `mockSellerCatalog.ts` (file read by the test) |
 | Buyer action | none |
 | Seller action | none |
-| Recorded listing facts | this file has at least one `1 кг` listing; honey category found; at least one seed present; 0 matched honey-block rows have unit `1 кг`; sack/range tokens SOURCE ABSENT in this file |
+| Recorded listing facts | this file has at least one `1 кг` listing; honey category found; at least one seed present; honey block has no `unit: "1 кг"` token; sack/range tokens SOURCE ABSENT in this file |
 | Missing fact | pack-contents relation; seller classification of honey packs; quantity-range rule |
 | Domain conclusion | SOURCE ABSENT **in mockSellerCatalog.ts**. **Not** a business-flow observation. Not a snapshot of potato/tomato prices. |
 | Open question | SPEC OQ-002A / OQ-002B |
@@ -326,7 +326,7 @@ I-042…I-050 unchanged. No I-051.
 
 | ID | Hypothesis | Что проверяет |
 |---|---|---|
-| SOURCE-010-CATALOG | OPEN | `mockSellerCatalog.ts`: kg listing, no 1 kg honey row, sack/range tokens SOURCE ABSENT in this file |
+| SOURCE-010-CATALOG | OPEN | `mockSellerCatalog.ts`: kg listing; honey block has no `unit: "1 кг"` token; sack/range tokens SOURCE ABSENT in this file |
 | SOURCE-010-EMULATOR | OPEN | `sellers.ts`: quantity-range identifier tokens SOURCE ABSENT in this file |
 | SOURCE-010-BASKET | OPEN | no conversion/tier lookup found in ADD_TO_BASKET itself |
 | SOURCE-010-TZ025 | OPEN | ТЗ-025: cheese-discount text; range tokens SOURCE ABSENT in this file |
