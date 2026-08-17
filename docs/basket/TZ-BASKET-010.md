@@ -128,31 +128,31 @@ FLOW-010 never existed on `main`. The first commit of this PR added them; the re
 
 ### H10. `extractFunction("function name(")` was syntax-fragile
 
-Replaced by `extractNamedDeclaration`: `function` / `export function` / `const name = (` with brace matching, skipping `{` inside TypeScript parameter types (`Extract<Action, { type: ... }>`), strings, and comments. SOURCE-010-BASKET requires `declarationFound=true`. `usesBasketStore` is **not** OQ-002A evidence.
+Replaced by `extractNamedDeclaration` for a **documented subset**: `function` / `export function` / `const|let|var name = (` with brace matching; strings and comments skipped; `{` inside `Extract<…, { … }>` skipped by a paren/angle heuristic. This is **not** a TypeScript parser (regex literals and arbitrary `<`/`>` in defaults are unsupported). Empty extract is fail-closed. SOURCE-010-BASKET requires `declarationFound=true`. `copiesUnit` / `copiesPrice` match `field: payload.field` in **lexical code** of the body, not in comments or strings. `usesBasketStore` is **not** OQ-002A evidence.
 
 ### H11. Exact seed names are not OQ-002 evidence
 
-Potato 55 / tomato 180 / three honey names were removed from SOURCE-010-CATALOG. That row now records `hasKgListedSeed`, sack/range tokens, `honeyCategoryFound`, `honeySeedsPresent`, and `honeyKgUnitInBlock`. `honeySeedsPresent` means at least one listing matched the seed regex. Absence of 1 kg honey is checked on the **whole extracted honey block** (`unit: "1 кг"` / `unit: '1 кг'`), not only on successfully parsed seeds. Block extraction skips strings and `//` / block comments, so a commented `]` cannot truncate the array. This is still SOURCE ABSENT of that token, not a business-flow observation.
+Potato 55 / tomato 180 / three honey names were removed from SOURCE-010-CATALOG. That row now records `hasKgListedSeed`, sack/range tokens, `honeyCategoryFound`, `honeySeedsPresent`, and `honeyKgUnitInBlock`. `honeySeedsPresent` means at least one listing matched the seed regex after comments are stripped. Absence of 1 kg honey is `unit:` followed by a string literal `1 кг` in the extracted honey block, ignoring comments. Block extraction also skips strings and comments, so a commented `]` cannot truncate the array. Token detectors (`mentionsKgUnit`, `mentionsSackContents`, `mentionsQuantityRangeTokens`) use lexical code, not raw text. This is still SOURCE ABSENT of that token, not a business-flow observation.
 
 ### H12. Quantity-range detector is a token heuristic
 
-`mentionsQuantityRangeTokens` answers only whether those strings/identifiers appear. A miss is SOURCE ABSENT of tokens, not absence of a business rule.
+`mentionsQuantityRangeTokens` answers only whether those identifiers/tokens appear in **lexical code** (comments and strings omitted). A miss is SOURCE ABSENT of those tokens, not absence of a business rule. TZ-025 is markdown prose, not TypeScript; that row still searches the file text.
 
 ### H13. ADD_TO_BASKET claims are scoped to that function
 
-Wording is: **No conversion/tier lookup found in ADD_TO_BASKET itself.** Conversion or a pricing decision may happen before `addToBasket` writes `payload.unit` / `payload.price`. This row does not claim the whole basket path. The scenario field is `source inspection — not a domain invariant`; it does **not** confirm I-045.
+Wording is: **No conversion/tier lookup found in ADD_TO_BASKET itself.** Conversion or a pricing decision may happen before `addToBasket` writes `payload.unit` / `payload.price`. `copiesUnit` / `copiesPrice` are lexical-code matches, not comment/string matches. This row does not claim the whole basket path. The scenario field is `source inspection — not a domain invariant`; it does **not** confirm I-045.
 
 ### H14. CooperativeSeller call-shape is not OQ-002B evidence
 
-SOURCE-010-EMULATOR records identifier tokens (`minQuantity`, `maxQuantity`, `tierPrice`, `PriceSchedule`). It does not regex `acceptOffer(latestBuyer.id, "SELLER")`.
+SOURCE-010-EMULATOR records identifier tokens (`minQuantity`, `maxQuantity`, `tierPrice`, `PriceSchedule`) in **lexical code**. It does not regex `acceptOffer(latestBuyer.id, "SELLER")`.
 
 ### H15. FLOW-010 scan covers experiments/basket TypeScript
 
-SOURCE-010-TREE walks `experiments/basket/**/*.ts` and checks the two historical FLOW-010 artifacts: `run("FLOW-010-…")` and `function observeCooperativeAccept`. `walkComplete` means the recursive listing finished and every listed `.ts` file was inspected — not a floor such as `scannedFiles >= 8`. This is a **cleanup check** of those two names, not a proof that synthetic business-flow is absent. It does not search `docs/` (TZ-010 may mention the old ids) and does not treat PACKAGE-008 experimenter facts (`1 package = 5 kg`) as FLOW-010 leftovers. `seller-a` is not a FLOW-010 artifact.
+SOURCE-010-TREE walks `experiments/basket/**/*.ts` and checks the two historical FLOW-010 artifacts: `run("FLOW-010-…")` as lexical `run(` + string, and `function observeCooperativeAccept` in lexical code. Comments and strings do not count. `walkComplete` means the recursive listing finished and every listed `.ts` file was inspected — not a floor such as `scannedFiles >= 8`. This is a **cleanup check** of those two names, not a proof that synthetic business-flow is absent. It does not search `docs/` (TZ-010 may mention the old ids) and does not treat PACKAGE-008 experimenter facts (`1 package = 5 kg`) as FLOW-010 leftovers. `seller-a` is not a FLOW-010 artifact.
 
 
 
-## Search log (read-only, now executable)
+## Search log (enumerated files are executable; live interview is human)
 
 Источники читаются тестами из `experiments/basket/tests/stage1SourceSearch.ts`. В catalog/spec **не** создавались pack-contents или quantity-range таблицы.
 
@@ -344,7 +344,7 @@ FLOW-010-A1/A2/A3/B1/B2 never existed on `main`; they were added in the first co
 
 - [ ] Минимум одно **business-flow** observation для OQ-002A — **не выполнено** (явно: NOT OBTAINED)
 - [ ] Минимум одно **business-flow** observation для OQ-002B — **не выполнено** (явно: NOT OBTAINED)
-- [x] Stage-1 source search documented **and** executable against the real files (`mockSellerCatalog.ts`, `sellers.ts`, `BasketActionHandlers.ts`, ТЗ-025)
+- [x] Enumerated Stage-1 source search is executable against: `mockSellerCatalog.ts`; `experiments/basket/emulator/sellers.ts`; `BasketActionHandlers.ts` `addToBasket`; `docs/specifications/27_tz025_kartochka_prodavtsa_detalnaya.md`; `experiments/basket/**/*.ts` (TREE cleanup of two historical FLOW-010 names only). Not a complete Stage-1 evidence space; the search-log “live interview” row is a human finding, not an executable scan
 - [x] SOURCE ABSENT отделён от BUSINESS-FLOW NOT OBTAINED
 - [x] CooperativeSeller / handmade catalog не выдаются за observation
 - [x] A3 не претендует на seller classification
@@ -359,6 +359,6 @@ FLOW-010-A1/A2/A3/B1/B2 never existed on `main`; they were added in the first co
 - [x] Production architecture не изменяется
 - [x] historical FLOW-010 artifacts (`run("FLOW-010-…")`, `function observeCooperativeAccept`) removed from `experiments/basket` TypeScript; SOURCE-010-TREE is this cleanup check
 - [ ] synthetic business-flow patterns absent — **не доказуемо** этим scanner; не выдавать TREE PASS за это утверждение
-- [x] `addToBasket` extractor устойчив к `function` / `const` и падает, если declaration не найдена
+- [x] `addToBasket` extractor covers the documented subset (`function` / `const` / `Extract<…,{…}>`) and fails closed if the declaration is not found; comment/string copiesUnit false-PASS cases are covered by scanner contract tests
 - [x] SOURCE-010-CATALOG не использует snapshot цен/имён как OQ-002 evidence
 - [x] Quantity-range detector помечен как token heuristic: miss = SOURCE ABSENT of tokens

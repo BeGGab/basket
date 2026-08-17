@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { BasketWorld } from "../domain/world";
 import { createSellerEmulator, buyerOffer } from "../emulator/sellers";
 import { formatResults, runAllScenarios } from "./scenarios";
+import { assertStage1ScannerContract } from "./stage1SourceSearch";
 import { runTz004 } from "./assistants";
 import { runTz002 } from "./runtime";
 
@@ -289,6 +290,8 @@ function invariants() {
 
 function run() {
   invariants();
+  assertStage1ScannerContract();
+  console.log("stage-1 scanner contract: OK");
   const rows = runAllScenarios();
   const failed = rows.filter((r) => r.result === "FAIL");
   const here = dirname(fileURLToPath(import.meta.url));

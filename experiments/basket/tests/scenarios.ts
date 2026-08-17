@@ -16,6 +16,8 @@ import {
   parseListedSeeds,
   readStage1,
   scanBasketExperimentForFlow010,
+  copiesPayloadField,
+  codeContains,
 } from "./stage1SourceSearch";
 
 export type ScenarioResult = {
@@ -3914,10 +3916,10 @@ export function runAllScenarios(): ScenarioResult[] {
           quantityRangeTokens: false,
         },
         {
-          hasMinQuantity: source.includes("minQuantity"),
-          hasMaxQuantity: source.includes("maxQuantity"),
-          hasTierPrice: source.includes("tierPrice"),
-          hasPriceSchedule: source.includes("PriceSchedule"),
+          hasMinQuantity: codeContains(source, /minQuantity/),
+          hasMaxQuantity: codeContains(source, /maxQuantity/),
+          hasTierPrice: codeContains(source, /tierPrice/),
+          hasPriceSchedule: codeContains(source, /PriceSchedule/),
           quantityRangeTokens: mentionsQuantityRangeTokens(source),
         },
         "Stage-1 source search of sellers.ts: minQuantity/maxQuantity/tierPrice/PriceSchedule tokens are SOURCE ABSENT in this file. This is not a CooperativeSeller call-shape regression and not a market finding that sellers have no range rule",
@@ -3943,10 +3945,10 @@ export function runAllScenarios(): ScenarioResult[] {
         },
         {
           declarationFound: addToBasket.length > 0,
-          copiesUnit: /unit:\s*payload\.unit/.test(addToBasket),
-          copiesPrice: /price:\s*payload\.price/.test(addToBasket),
-          hasConversion: /conversionFactor|packageContents/.test(addToBasket),
-          hasTierPrice: /tierPrice|minQuantity|maxQuantity/.test(addToBasket),
+          copiesUnit: copiesPayloadField(addToBasket, "unit"),
+          copiesPrice: copiesPayloadField(addToBasket, "price"),
+          hasConversion: codeContains(addToBasket, /conversionFactor|packageContents/),
+          hasTierPrice: codeContains(addToBasket, /tierPrice|minQuantity|maxQuantity/),
         },
         "No conversion/tier lookup found in ADD_TO_BASKET itself. The function copies payload.unit and payload.price. Conversion or pricing could occur before this call; this row does not claim the whole basket path",
         "OPEN",
