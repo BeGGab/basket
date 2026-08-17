@@ -64,6 +64,19 @@ npx tsx experiments/basket/tests/run.ts
 | `VOLUME-PRICE-007` | seller reprice after qty increase | `scenarios.ts` VOLUME-PRICE-007 |
 | `VOLUME-PRICE-008` | snapshot keeps unit-price basis | `scenarios.ts` VOLUME-PRICE-008 |
 | `SNAPSHOT-VOL-001` | requested/agreed/current/alt; contents absent | `scenarios.ts` SNAPSHOT-VOL-001 |
+| `PACKAGE-008-001` | 1 package @ 60, no extra fields | `scenarios.ts` PACKAGE-008-001 |
+| `PACKAGE-008-002` | external 5 kg is not an Offer term | `scenarios.ts` PACKAGE-008-002 |
+| `PACKAGE-008-003` | 2 kg vs package — no conversion | `scenarios.ts` PACKAGE-008-003 |
+| `PACKAGE-008-004` | no partial/whole/split policy | `scenarios.ts` PACKAGE-008-004 |
+| `PACKAGE-008-005` | 6 kg does not choose 1/2/split packs | `scenarios.ts` PACKAGE-008-005 |
+| `PACKAGE-008-006` | package bases — identity GAP; no evidence yet justifies Package | `scenarios.ts` PACKAGE-008-006 |
+| `VOLUME-008-001` | 3/7/12 kg do not read external tiers | `scenarios.ts` VOLUME-008-001 |
+| `VOLUME-008-002` | tier announcement is not an Offer | `scenarios.ts` VOLUME-008-002 |
+| `VOLUME-008-003` | 7@17 without schedule provenance | `scenarios.ts` VOLUME-008-003 |
+| `VOLUME-008-004` | 17→16 is a new Offer | `scenarios.ts` VOLUME-008-004 |
+| `VOLUME-008-005` | qty change without schedule link | `scenarios.ts` VOLUME-008-005 |
+| `VOLUME-008-006` | equal unit price still two Offers | `scenarios.ts` VOLUME-008-006 |
+| `VOLUME-008-007` | equal derived totals ≠ Offer identity | `scenarios.ts` VOLUME-008-007 |
 | *(SPEC OQ-003)* | duplicate ListItems of same `(productId, unit)` | `run.ts` `DUPLICATE_LINE` (explicit, not silent collapse) |
 
 A PR that confirms a new domain rule MUST add or update a row here **and** the executable test.

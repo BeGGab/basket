@@ -1,8 +1,8 @@
 # GreenMarket Domain Specification
 
-Version: 0.5
+Version: 0.6
 Status: EXPERIMENTAL
-Update basis: TZ-BASKET-007 (package semantics / volume pricing experiment)
+Update basis: TZ-BASKET-008 (package contents vs standing volume schedule)
 Scope: Stage 1 Basket Experiment
 Purpose: a single domain contract for the core code, emulators, scenarios, tests, and the later AI layer.
 
@@ -232,21 +232,24 @@ catalog row (I-045). `unit = "package"` is a commercial unit like `kg`: `1 packa
 does not scale `price` and is not a conversion into another unit. This specification does
 **not** introduce a `Package` entity and does not auto-convert 60 MAD/package into 12 MAD/kg.
 
-**Package contents (OPEN — OQ-002A / I-047).** External experimenter knowledge such as
+**Package contents (OPEN — OQ-002A / I-047 / I-049).** External experimenter knowledge such as
 `1 package = 5 kg` vs `1 package = 20 kg` is not a stored Catalog, Offer, or PurchaseItem fact.
-Current identity `(sellerId, productId, unit)` cannot represent distinct package bases. Two
-catalog rows that differ only in that external basis collapse or become `AMBIGUOUS_PRICE` when
-prices disagree. Distinguishability by `price` is not contents. Requested `PurchaseItem.quantity`
-is not copied from catalog package size. A `kg` ListItem is not resolved against a `package`
-catalog row. Partial / whole-only package is not a domain concept.
+A package-unit deal `1 package @ 60` completes (Offer, Acceptance, derived total) **without**
+contents: they are not Offer terms (I-049). Current identity `(sellerId, productId, unit)`
+cannot represent distinct package bases. That catalog-identity limitation does **not** by itself
+justify a `Package` entity. Requested `PurchaseItem.quantity` is not copied from catalog package
+size. A `kg` ListItem is not resolved against a `package` catalog row and is not converted to
+`0.4 package`. Partial / whole-only / split package is not a domain concept.
 
 That is a MODEL GAP / limitation of Stage-1 representation. It is **not** a decision that
-package contents or conversion must not exist later.
+package contents or conversion must not exist later. TZ-BASKET-008 conclusion: **B** — gap
+exists; no evidence yet justifies a Package entity.
 
-**Affected invariants:** I-036, I-045, I-047.
+**Affected invariants:** I-036, I-045, I-047, I-049.
 
-**Affected scenarios:** PACKAGE-001 / PACKAGE-SEM-001 (unit CONFIRMED); PACKAGE-SEM-002 / 004 /
-005 / 006 and PACKAGE-003 / 004 (OPEN — OQ-002A).
+**Affected scenarios:** PACKAGE-001 / PACKAGE-SEM-001 / PACKAGE-008-001 / PACKAGE-008-002
+(unit deal CONFIRMED); PACKAGE-SEM-002 / 004 / 005 / 006 and PACKAGE-008-003 / 004 / 005 / 006
+(OPEN — OQ-002A).
 
 ## 13.2 Volume pricing (OQ-002B: Stage-1 constraint; standing schedule OPEN)
 
@@ -257,15 +260,19 @@ Offer (I-044); the previous Offer is not mutated. Snapshot keeps the unit-price 
 (`20 kg @ 12`), not a stored `price = 240`. A `VolumePrice` entity is not required to represent
 these concrete deals. I-042 is unchanged: `price` remains the price of one unit.
 
-**Standing schedule (OPEN — OQ-002B).** A quantity-range condition such as
-`1–4 kg → 20 / 5–9 kg → 17 / 10+ kg → 14` existing *before* a concrete Offer is not a domain
-object. Concrete Offers `3@20`, `7@17`, `12@14` do not prove that schedule. This specification
-does not introduce `PriceSchedule`.
+**Standing schedule (OPEN — OQ-002B / I-050).** A quantity-range announcement such as
+`1–4 kg → 20 / 5–9 kg → 17 / 10+ kg → 14` existing *before* a concrete Offer is not an Offer:
+no Offer id, not acceptable (I-050). The domain does not look up an external tier when the buyer
+asks 3 / 7 / 12 kg. A concrete Offer `7 kg @ 17` does not store schedule provenance. Changing
+the announced unit price or the quantity is a new Offer; there is no schedule object to version.
+Equal unit prices across external tier bounds are still distinct Offers. This specification
+does not introduce `PriceSchedule`. TZ-BASKET-008 conclusion: **B** — gap exists; no evidence
+yet justifies a PriceSchedule entity.
 
-**Affected invariants:** I-042, I-044, I-048.
+**Affected invariants:** I-042, I-044, I-048, I-050.
 
-**Affected scenarios:** VOLUME-PRICE-001…008 (concrete Offers CONFIRMED);
-VOLUME-PRICE-005B (schedule OPEN); SNAPSHOT-VOL-001 (contents still absent).
+**Affected scenarios:** VOLUME-PRICE-001…008 and VOLUME-008-002…007 (concrete Offers CONFIRMED);
+VOLUME-PRICE-005B / VOLUME-008-001 (schedule lookup OPEN); SNAPSHOT-VOL-001 (contents still absent).
 
 Alternative *selection policy* (AUTO_ACCEPT / BEST_PRICE / ASK_BUYER) is a different question and
 stays **OPEN — SPEC OQ-008**.
@@ -650,6 +657,11 @@ VOLUME-PRICE-001         5@15=75 and 20@15=300
 VOLUME-PRICE-002         5@15 and 20@12 are two Offers
 VOLUME-PRICE-005         concrete tier-like Offers representable
 VOLUME-PRICE-005B        standing quantity-range schedule absent — OPEN (OQ-002B)
+PACKAGE-008-001          1 package @ 60 Offer triple, no extra fields
+PACKAGE-008-002          external 5 kg is not an Offer term (I-049)
+PACKAGE-008-003          2 kg vs package — no conversion — OPEN (OQ-002A)
+VOLUME-008-001           3/7/12 kg do not read external tiers — OPEN (OQ-002B)
+VOLUME-008-002           tier announcement is not an Offer (I-050)
 SNAPSHOT-VOL-001         requested/agreed/current/alt/derived; package contents absent
 ALT-PRICE-001            primary cheaper than alternative — representation only
 ALT-PRICE-002            FIRST_AVAILABLE / PRIMARY_ONLY are not BEST_PRICE; policy OPEN (OQ-008)
@@ -682,12 +694,17 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
 - **OQ-001 — Price semantics.** **CLOSED** in v0.4. See §13: `price` is the price of one `unit`.
   A derived line total is `quantity * price` and is not stored.
 - **OQ-002 — Package / volume pricing.** Split in v0.5. Parent remains for traceability.
-- **OQ-002A — Package semantics.** **OPEN.** `package` is a unit (PACKAGE-SEM-001). Contents,
-  conversion, and partial/whole package are not stored facts (I-047). PACKAGE-SEM-002/004/005/006
-  are limitation evidence, not a policy that contents must not exist.
+- **OQ-002A — Package semantics.** **OPEN.** A package-unit deal does not require stored contents
+  (I-049 / PACKAGE-008-002). Contents, conversion, partial/whole package, and distinct package
+  bases remain MODEL GAP (I-047). TZ-BASKET-008 conclusion **B**: gap exists; no evidence yet
+  justifies a `Package` entity. PACKAGE-008-003/004/005/006 are limitation evidence, not a policy.
+  Further closing OQ-002A requires a business observation, not another synthetic model test.
 - **OQ-002B — Volume pricing.** **Stage-1 constraint + remaining OPEN.** A concrete volume deal
-  is an Offer (I-048 / VOLUME-PRICE-002). A standing quantity-range schedule before an Offer is
-  a MODEL GAP (VOLUME-PRICE-005B). `VolumePrice` is not introduced.
+  is an Offer (I-048). A standing quantity-range announcement is not an Offer (I-050 /
+  VOLUME-008-002). Schedule lookup before an Offer is a MODEL GAP (VOLUME-008-001).
+  TZ-BASKET-008 conclusion **B**: no evidence yet justifies a `PriceSchedule` entity.
+  `VolumePrice` is not introduced. Further closing OQ-002B requires a business observation,
+  not another synthetic model test.
 - **OQ-003 — Duplicate ListItems.** What to do with `Tomatoes / 2 kg` and `Tomatoes / 5 kg` in one
   List? **OPEN**
 - **OQ-004 — Expired agreed Offer.** **CLOSED** in v0.3 (maps to experiment OQ-009). See §38:
@@ -735,6 +752,9 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
 | v0.5 | TZ-BASKET-007 | SPEC OQ-002 split into OQ-002A (package contents OPEN) and OQ-002B (concrete volume = Offer; standing schedule OPEN) |
 | v0.5 | TZ-BASKET-007 | I-047: package contents in another unit is not a stored fact |
 | v0.5 | TZ-BASKET-007 | I-048: concrete volume deal is an Offer; no VolumePrice / PriceSchedule entity |
+| v0.6 | TZ-BASKET-008 | OQ-002A/B remain OPEN (conclusion B); I-049 package-unit deal needs no stored contents |
+| v0.6 | TZ-BASKET-008 | I-050: standing quantity-range announcement is not an Offer; no schedule provenance |
+| v0.6 | TZ-BASKET-008 | no evidence yet justifies Package / PriceSchedule; further close of OQ-002A/B needs business observation |
 
 ## 50. Rule for the next PR
 
@@ -756,7 +776,7 @@ Observation → Domain decision → SPEC update → Invariant → Scenario → I
 
 ## 51. Current main technical conclusion
 
-After v0.5, package-as-unit and concrete volume Offers are split from still-open contents/schedules:
+After v0.6, package-unit deals and concrete volume Offers are split from still-open contents/schedules:
 
 ```
 price          → price of one unit (derived total = quantity × price; not stored)
@@ -773,8 +793,10 @@ OQ-011 CLOSED    Stage-1 silence: no command ⇒ no lifecycle change
 OQ-012 CLOSED    passage of time: no SELLER_UNRESPONSIVE / auto-EXPIRED
 
 OQ-001 CLOSED    price = price of one unit
-OQ-002A OPEN     package is a unit; contents/conversion/partial remain MODEL GAP
-OQ-002B Stage-1  concrete volume deal = Offer; standing schedule OPEN
+OQ-002A OPEN     package-unit deal needs no stored contents; conversion/partial/bases remain GAP
+                 (further close requires business observation, not another synthetic model test)
+OQ-002B Stage-1  concrete volume deal = Offer; announcement is not an Offer; schedule object OPEN
+                 (further close requires business observation, not another synthetic model test)
 OQ-005 OPEN      negotiation lifetime / TTL
 OQ-003 OPEN      duplicate ListItems
 OQ-008 OPEN      alternative price policy (not a representation question)
