@@ -92,3 +92,5 @@ Offer expiration is three separate things:
 - **I-050:** A standing quantity-range price announcement is not an Offer: it has no Offer id and cannot be accepted. A concrete Offer `(quantity, unit, price)` does not store schedule provenance. Changing quantity or the announced unit price is a new Offer (I-044). This does **not** close whether a future schedule object is needed (**SPEC OQ-002B OPEN**).
 
 TZ-BASKET-009 adds no new invariant. Catalog/spec reconstruction is not a business-flow observation and does **not** close OQ-002A / OQ-002B.
+
+TZ-BASKET-010 adds no new invariant. Absence of pack-contents and quantity-range seller facts in Stage-1 sources is **NOT OBSERVED**, not a decision that those facts must not exist later, and does **not** close OQ-002A / OQ-002B.

@@ -2,7 +2,7 @@
 
 **Status:** Experimental Baseline v0.1
 
-`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 88 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
+`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 93 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
 
 | ID | Scenario | Model | Emulator | /sim demo | Main check |
 |---|---|:---:|:---:|:---:|---|
@@ -94,6 +94,11 @@
 | PACKAGE-BIZ-009-001 | listed 250 g representable | ✓ |  |  | OPEN reconstruction |
 | PACKAGE-BIZ-009-002 | pre-split productIds | ✓ |  |  | OPEN; not OQ-002A evidence |
 | VOLUME-BIZ-009-001 | listed price on 3/7/12 kg | ✓ |  |  | OPEN; not seller pricing |
+| FLOW-010-A1 | 2 kg potatoes seller accept | ✓ | ✓ |  | OPEN; pack-contents fact NOT OBSERVED |
+| FLOW-010-A2 | 6 kg potatoes seller accept | ✓ | ✓ |  | OPEN; pack oversupply NOT OBSERVED |
+| FLOW-010-A3 | honey 500 g seller accept | ✓ | ✓ |  | OPEN; pack-vs-product NOT OBSERVED |
+| FLOW-010-B1 | 7 kg tomatoes seller accept | ✓ | ✓ |  | OPEN; quantity-range fact NOT OBSERVED |
+| FLOW-010-B2 | 4/5/9/10 kg listed unit price | ✓ | ✓ |  | OPEN; not a range decision |
 
 TZ-004 assistant demos on `/sim` (DISCOUNT / HIKE / SELLER) are training overlays, not rows in this BS matrix.
 

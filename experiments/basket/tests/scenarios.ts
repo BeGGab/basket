@@ -104,6 +104,82 @@ function prove(
   return record(id, fmt(expected), fmt(actual), invariant, decision, hypothesis, openQuestion, extras);
 }
 
+const FORBIDDEN_COMMERCIAL_KEYS = [
+  "packageContents",
+  "contentsQuantity",
+  "conversionFactor",
+  "minQuantity",
+  "maxQuantity",
+  "tierPrice",
+  "derivedFromSchedule",
+  "scheduleVersion",
+] as const;
+
+function hasForbiddenCommercialKey(obj: object | null | undefined): boolean {
+  if (!obj) return false;
+  return FORBIDDEN_COMMERCIAL_KEYS.some((key) => Object.prototype.hasOwnProperty.call(obj, key));
+}
+
+/**
+ * Stage-1 listed-unit deal with a real seller action (CooperativeSeller accept).
+ * Does not plant pack-contents or quantity-range tables — those seller facts were not found.
+ */
+function observeCooperativeAccept(args: {
+  productId: string;
+  name: string;
+  unit: string;
+  listedPrice: number;
+  quantity: number;
+  listId: string;
+}): {
+  status: string;
+  agreedItem: PurchaseItem | null;
+  extraFields: boolean;
+  substitutionCount: number;
+} {
+  const w = new BasketWorld();
+  w.setCatalog({
+    names: { [args.productId]: args.name },
+    availability: [
+      {
+        sellerId: "seller-a",
+        productId: args.productId,
+        quantity: 1,
+        unit: args.unit,
+        price: args.listedPrice,
+        stock: 100,
+      },
+    ],
+  });
+  const list = w.createList(args.listId);
+  w.addItem(list.id, {
+    productId: args.productId,
+    quantity: args.quantity,
+    unit: args.unit,
+    alternatives: [],
+  });
+  const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+  const items: PurchaseItem[] = [
+    {
+      productId: args.productId,
+      quantity: args.quantity,
+      unit: args.unit,
+      price: args.listedPrice,
+    },
+  ];
+  buyerOffer(w, sp, items);
+  createSellerEmulator("seller-a", "CooperativeSeller").respondToBuyerOffer(w, sp, items);
+  const purchase = w.requireSp(sp);
+  const agreed = purchase.agreedOfferId ? w.offerById(purchase.agreedOfferId) : null;
+  const agreedItem = agreed?.items[0] ?? null;
+  return {
+    status: purchase.status,
+    agreedItem,
+    extraFields: hasForbiddenCommercialKey(agreedItem),
+    substitutionCount: w.substitutions.filter((row) => row.sellerPurchaseId === sp).length,
+  };
+}
+
 function threw(fn: () => unknown, pattern: RegExp): boolean {
   try {
     fn();
@@ -3859,6 +3935,193 @@ export function runAllScenarios(): ScenarioResult[] {
     })
   );
 
+  results.push(
+    run("FLOW-010-A1", () => {
+      const observed = observeCooperativeAccept({
+        productId: "potatoes",
+        name: "Young potatoes",
+        unit: "kg",
+        listedPrice: 55,
+        quantity: 2,
+        listId: "flow-010-a1",
+      });
+      return prove(
+        "FLOW-010-A1",
+        "I-049",
+        {
+          status: "STABLE",
+          agreedQty: 2,
+          agreedUnit: "kg",
+          agreedPrice: 55,
+          extraFields: false,
+        },
+        {
+          status: observed.status,
+          agreedQty: observed.agreedItem?.quantity ?? null,
+          agreedUnit: observed.agreedItem?.unit ?? null,
+          agreedPrice: observed.agreedItem?.price ?? null,
+          extraFields: observed.extraFields,
+        },
+        "NOT OBSERVED for OQ-002A A1: seller accepted 2 kg potatoes at listed kg unit price; no seller fact 1 sack = 5 kg was stated. This is not A1 = NO PROBLEM for package contents",
+        "OPEN",
+        "SPEC-OQ-002A",
+        { newConcept: "NOT OBSERVED — pack-contents seller fact absent" }
+      );
+    })
+  );
+
+  results.push(
+    run("FLOW-010-A2", () => {
+      const observed = observeCooperativeAccept({
+        productId: "potatoes",
+        name: "Young potatoes",
+        unit: "kg",
+        listedPrice: 55,
+        quantity: 6,
+        listId: "flow-010-a2",
+      });
+      return prove(
+        "FLOW-010-A2",
+        "I-049",
+        {
+          status: "STABLE",
+          agreedQty: 6,
+          agreedUnit: "kg",
+          agreedPrice: 55,
+          extraFields: false,
+        },
+        {
+          status: observed.status,
+          agreedQty: observed.agreedItem?.quantity ?? null,
+          agreedUnit: observed.agreedItem?.unit ?? null,
+          agreedPrice: observed.agreedItem?.price ?? null,
+          extraFields: observed.extraFields,
+        },
+        "NOT OBSERVED for OQ-002A A2: seller accepted 6 kg potatoes at listed kg unit price; no 1+1 kg / 2-pack / refuse policy was stated because no pack seller fact exists",
+        "OPEN",
+        "SPEC-OQ-002A",
+        { newConcept: "NOT OBSERVED — pack oversupply policy not invented" }
+      );
+    })
+  );
+
+  results.push(
+    run("FLOW-010-A3", () => {
+      const observed = observeCooperativeAccept({
+        productId: "honey_flower",
+        name: "Flower honey",
+        unit: "500 g",
+        listedPrice: 380,
+        quantity: 1,
+        listId: "flow-010-a3",
+      });
+      return prove(
+        "FLOW-010-A3",
+        "I-049",
+        {
+          status: "STABLE",
+          agreedProduct: "honey_flower",
+          agreedUnit: "500 g",
+          agreedPrice: 380,
+          extraFields: false,
+          substitutionCount: 0,
+        },
+        {
+          status: observed.status,
+          agreedProduct: observed.agreedItem?.productId ?? null,
+          agreedUnit: observed.agreedItem?.unit ?? null,
+          agreedPrice: observed.agreedItem?.price ?? null,
+          extraFields: observed.extraFields,
+          substitutionCount: observed.substitutionCount,
+        },
+        "NOT OBSERVED for OQ-002A A3: seller accepted listed flower honey 500 g and did not classify pack-vs-product; identity-key counting of pre-split productIds is not used",
+        "OPEN",
+        "SPEC-OQ-002A",
+        { newConcept: "NOT OBSERVED — seller self-description of pack vs product absent" }
+      );
+    })
+  );
+
+  results.push(
+    run("FLOW-010-B1", () => {
+      const observed = observeCooperativeAccept({
+        productId: "tomatoes",
+        name: "Tomatoes",
+        unit: "kg",
+        listedPrice: 180,
+        quantity: 7,
+        listId: "flow-010-b1",
+      });
+      return prove(
+        "FLOW-010-B1",
+        "I-050",
+        {
+          status: "STABLE",
+          agreedQty: 7,
+          agreedUnit: "kg",
+          agreedPrice: 180,
+          extraFields: false,
+        },
+        {
+          status: observed.status,
+          agreedQty: observed.agreedItem?.quantity ?? null,
+          agreedUnit: observed.agreedItem?.unit ?? null,
+          agreedPrice: observed.agreedItem?.price ?? null,
+          extraFields: observed.extraFields,
+        },
+        "NOT OBSERVED for OQ-002B B1: seller accepted 7 kg tomatoes at listed unit price 180; no quantity-range seller fact was stated or applied",
+        "OPEN",
+        "SPEC-OQ-002B",
+        { newConcept: "NOT OBSERVED — quantity-range seller fact absent" }
+      );
+    })
+  );
+
+  results.push(
+    run("FLOW-010-B2", () => {
+      const prices: Array<number | null> = [];
+      const statuses: string[] = [];
+      let extraFields = false;
+      for (const qty of [4, 5, 9, 10]) {
+        const observed = observeCooperativeAccept({
+          productId: "tomatoes",
+          name: "Tomatoes",
+          unit: "kg",
+          listedPrice: 180,
+          quantity: qty,
+          listId: `flow-010-b2-${qty}`,
+        });
+        prices.push(observed.agreedItem?.price ?? null);
+        statuses.push(observed.status);
+        extraFields = extraFields || observed.extraFields;
+      }
+      return prove(
+        "FLOW-010-B2",
+        "I-050",
+        {
+          price4: 180,
+          price5: 180,
+          price9: 180,
+          price10: 180,
+          allStable: true,
+          extraFields: false,
+        },
+        {
+          price4: prices[0],
+          price5: prices[1],
+          price9: prices[2],
+          price10: prices[3],
+          allStable: statuses.every((status) => status === "STABLE"),
+          extraFields,
+        },
+        "NOT OBSERVED for OQ-002B B2: seller accepted 4/5/9/10 kg at the same listed unit price; this is not a quantity-range pricing decision because no range was stated",
+        "OPEN",
+        "SPEC-OQ-002B",
+        { newConcept: "NOT OBSERVED — range bounds were not a seller fact" }
+      );
+    })
+  );
+
   return results;
 }
 
@@ -3866,15 +4129,15 @@ export function formatResults(rows: ScenarioResult[]): string {
   const lines = [
     "# GreenMarket — Basket Experiment Results",
     "",
-    "**Status:** Evidence from TZ-BASKET-001…009 mock run  ",
+    "**Status:** Evidence from TZ-BASKET-001…010 mock run  ",
     "**Experiment version:** v0.1  ",
-    "**Model version:** v0.1.17 / SPEC v0.6 (TZ-009 is catalog/spec reconstruction, not a business-flow observation; OQ-002A/B remain OPEN)",
+    "**Model version:** v0.1.17 / SPEC v0.6 (TZ-010: no pack-contents or quantity-range seller fact observed; OQ-002A/B remain OPEN)",
     "",
     "## How to read results",
     "",
     "- **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).",
     "- **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).",
-    "- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation or catalog/spec reconstruction, not a policy.",
+    "- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, FLOW-010-A1/A2/A3, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, FLOW-010-B1/B2, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, catalog/spec reconstruction, or documented absence of a hypothesised seller fact — not a policy.",
     "- Do not treat Impl PASS as confirmation of an unresolved OQ.",
     "- Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.",
     `- All ${rows.length} scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.`,
@@ -3961,7 +4224,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("- OQ-006 / OQ-008 closed");
   lines.push("- PartialAvailabilitySeller offers min(requested, stock) of the SAME CatalogLine (sellerId, productId, unit) — a pcs pool is not kg stock");
   lines.push("- cheapestAvailable() removed from domain catalog semantics (ambiguous ≠ cheapest); catalogUnitPrice returns null on disagreement");
-  lines.push("- GREENMARKET_DOMAIN_SPEC v0.6 is the canonical domain contract; TZ-BASKET-009 records catalog/spec reconstruction, not a business-flow observation, and does not introduce Package or PriceSchedule");
+  lines.push("- GREENMARKET_DOMAIN_SPEC v0.6 is the canonical domain contract; TZ-BASKET-009 records catalog/spec reconstruction; TZ-BASKET-010 records absence of pack-contents and quantity-range seller facts; neither introduces Package or PriceSchedule");
   lines.push("- I-042: price is the price of one unit; derived total = quantity * price; no stored linePrice");
   lines.push("- I-043: changing quantity does not reread price as a line total");
   lines.push("- I-044: Offer stores (product, quantity, unit, price); a change is a new Offer");
@@ -4025,6 +4288,17 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("SPEC version bump: no");
   lines.push("Production architecture changed: NO");
   lines.push("Further closing OQ-002A/B still requires a business-flow observation, not another synthetic model test");
+  lines.push("");
+  lines.push("TZ-BASKET-010");
+  lines.push("Status: Variant 1 — hypothesised pack-contents and quantity-range seller facts NOT OBSERVED");
+  lines.push("OQ-002A: OPEN — A1/A2/A3 NOT OBSERVED; CooperativeSeller completed listed-unit kg/honey deals without stating pack contents or pack-vs-product classification");
+  lines.push("OQ-002B: OPEN — B1/B2 NOT OBSERVED; CooperativeSeller accepted listed unit price at 7 kg and at 4/5/9/10 kg; B3 schedule change NOT OBSERVED (no executable)");
+  lines.push("NEW CONCEPT JUSTIFIED: no — absence of the hypothesised seller facts does not justify Package or PriceSchedule");
+  lines.push("NO MODEL CHANGE: yes");
+  lines.push("NO NEW INVARIANT: yes");
+  lines.push("SPEC version bump: no");
+  lines.push("Production architecture changed: NO");
+  lines.push("Further closing OQ-002A/B still requires a business-flow observation where a deal cannot complete without the extra fact");
   lines.push("");
   lines.push("Still open:");
   lines.push("- SPEC OQ-002A — conversion / partial-whole package / distinct package bases");
