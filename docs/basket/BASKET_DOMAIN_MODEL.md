@@ -146,7 +146,8 @@ Catalog `quantity` is a reference/package size, not this requested quantity (I-0
 `unit = "package"` is a commercial unit. Package contents in another unit are not stored (I-047)
 and are not required to complete a package-unit deal (I-049).
 A concrete volume-priced deal is this same Offer triple; a standing quantity-range announcement
-is not an Offer (I-050).
+is not an Offer (I-050). TZ-BASKET-009 did not obtain a business-flow observation and does not
+add a Package or PriceSchedule entity.
 
 Commercial history must not be duplicated here; it belongs to Offer history.
 

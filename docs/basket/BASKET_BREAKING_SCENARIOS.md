@@ -379,3 +379,15 @@ External `1–5` and `6–10` both at 15 still produce distinct Offers. Bounds a
 ## VOLUME-008-007 — Equal totals regression
 
 `5×20` and `10×10` both derive 100 and remain different Offers.
+
+## PACKAGE-BIZ-009-001 — Listed unit representability
+
+Catalog/spec reconstruction: PurchaseItem can store `250 g` without a contents field. Does not prove pack contents are not a business fact (**OPEN — SPEC OQ-002A**).
+
+## PACKAGE-BIZ-009-002 — Pre-split productIds
+
+Two pre-split `productId`s yield two identity keys. This does not prove pack sizes must be Products (**OPEN — SPEC OQ-002A**).
+
+## VOLUME-BIZ-009-001 — Quantity-agnostic listed unit price
+
+`createPurchaseFromList` copies listed kg unit price onto 3 / 7 / 12 kg PurchaseItems. This is not observed seller pricing behavior (**OPEN — SPEC OQ-002B**).

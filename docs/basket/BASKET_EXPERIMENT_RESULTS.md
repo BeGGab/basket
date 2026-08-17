@@ -1,17 +1,17 @@
 # GreenMarket — Basket Experiment Results
 
-**Status:** Evidence from TZ-BASKET-001…008 mock run  
+**Status:** Evidence from TZ-BASKET-001…009 mock run  
 **Experiment version:** v0.1  
-**Model version:** v0.1.17 / SPEC v0.6 (package-unit deals need no stored contents; standing schedules are not Offers; OQ-002A/B remain OPEN)
+**Model version:** v0.1.17 / SPEC v0.6 (TZ-009 is catalog/spec reconstruction, not a business-flow observation; OQ-002A/B remain OPEN)
 
 ## How to read results
 
 - **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).
 - **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).
-- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, VOLUME-PRICE-005B, VOLUME-008-001, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, not a policy.
+- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation or catalog/spec reconstruction, not a policy.
 - Do not treat Impl PASS as confirmation of an unresolved OQ.
 - Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.
-- All 85 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
+- All 88 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
 
 ## Purpose
 
@@ -72,6 +72,8 @@ Record evidence from the mock domain and seller emulator.
 | PACKAGE-008-004 | PASS | OPEN (SPEC-OQ-002A) | none | MODEL GAP: 2 kg < 5 kg package has no partial/whole/split/oversupply policy |
 | PACKAGE-008-005 | PASS | OPEN (SPEC-OQ-002A) | none | MODEL GAP: 6 kg > 5 kg package does not choose 1 pack, 2 packs, split, or exact 6 kg |
 | PACKAGE-008-006 | PASS | OPEN (SPEC-OQ-002A) | none | MODEL GAP: distinct package bases are a catalog-identity limitation; no evidence yet justifies a Package entity |
+| PACKAGE-BIZ-009-001 | PASS | OPEN (SPEC-OQ-002A) | none | catalog/spec reconstruction: listed unit 250 g is representable without a contents field; this does not prove pack contents are not a business fact |
+| PACKAGE-BIZ-009-002 | PASS | OPEN (SPEC-OQ-002A) | none | catalog/spec reconstruction: two pre-split productIds yield two identity keys; this does not prove pack sizes must be Products and is not OQ-002A evidence |
 | PACKAGE-SEM-001 | PASS | CONFIRMED | none | package is representable as a unit through Offer, Acceptance, and snapshot; contents are not claimed |
 | PACKAGE-SEM-002 | PASS | OPEN (SPEC-OQ-002A) | none | MODEL GAP: current identity cannot represent distinct package bases |
 | PACKAGE-SEM-003 | PASS | CONFIRMED | none | catalog package size is not requested quantity and is not converted into kg |
@@ -97,6 +99,7 @@ Record evidence from the mock domain and seller emulator.
 | VOLUME-008-005 | PASS | CONFIRMED | none | 5 kg → 8 kg is a new Offer at the same unit price; no Offer←schedule link |
 | VOLUME-008-006 | PASS | CONFIRMED | none | equal unit price across external 1–5 / 6–10 tiers is still two Offers; bounds are not stored |
 | VOLUME-008-007 | PASS | CONFIRMED | none | I-048 regression: equal derived totals are not Offer identity |
+| VOLUME-BIZ-009-001 | PASS | OPEN (SPEC-OQ-002B) | none | catalog/spec reconstruction: createPurchaseFromList copies listed unit price onto 3/7/12 kg items; lookup is quantity-agnostic. This does not observe which price a seller would apply to 7 kg |
 | VOLUME-PRICE-001 | PASS | CONFIRMED | none | linear unit pricing: 5×15=75 and 20×15=300; no model change |
 | VOLUME-PRICE-002 | PASS | CONFIRMED | none | concrete volume discount is two Offers; VolumePrice entity is not required for this deal |
 | VOLUME-PRICE-003 | PASS | CONFIRMED | none | same quantity, different unit price: agreed=A current=B; Offer A is not mutated |
@@ -721,6 +724,30 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: MODEL GAP: distinct package bases are a catalog-identity limitation; no evidence yet justifies a Package entity
 
+### PACKAGE-BIZ-009-001 — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: unit=250 g; catalogPrice=140; contentsField=false
+- Actual: unit=250 g; catalogPrice=140; contentsField=false
+- Invariant: I-045 I-049
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: catalog/spec reconstruction — not a business-flow observation
+- Workaround: none
+- Decision: catalog/spec reconstruction: listed unit 250 g is representable without a contents field; this does not prove pack contents are not a business fact
+
+### PACKAGE-BIZ-009-002 — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: identityKeyCount=2; unresolved=false
+- Actual: identityKeyCount=2; unresolved=false
+- Invariant: I-036
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: catalog/spec reconstruction — not a business-flow observation
+- Workaround: none
+- Decision: catalog/spec reconstruction: two pre-split productIds yield two identity keys; this does not prove pack sizes must be Products and is not OQ-002A evidence
+
 ### PACKAGE-SEM-001 — Impl PASS / Domain CONFIRMED
 
 - Expected: quantity=1; unit=package; price=60; derivedTotal=60; accepted=true; agreedQty=1; agreedUnit=package; agreedPrice=60; stable=true
@@ -1021,6 +1048,18 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: I-048 regression: equal derived totals are not Offer identity
 
+### VOLUME-BIZ-009-001 — Impl PASS / Domain OPEN (SPEC-OQ-002B)
+
+- Expected: listedPrice=180; purchasePrice3=180; purchasePrice7=180; purchasePrice12=180
+- Actual: listedPrice=180; purchasePrice3=180; purchasePrice7=180; purchasePrice12=180
+- Invariant: I-042 I-045
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002B
+- Model violation: none
+- New concept: catalog/spec reconstruction — not a business-flow observation
+- Workaround: none
+- Decision: catalog/spec reconstruction: createPurchaseFromList copies listed unit price onto 3/7/12 kg items; lookup is quantity-agnostic. This does not observe which price a seller would apply to 7 kg
+
 ### VOLUME-PRICE-001 — Impl PASS / Domain CONFIRMED
 
 - Expected: smallTotal=75; bulkTotal=300; sameUnitPrice=true; newOffer=true
@@ -1185,7 +1224,7 @@ Changes in this PR (already implemented and tested):
 - OQ-006 / OQ-008 closed
 - PartialAvailabilitySeller offers min(requested, stock) of the SAME CatalogLine (sellerId, productId, unit) — a pcs pool is not kg stock
 - cheapestAvailable() removed from domain catalog semantics (ambiguous ≠ cheapest); catalogUnitPrice returns null on disagreement
-- GREENMARKET_DOMAIN_SPEC v0.6 is the canonical domain contract; TZ-BASKET-008 keeps OQ-002A/OQ-002B OPEN and does not introduce Package or PriceSchedule
+- GREENMARKET_DOMAIN_SPEC v0.6 is the canonical domain contract; TZ-BASKET-009 records catalog/spec reconstruction, not a business-flow observation, and does not introduce Package or PriceSchedule
 - I-042: price is the price of one unit; derived total = quantity * price; no stored linePrice
 - I-043: changing quantity does not reread price as a line total
 - I-044: Offer stores (product, quantity, unit, price); a change is a new Offer
@@ -1237,6 +1276,18 @@ NEW CONCEPT JUSTIFIED: no — no evidence yet justifies a Package or PriceSchedu
 NO MODEL CHANGE: yes
 Production architecture changed: NO
 Further closing OQ-002A/B requires a business observation, not another synthetic model test
+
+TZ-BASKET-009
+Status: catalog/spec reconstruction only; NO BUSINESS-FLOW OBSERVATION obtained
+OQ-002A: OPEN — reconstruction shows listed unit 250 g is representable; pack-as-Products is tautological if catalog already splits ids
+OQ-002B: OPEN — reconstruction shows listed unit price is copied onto 3/7/12 kg PurchaseItems; this is not seller pricing behavior
+H3 schedule change: NOT OBSERVED — not used as OQ-002B evidence
+NEW CONCEPT JUSTIFIED: no — absence of observation does not justify Package or PriceSchedule
+NO MODEL CHANGE: yes
+NO NEW INVARIANT: yes
+SPEC version bump: no
+Production architecture changed: NO
+Further closing OQ-002A/B still requires a business-flow observation, not another synthetic model test
 
 Still open:
 - SPEC OQ-002A — conversion / partial-whole package / distinct package bases

@@ -3752,6 +3752,113 @@ export function runAllScenarios(): ScenarioResult[] {
     })
   );
 
+  results.push(
+    run("PACKAGE-BIZ-009-001", () => {
+      const w = new BasketWorld();
+      w.setCatalog({
+        names: { tvorog: "Cottage cheese" },
+        availability: [{ sellerId: "seller-a", productId: "tvorog", quantity: 1, unit: "250 g", price: 140, stock: 10 }],
+      });
+      const list = w.createList("package-biz-009-001");
+      w.addItem(list.id, { productId: "tvorog", quantity: 1, unit: "250 g", alternatives: [] });
+      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+      const item = w.requireSp(sp).items[0];
+      return prove(
+        "PACKAGE-BIZ-009-001",
+        "I-045 I-049",
+        {
+          unit: "250 g",
+          catalogPrice: 140,
+          contentsField: false,
+        },
+        {
+          unit: item.unit,
+          catalogPrice: item.price ?? null,
+          contentsField:
+            Object.prototype.hasOwnProperty.call(item, "contentsQuantity") ||
+            Object.prototype.hasOwnProperty.call(item, "packageContents"),
+        },
+        "catalog/spec reconstruction: listed unit 250 g is representable without a contents field; this does not prove pack contents are not a business fact",
+        "OPEN",
+        "SPEC-OQ-002A",
+        { newConcept: "catalog/spec reconstruction — not a business-flow observation" }
+      );
+    })
+  );
+
+  results.push(
+    run("PACKAGE-BIZ-009-002", () => {
+      const w = new BasketWorld();
+      w.setCatalog({
+        names: { honey_flower: "Flower honey", honey_perga: "Honey with perga" },
+        availability: [
+          { sellerId: "seller-a", productId: "honey_flower", quantity: 1, unit: "500 g", price: 380, stock: 10 },
+          { sellerId: "seller-a", productId: "honey_perga", quantity: 1, unit: "350 g", price: 450, stock: 10 },
+        ],
+      });
+      const keys = [
+        ...new Set(w.catalog.availability.map((row) => `${row.sellerId}|${row.productId}|${row.unit}`)),
+      ];
+      const list = w.createList("package-biz-009-002");
+      w.addItem(list.id, { productId: "honey_flower", quantity: 1, unit: "500 g", alternatives: [] });
+      const purchase = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]);
+      return prove(
+        "PACKAGE-BIZ-009-002",
+        "I-036",
+        {
+          identityKeyCount: 2,
+          unresolved: false,
+        },
+        {
+          identityKeyCount: keys.length,
+          unresolved: purchase.unresolvedItems.length > 0,
+        },
+        "catalog/spec reconstruction: two pre-split productIds yield two identity keys; this does not prove pack sizes must be Products and is not OQ-002A evidence",
+        "OPEN",
+        "SPEC-OQ-002A",
+        { newConcept: "catalog/spec reconstruction — not a business-flow observation" }
+      );
+    })
+  );
+
+  results.push(
+    run("VOLUME-BIZ-009-001", () => {
+      const w = new BasketWorld();
+      w.setCatalog({
+        names: { tomatoes: "Tomatoes" },
+        availability: [{ sellerId: "seller-a", productId: "tomatoes", quantity: 1, unit: "kg", price: 180, stock: 100 }],
+      });
+      const listed = catalogUnitPrice(w.catalog, { sellerId: "seller-a", productId: "tomatoes", unit: "kg" });
+      const prices: Array<number | null> = [];
+      for (const qty of [3, 7, 12]) {
+        const list = w.createList(`volume-biz-009-001-${qty}`);
+        w.addItem(list.id, { productId: "tomatoes", quantity: qty, unit: "kg", alternatives: [] });
+        const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
+        prices.push(w.requireSp(sp).items[0].price ?? null);
+      }
+      return prove(
+        "VOLUME-BIZ-009-001",
+        "I-042 I-045",
+        {
+          listedPrice: 180,
+          purchasePrice3: 180,
+          purchasePrice7: 180,
+          purchasePrice12: 180,
+        },
+        {
+          listedPrice: listed,
+          purchasePrice3: prices[0],
+          purchasePrice7: prices[1],
+          purchasePrice12: prices[2],
+        },
+        "catalog/spec reconstruction: createPurchaseFromList copies listed unit price onto 3/7/12 kg items; lookup is quantity-agnostic. This does not observe which price a seller would apply to 7 kg",
+        "OPEN",
+        "SPEC-OQ-002B",
+        { newConcept: "catalog/spec reconstruction — not a business-flow observation" }
+      );
+    })
+  );
+
   return results;
 }
 
@@ -3759,15 +3866,15 @@ export function formatResults(rows: ScenarioResult[]): string {
   const lines = [
     "# GreenMarket — Basket Experiment Results",
     "",
-    "**Status:** Evidence from TZ-BASKET-001…008 mock run  ",
+    "**Status:** Evidence from TZ-BASKET-001…009 mock run  ",
     "**Experiment version:** v0.1  ",
-    "**Model version:** v0.1.17 / SPEC v0.6 (package-unit deals need no stored contents; standing schedules are not Offers; OQ-002A/B remain OPEN)",
+    "**Model version:** v0.1.17 / SPEC v0.6 (TZ-009 is catalog/spec reconstruction, not a business-flow observation; OQ-002A/B remain OPEN)",
     "",
     "## How to read results",
     "",
     "- **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).",
     "- **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).",
-    "- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, VOLUME-PRICE-005B, VOLUME-008-001, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, not a policy.",
+    "- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation or catalog/spec reconstruction, not a policy.",
     "- Do not treat Impl PASS as confirmation of an unresolved OQ.",
     "- Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.",
     `- All ${rows.length} scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.`,
@@ -3854,7 +3961,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("- OQ-006 / OQ-008 closed");
   lines.push("- PartialAvailabilitySeller offers min(requested, stock) of the SAME CatalogLine (sellerId, productId, unit) — a pcs pool is not kg stock");
   lines.push("- cheapestAvailable() removed from domain catalog semantics (ambiguous ≠ cheapest); catalogUnitPrice returns null on disagreement");
-  lines.push("- GREENMARKET_DOMAIN_SPEC v0.6 is the canonical domain contract; TZ-BASKET-008 keeps OQ-002A/OQ-002B OPEN and does not introduce Package or PriceSchedule");
+  lines.push("- GREENMARKET_DOMAIN_SPEC v0.6 is the canonical domain contract; TZ-BASKET-009 records catalog/spec reconstruction, not a business-flow observation, and does not introduce Package or PriceSchedule");
   lines.push("- I-042: price is the price of one unit; derived total = quantity * price; no stored linePrice");
   lines.push("- I-043: changing quantity does not reread price as a line total");
   lines.push("- I-044: Offer stores (product, quantity, unit, price); a change is a new Offer");
@@ -3906,6 +4013,18 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("NO MODEL CHANGE: yes");
   lines.push("Production architecture changed: NO");
   lines.push("Further closing OQ-002A/B requires a business observation, not another synthetic model test");
+  lines.push("");
+  lines.push("TZ-BASKET-009");
+  lines.push("Status: catalog/spec reconstruction only; NO BUSINESS-FLOW OBSERVATION obtained");
+  lines.push("OQ-002A: OPEN — reconstruction shows listed unit 250 g is representable; pack-as-Products is tautological if catalog already splits ids");
+  lines.push("OQ-002B: OPEN — reconstruction shows listed unit price is copied onto 3/7/12 kg PurchaseItems; this is not seller pricing behavior");
+  lines.push("H3 schedule change: NOT OBSERVED — not used as OQ-002B evidence");
+  lines.push("NEW CONCEPT JUSTIFIED: no — absence of observation does not justify Package or PriceSchedule");
+  lines.push("NO MODEL CHANGE: yes");
+  lines.push("NO NEW INVARIANT: yes");
+  lines.push("SPEC version bump: no");
+  lines.push("Production architecture changed: NO");
+  lines.push("Further closing OQ-002A/B still requires a business-flow observation, not another synthetic model test");
   lines.push("");
   lines.push("Still open:");
   lines.push("- SPEC OQ-002A — conversion / partial-whole package / distinct package bases");
