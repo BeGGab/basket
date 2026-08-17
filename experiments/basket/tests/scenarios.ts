@@ -3871,33 +3871,63 @@ export function runAllScenarios(): ScenarioResult[] {
   );
 
   results.push(
-    run("SOURCE-010-CATALOG", () => {
-      const source = readStage1("catalog");
-      const seeds = parseListedSeeds(source);
-      const honeyKg = honeyCategorySearch(source);
+    run("SOURCE-010-CATALOG-KG", () => {
+      const seeds = parseListedSeeds(readStage1("catalog"));
       return prove(
-        "SOURCE-010-CATALOG",
+        "SOURCE-010-CATALOG-KG",
+        "source inspection — not a domain invariant",
+        { hasKgListedSeed: true },
+        { hasKgListedSeed: seeds.some((seed) => seed.unit === "1 кг") },
+        "mockSellerCatalog.ts lexical object seeds include at least one unit 1 кг listing. Seeds inside string literals do not count. Not a business-flow observation",
+        "OPEN",
+        "SPEC-OQ-002A",
+        { newConcept: "SOURCE ABSENT/present of listed kg unit in mockSellerCatalog.ts object literals" }
+      );
+    })
+  );
+
+  results.push(
+    run("SOURCE-010-CATALOG-HONEY", () => {
+      const honeyKg = honeyCategorySearch(readStage1("catalog"));
+      return prove(
+        "SOURCE-010-CATALOG-HONEY",
         "source inspection — not a domain invariant",
         {
-          hasKgListedSeed: true,
           honeyCategoryFound: true,
           honeySeedsPresent: true,
           honeyKgUnitInBlock: false,
+        },
+        {
+          honeyCategoryFound: honeyKg.blockFound,
+          honeySeedsPresent: honeyKg.listedCount > 0,
+          honeyKgUnitInBlock: honeyKg.kgUnitInBlock,
+        },
+        "honey category block found with at least one object seed; no unit: 1 кг string in that block. Not A3 seller classification and not a business-flow observation",
+        "OPEN",
+        "SPEC-OQ-002A",
+        { newConcept: "SOURCE ABSENT of 1 кг honey listing in mockSellerCatalog.ts honey block" }
+      );
+    })
+  );
+
+  results.push(
+    run("SOURCE-010-CATALOG-TOKENS", () => {
+      const source = readStage1("catalog");
+      return prove(
+        "SOURCE-010-CATALOG-TOKENS",
+        "source inspection — not a domain invariant",
+        {
           sackContentsTokens: false,
           quantityRangeTokens: false,
         },
         {
-          hasKgListedSeed: seeds.some((seed) => seed.unit === "1 кг"),
-          honeyCategoryFound: honeyKg.blockFound,
-          honeySeedsPresent: honeyKg.listedCount > 0,
-          honeyKgUnitInBlock: honeyKg.kgUnitInBlock,
           sackContentsTokens: mentionsSackContents(source),
           quantityRangeTokens: mentionsQuantityRangeTokens(source),
         },
-        "Stage-1 source search of mockSellerCatalog.ts only: a kg listing exists; honey block has no unit: \"1 кг\" token; sack/range tokens are SOURCE ABSENT in this file. Token miss is not a market finding and does not test A3 seller classification",
+        "sack/range identifier tokens are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Token miss is not a market finding",
         "OPEN",
         "SPEC-OQ-002A",
-        { newConcept: "SOURCE ABSENT in mockSellerCatalog.ts — not a business-flow observation" }
+        { newConcept: "SOURCE ABSENT of sack/range tokens in mockSellerCatalog.ts" }
       );
     })
   );
@@ -4019,7 +4049,7 @@ export function formatResults(rows: ScenarioResult[]): string {
     "",
     "- **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).",
     "- **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).",
-    "- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG/BASKET/TREE, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, catalog/spec reconstruction, or Stage-1 source absence — not a business-flow observation and not a policy.",
+    "- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG-KG/HONEY/TOKENS/BASKET/TREE, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, catalog/spec reconstruction, or Stage-1 source absence — not a business-flow observation and not a policy.",
     "- Do not treat Impl PASS as confirmation of an unresolved OQ.",
     "- Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.",
     `- All ${rows.length} scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.`,

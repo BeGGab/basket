@@ -80,7 +80,9 @@ npx tsx experiments/basket/tests/run.ts
 | `PACKAGE-BIZ-009-001` | catalog/spec: listed 250 g representable without contents field | `scenarios.ts` PACKAGE-BIZ-009-001 |
 | `PACKAGE-BIZ-009-002` | catalog/spec: pre-split productIds; not pack-as-Product policy | `scenarios.ts` PACKAGE-BIZ-009-002 |
 | `VOLUME-BIZ-009-001` | catalog/spec: listed unit price copied onto 3/7/12 kg items | `scenarios.ts` VOLUME-BIZ-009-001 |
-| `SOURCE-010-CATALOG` | source search of mockSellerCatalog.ts; kg listing; honey block has no `unit: "1 кг"` token; sack/range tokens SOURCE ABSENT | `scenarios.ts` SOURCE-010-CATALOG |
+| `SOURCE-010-CATALOG-KG` | lexical object seeds in mockSellerCatalog.ts include a `1 кг` unit | `scenarios.ts` SOURCE-010-CATALOG-KG |
+| `SOURCE-010-CATALOG-HONEY` | honey block found; no `unit: "1 кг"` token in that block | `scenarios.ts` SOURCE-010-CATALOG-HONEY |
+| `SOURCE-010-CATALOG-TOKENS` | sack/range tokens SOURCE ABSENT in mockSellerCatalog.ts | `scenarios.ts` SOURCE-010-CATALOG-TOKENS |
 | `SOURCE-010-EMULATOR` | source search of sellers.ts; quantity-range tokens SOURCE ABSENT in this file | `scenarios.ts` SOURCE-010-EMULATOR |
 | `SOURCE-010-BASKET` | no conversion/tier lookup found in ADD_TO_BASKET itself; source inspection, not I-045 | `scenarios.ts` SOURCE-010-BASKET |
 | `SOURCE-010-TZ025` | source search of TZ-025; free-text discount; range tokens SOURCE ABSENT | `scenarios.ts` SOURCE-010-TZ025 |

@@ -392,9 +392,17 @@ Two pre-split `productId`s yield two identity keys. This does not prove pack siz
 
 `createPurchaseFromList` copies listed kg unit price onto 3 / 7 / 12 kg PurchaseItems. This is not observed seller pricing behavior (**OPEN — SPEC OQ-002B**).
 
-## SOURCE-010-CATALOG — Stage-1 catalog source search
+## SOURCE-010-CATALOG-KG — listed kg unit in catalog object seeds
 
-Reads `mockSellerCatalog.ts`. A `1 кг` listing exists; honey category found; at least one seed present; honey block has no `unit: "1 кг"` token; sack/range tokens SOURCE ABSENT in this file. Not a potato/tomato price snapshot. Not a business-flow observation (**OPEN — SPEC OQ-002A / OQ-002B**).
+Reads `mockSellerCatalog.ts`. Lexical `{ name, price, unit }` object seeds include at least one `1 кг` listing. String interiors are not seeds. Not a potato/tomato price snapshot. Not a business-flow observation (**OPEN — SPEC OQ-002A / OQ-002B**).
+
+## SOURCE-010-CATALOG-HONEY — honey category block
+
+Reads the lexical `honey:` `[` block in `mockSellerCatalog.ts`. Category found; at least one object seed; honey block has no `unit: "1 кг"` token. Not A3 seller classification (**OPEN — SPEC OQ-002A**).
+
+## SOURCE-010-CATALOG-TOKENS — sack/range tokens in catalog
+
+Reads `mockSellerCatalog.ts` lexical code. Sack/range identifier tokens SOURCE ABSENT in this file. Token miss is not a market finding (**OPEN — SPEC OQ-002A**).
 
 ## SOURCE-010-EMULATOR — Stage-1 emulator source search
 

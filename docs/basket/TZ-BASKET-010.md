@@ -100,7 +100,7 @@ TZ допускал «documented absence» как Variant 1. После review �
 
 ### H2. Hardcoded 55 / 180 / 380 ≠ чтение `mockSellerCatalog.ts`
 
-Тесты должны читать сам файл. SOURCE-010-CATALOG парсит `PRODUCT_SEEDS` из `mockSellerCatalog.ts`.
+Тесты должны читать сам файл. SOURCE-010-CATALOG-KG парсит lexical object seeds из `mockSellerCatalog.ts`.
 
 ### H3. CooperativeSeller заранее предсказуем
 
@@ -112,7 +112,7 @@ TZ допускал «documented absence» как Variant 1. После review �
 
 ### H5. A3 с одним `honey_flower` не проверяет гипотезу
 
-Один listing 500 g не различает «один товар + упаковки» vs «два товара». A3 = **NOT TESTABLE** из Stage-1 sources. SOURCE-010-CATALOG фиксирует: honey block has no `unit: "1 кг"` token. Не seller classification.
+Один listing 500 g не различает «один товар + упаковки» vs «два товара». A3 = **NOT TESTABLE** из Stage-1 sources. SOURCE-010-CATALOG-HONEY фиксирует: honey block has no `unit: "1 кг"` token. Не seller classification.
 
 ### H6. B2 180/180/180/180 неизбежен без механизма range
 
@@ -132,7 +132,7 @@ Replaced by `extractNamedDeclaration` for a **documented subset**: `function` / 
 
 ### H11. Exact seed names are not OQ-002 evidence
 
-Potato 55 / tomato 180 / three honey names were removed from SOURCE-010-CATALOG. That row now records `hasKgListedSeed`, sack/range tokens, `honeyCategoryFound`, `honeySeedsPresent`, and `honeyKgUnitInBlock`. `honeySeedsPresent` means at least one listing matched the seed regex after comments are stripped. Absence of 1 kg honey is `unit:` followed by a string literal `1 кг` in the extracted honey block, ignoring comments. Block extraction also skips strings and comments, so a commented `]` cannot truncate the array. Token detectors (`mentionsKgUnit`, `mentionsSackContents`, `mentionsQuantityRangeTokens`) use lexical code, not raw text. This is still SOURCE ABSENT of that token, not a business-flow observation.
+Potato 55 / tomato 180 / three honey names were removed from catalog evidence. Catalog search is three rows: SOURCE-010-CATALOG-KG (`hasKgListedSeed` from lexical `{ name, price, unit }` object tokens — not from string interiors), SOURCE-010-CATALOG-HONEY (`honeyCategoryFound` / `honeySeedsPresent` / `honeyKgUnitInBlock`), SOURCE-010-CATALOG-TOKENS (sack/range identifier tokens). `honeySeedsPresent` means at least one lexical object seed in the honey block. Absence of 1 kg honey is `unit:` followed by a string literal `1 кг` in that block. Category `honey:` `[` is found in lexical code, not by raw-text regex. Comment/string gaps cannot glue `min/*x*/Quantity` into `minQuantity`. This is still SOURCE ABSENT of that token, not a business-flow observation.
 
 ### H12. Quantity-range detector is a token heuristic
 
@@ -150,7 +150,25 @@ SOURCE-010-EMULATOR records identifier tokens (`minQuantity`, `maxQuantity`, `ti
 
 SOURCE-010-TREE walks `experiments/basket/**/*.ts` and checks the two historical FLOW-010 artifacts: `run("FLOW-010-…")` as lexical `run(` + string, and `function observeCooperativeAccept` in lexical code. Comments and strings do not count. `walkComplete` means the recursive listing finished and every listed `.ts` file was inspected — not a floor such as `scannedFiles >= 8`. This is a **cleanup check** of those two names, not a proof that synthetic business-flow is absent. It does not search `docs/` (TZ-010 may mention the old ids) and does not treat PACKAGE-008 experimenter facts (`1 package = 5 kg`) as FLOW-010 leftovers. `seller-a` is not a FLOW-010 artifact.
 
+### H16. `codeText()` must not invent tokens across comment/string gaps
 
+Deleting comments/strings without a separator would turn `min/*x*/Quantity` into `minQuantity`. `codeText()` inserts a space on a gap, except member access `payload./*x*/unit` stays `payload.unit`. Identifier accumulators and `tokenize()` flush on the same gap, so `hon/*x*/ey` is not `honey` and `na/*x*/me` is not `name`.
+
+### H17. Listed seeds are lexical object tokens, not string interiors
+
+`parseListedSeeds` walks `{ name: STRING, price: NUMBER, unit: STRING }` in code tokens. `const example = '{ name: "fake", price: 55, unit: "1 кг" }'` is not a ListedSeed.
+
+### H18. Category blocks are found in lexical code
+
+`extractCategoryBlock` looks for identifier `category`, then `:`, then `[` in the lexical walk, then `extractBalanced` from that `[`. A raw-text regex over comments/strings does not choose the match.
+
+### H19. Scanner contract covers glue and in-string seeds
+
+`assertStage1ScannerContract()` includes `min/*x*/Quantity`, in-string fake seeds, glued `na/*x*/me`, and true positives with comments between real tokens.
+
+### H20. Catalog detectors are separate SOURCE-010 rows
+
+KG / HONEY / TOKENS are separate `prove()` rows. One PASS is not a bundle of unrelated heuristics.
 
 ## Search log (enumerated files are executable; live interview is human)
 
@@ -228,20 +246,46 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 
 ## Evidence cards
 
-### SOURCE-010-CATALOG
+### SOURCE-010-CATALOG-KG
 
 | Field | Value |
 |---|---|
-| Scenario ID | SOURCE-010-CATALOG |
-| Kind | Stage-1 source search of `mockSellerCatalog.ts` |
+| Scenario ID | SOURCE-010-CATALOG-KG |
+| Kind | Stage-1 source search of `mockSellerCatalog.ts` lexical object seeds |
 | Business fact | none observed — file is a listing seed, not a seller utterance in a deal |
 | Source | `mockSellerCatalog.ts` (file read by the test) |
 | Buyer action | none |
 | Seller action | none |
-| Recorded listing facts | this file has at least one `1 кг` listing; honey category found; at least one seed present; honey block has no `unit: "1 кг"` token; sack/range tokens SOURCE ABSENT in this file |
-| Missing fact | pack-contents relation; seller classification of honey packs; quantity-range rule |
-| Domain conclusion | SOURCE ABSENT **in mockSellerCatalog.ts**. **Not** a business-flow observation. Not a snapshot of potato/tomato prices. |
+| Recorded listing facts | lexical `{ name, price, unit }` object seeds include at least one `unit` `1 кг`. Seeds inside string literals do not count. |
+| Missing fact | pack-contents relation |
+| Domain conclusion | listed kg unit is **present** as an object seed **in mockSellerCatalog.ts**. **Not** a business-flow observation. Not a snapshot of potato/tomato prices. |
 | Open question | SPEC OQ-002A / OQ-002B |
+| New concept justified? | **no** |
+
+### SOURCE-010-CATALOG-HONEY
+
+| Field | Value |
+|---|---|
+| Scenario ID | SOURCE-010-CATALOG-HONEY |
+| Kind | Stage-1 source search of the `honey` category block in `mockSellerCatalog.ts` |
+| Source | `mockSellerCatalog.ts` (file read by the test) |
+| Recorded listing facts | honey category found in lexical code; at least one object seed in that block; honey block has no `unit: "1 кг"` token |
+| Missing fact | seller classification of honey packs |
+| Domain conclusion | SOURCE ABSENT of 1 kg honey listing **in the honey block**. Not A3 seller classification. Not a business-flow observation. |
+| Open question | SPEC OQ-002A |
+| New concept justified? | **no** |
+
+### SOURCE-010-CATALOG-TOKENS
+
+| Field | Value |
+|---|---|
+| Scenario ID | SOURCE-010-CATALOG-TOKENS |
+| Kind | Stage-1 token search of `mockSellerCatalog.ts` lexical code |
+| Source | `mockSellerCatalog.ts` (file read by the test) |
+| Recorded listing facts | sack/range identifier tokens SOURCE ABSENT in this file |
+| Missing fact | quantity-range rule; sack-contents relation |
+| Domain conclusion | SOURCE ABSENT of those tokens **in mockSellerCatalog.ts**. Token miss is not a market finding. |
+| Open question | SPEC OQ-002A |
 | New concept justified? | **no** |
 
 ### SOURCE-010-EMULATOR
@@ -326,7 +370,9 @@ I-042…I-050 unchanged. No I-051.
 
 | ID | Hypothesis | Что проверяет |
 |---|---|---|
-| SOURCE-010-CATALOG | OPEN | `mockSellerCatalog.ts`: kg listing; honey block has no `unit: "1 кг"` token; sack/range tokens SOURCE ABSENT in this file |
+| SOURCE-010-CATALOG-KG | OPEN | `mockSellerCatalog.ts` lexical object seeds include at least one `1 кг` unit |
+| SOURCE-010-CATALOG-HONEY | OPEN | honey block found; no `unit: "1 кг"` token in that block |
+| SOURCE-010-CATALOG-TOKENS | OPEN | sack/range tokens SOURCE ABSENT in `mockSellerCatalog.ts` |
 | SOURCE-010-EMULATOR | OPEN | `sellers.ts`: quantity-range identifier tokens SOURCE ABSENT in this file |
 | SOURCE-010-BASKET | OPEN | no conversion/tier lookup found in ADD_TO_BASKET itself |
 | SOURCE-010-TZ025 | OPEN | ТЗ-025: cheese-discount text; range tokens SOURCE ABSENT in this file |
@@ -334,7 +380,7 @@ I-042…I-050 unchanged. No I-051.
 
 FLOW-010-A1/A2/A3/B1/B2 never existed on `main`; they were added in the first commit of this GitHub PR and removed after PR-25 review. SOURCE-010-TREE is a **cleanup check** of those two historical artifacts in `experiments/basket/**/*.ts`. It does not prove synthetic business-flow is absent.
 
-88 TZ-009 scenarios + 5 SOURCE-010 = 93 total.
+88 TZ-009 scenarios + 7 SOURCE-010 = 95 total.
 
 ## Implementation
 
@@ -360,5 +406,6 @@ FLOW-010-A1/A2/A3/B1/B2 never existed on `main`; they were added in the first co
 - [x] historical FLOW-010 artifacts (`run("FLOW-010-…")`, `function observeCooperativeAccept`) removed from `experiments/basket` TypeScript; SOURCE-010-TREE is this cleanup check
 - [ ] synthetic business-flow patterns absent — **не доказуемо** этим scanner; не выдавать TREE PASS за это утверждение
 - [x] `addToBasket` extractor covers the documented subset (`function` / `const` / `Extract<…,{…}>`) and fails closed if the declaration is not found; comment/string copiesUnit false-PASS cases are covered by scanner contract tests
-- [x] SOURCE-010-CATALOG не использует snapshot цен/имён как OQ-002 evidence
+- [x] SOURCE-010-CATALOG-KG не использует snapshot цен/имён как OQ-002 evidence; seeds inside string literals do not count
 - [x] Quantity-range detector помечен как token heuristic: miss = SOURCE ABSENT of tokens
+- [x] scanner contract rejects comment-gap token glue and in-string fake ListedSeeds

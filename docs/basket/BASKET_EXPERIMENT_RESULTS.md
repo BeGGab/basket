@@ -8,10 +8,10 @@
 
 - **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).
 - **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).
-- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG/BASKET/TREE, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, catalog/spec reconstruction, or Stage-1 source absence — not a business-flow observation and not a policy.
+- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG-KG/HONEY/TOKENS/BASKET/TREE, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, catalog/spec reconstruction, or Stage-1 source absence — not a business-flow observation and not a policy.
 - Do not treat Impl PASS as confirmation of an unresolved OQ.
 - Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.
-- All 93 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
+- All 95 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
 
 ## Purpose
 
@@ -93,7 +93,9 @@ Record evidence from the mock domain and seller emulator.
 | PRICE-ZERO-001 | PASS | CONFIRMED | none | price 0 is a real unit price; derived total 0 is not a missing price |
 | SNAPSHOT-VOL-001 | PASS | OPEN (SPEC-OQ-002A) | none | canonical snapshot distinguishes requested/agreed/current/alt/derived; package contents remain absent |
 | SOURCE-010-BASKET | PASS | OPEN (SPEC-OQ-002A) | none | No conversion/tier lookup found in ADD_TO_BASKET itself. The function copies payload.unit and payload.price. Conversion or pricing could occur before this call; this row does not claim the whole basket path |
-| SOURCE-010-CATALOG | PASS | OPEN (SPEC-OQ-002A) | none | Stage-1 source search of mockSellerCatalog.ts only: a kg listing exists; honey block has no unit: "1 кг" token; sack/range tokens are SOURCE ABSENT in this file. Token miss is not a market finding and does not test A3 seller classification |
+| SOURCE-010-CATALOG-HONEY | PASS | OPEN (SPEC-OQ-002A) | none | honey category block found with at least one object seed; no unit: 1 кг string in that block. Not A3 seller classification and not a business-flow observation |
+| SOURCE-010-CATALOG-KG | PASS | OPEN (SPEC-OQ-002A) | none | mockSellerCatalog.ts lexical object seeds include at least one unit 1 кг listing. Seeds inside string literals do not count. Not a business-flow observation |
+| SOURCE-010-CATALOG-TOKENS | PASS | OPEN (SPEC-OQ-002A) | none | sack/range identifier tokens are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Token miss is not a market finding |
 | SOURCE-010-EMULATOR | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of sellers.ts: minQuantity/maxQuantity/tierPrice/PriceSchedule tokens are SOURCE ABSENT in this file. This is not a CooperativeSeller call-shape regression and not a market finding that sellers have no range rule |
 | SOURCE-010-TREE | PASS | OPEN (SPEC-OQ-002A) | none | experiments/basket **/*.ts has no FLOW-010 run() and no observeCooperativeAccept helper. Cleanup check of those two historical artifacts only. Does not prove synthetic business-flow is absent. Does not search docs or PACKAGE-008 experimenter facts. Not a business-flow observation |
 | SOURCE-010-TZ025 | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of TZ-025: free-text cheese discount is present; quantity-range tokens are SOURCE ABSENT in this file. Token miss is not a business fact and not B3 observation |
@@ -981,17 +983,41 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: No conversion/tier lookup found in ADD_TO_BASKET itself. The function copies payload.unit and payload.price. Conversion or pricing could occur before this call; this row does not claim the whole basket path
 
-### SOURCE-010-CATALOG — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+### SOURCE-010-CATALOG-HONEY — Impl PASS / Domain OPEN (SPEC-OQ-002A)
 
-- Expected: hasKgListedSeed=true; honeyCategoryFound=true; honeySeedsPresent=true; honeyKgUnitInBlock=false; sackContentsTokens=false; quantityRangeTokens=false
-- Actual: hasKgListedSeed=true; honeyCategoryFound=true; honeySeedsPresent=true; honeyKgUnitInBlock=false; sackContentsTokens=false; quantityRangeTokens=false
+- Expected: honeyCategoryFound=true; honeySeedsPresent=true; honeyKgUnitInBlock=false
+- Actual: honeyCategoryFound=true; honeySeedsPresent=true; honeyKgUnitInBlock=false
 - Invariant: source inspection — not a domain invariant
 - Hypothesis: OPEN
 - Open question: SPEC-OQ-002A
 - Model violation: none
-- New concept: SOURCE ABSENT in mockSellerCatalog.ts — not a business-flow observation
+- New concept: SOURCE ABSENT of 1 кг honey listing in mockSellerCatalog.ts honey block
 - Workaround: none
-- Decision: Stage-1 source search of mockSellerCatalog.ts only: a kg listing exists; honey block has no unit: "1 кг" token; sack/range tokens are SOURCE ABSENT in this file. Token miss is not a market finding and does not test A3 seller classification
+- Decision: honey category block found with at least one object seed; no unit: 1 кг string in that block. Not A3 seller classification and not a business-flow observation
+
+### SOURCE-010-CATALOG-KG — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: hasKgListedSeed=true
+- Actual: hasKgListedSeed=true
+- Invariant: source inspection — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: SOURCE ABSENT/present of listed kg unit in mockSellerCatalog.ts object literals
+- Workaround: none
+- Decision: mockSellerCatalog.ts lexical object seeds include at least one unit 1 кг listing. Seeds inside string literals do not count. Not a business-flow observation
+
+### SOURCE-010-CATALOG-TOKENS — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: sackContentsTokens=false; quantityRangeTokens=false
+- Actual: sackContentsTokens=false; quantityRangeTokens=false
+- Invariant: source inspection — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: SOURCE ABSENT of sack/range tokens in mockSellerCatalog.ts
+- Workaround: none
+- Decision: sack/range identifier tokens are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Token miss is not a market finding
 
 ### SOURCE-010-EMULATOR — Impl PASS / Domain OPEN (SPEC-OQ-002B)
 

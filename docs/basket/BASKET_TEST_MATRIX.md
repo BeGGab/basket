@@ -2,7 +2,7 @@
 
 **Status:** Experimental Baseline v0.1
 
-`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 93 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
+`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 95 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
 
 | ID | Scenario | Model | Emulator | /sim demo | Main check |
 |---|---|:---:|:---:|:---:|---|
@@ -94,7 +94,9 @@
 | PACKAGE-BIZ-009-001 | listed 250 g representable | ✓ |  |  | OPEN reconstruction |
 | PACKAGE-BIZ-009-002 | pre-split productIds | ✓ |  |  | OPEN; not OQ-002A evidence |
 | VOLUME-BIZ-009-001 | listed price on 3/7/12 kg | ✓ |  |  | OPEN; not seller pricing |
-| SOURCE-010-CATALOG | read mockSellerCatalog.ts | ✓ |  |  | OPEN; source inspection, not I-047/I-050 |
+| SOURCE-010-CATALOG-KG | read mockSellerCatalog.ts object seeds | ✓ |  |  | OPEN; lexical kg unit seed, not I-047/I-050 |
+| SOURCE-010-CATALOG-HONEY | read honey category block | ✓ |  |  | OPEN; no 1 кг honey token; not A3 |
+| SOURCE-010-CATALOG-TOKENS | read catalog sack/range tokens | ✓ |  |  | OPEN; token miss, not a market finding |
 | SOURCE-010-EMULATOR | read sellers.ts | ✓ |  |  | OPEN; source inspection, not I-047/I-050 |
 | SOURCE-010-BASKET | read ADD_TO_BASKET | ✓ |  |  | OPEN; source inspection, not I-045 |
 | SOURCE-010-TZ025 | read TZ-025 | ✓ |  |  | OPEN; source inspection, not I-050 |

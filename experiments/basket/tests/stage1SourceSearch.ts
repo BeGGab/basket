@@ -33,11 +33,31 @@ export function readStage1(kind: keyof typeof STAGE1_PATHS): string {
   return readFileSync(STAGE1_PATHS[kind], "utf8");
 }
 
+/** Object seeds in lexical code only. Text inside string literals is not a ListedSeed. */
 export function parseListedSeeds(source: string): ListedSeed[] {
+  const tokens = tokenize(source);
   const seeds: ListedSeed[] = [];
-  const re = /\{\s*name:\s*"([^"]+)",\s*price:\s*(\d+),\s*unit:\s*"([^"]+)"/g;
-  for (const match of withoutComments(source).matchAll(re)) {
-    seeds.push({ name: match[1], price: Number(match[2]), unit: match[3] });
+  for (let i = 0; i + 11 < tokens.length; i++) {
+    if (
+      punct(tokens[i], "{") &&
+      ident(tokens[i + 1], "name") &&
+      punct(tokens[i + 2], ":") &&
+      tokens[i + 3].kind === "string" &&
+      punct(tokens[i + 4], ",") &&
+      ident(tokens[i + 5], "price") &&
+      punct(tokens[i + 6], ":") &&
+      tokens[i + 7].kind === "number" &&
+      punct(tokens[i + 8], ",") &&
+      ident(tokens[i + 9], "unit") &&
+      punct(tokens[i + 10], ":") &&
+      tokens[i + 11].kind === "string"
+    ) {
+      seeds.push({
+        name: tokens[i + 3].value,
+        price: Number(tokens[i + 7].value),
+        unit: tokens[i + 11].value,
+      });
+    }
   }
   return seeds;
 }
@@ -52,7 +72,8 @@ function scanLexical<T>(
   source: string,
   start: number,
   onCode: (index: number, ch: string) => T | undefined,
-  onStringLiteral?: (rawIncludingQuotes: string) => T | undefined
+  onStringLiteral?: (rawIncludingQuotes: string) => T | undefined,
+  onGap?: (kind: "comment" | "string") => void
 ): T | undefined {
   let quote: string | null = null;
   let stringStart = -1;
@@ -87,16 +108,19 @@ function scanLexical<T>(
       continue;
     }
     if (ch === "/" && next === "/") {
+      onGap?.("comment");
       lineComment = true;
       i += 1;
       continue;
     }
     if (ch === "/" && next === "*") {
+      onGap?.("comment");
       blockComment = true;
       i += 1;
       continue;
     }
     if (ch === '"' || ch === "'" || ch === "`") {
+      onGap?.("string");
       quote = ch;
       stringStart = i;
       continue;
@@ -115,31 +139,99 @@ function scanCode<T>(
   return scanLexical(source, start, onCode);
 }
 
-/** Code characters only: comments and string interiors omitted. */
-export function codeText(source: string): string {
-  let out = "";
-  scanLexical(source, 0, (_i, ch) => {
-    out += ch;
-    return undefined;
-  });
-  return out;
+function isIdentChar(ch: string): boolean {
+  return /[A-Za-z0-9_$]/.test(ch);
 }
 
-function withoutComments(source: string): string {
+function isIdentStart(ch: string): boolean {
+  return /[A-Za-z_$]/.test(ch);
+}
+
+/**
+ * Code characters only. A comment/string gap becomes a space, except member access
+ * across a comment (payload dot field) stays glued. That prevents min-comment-Quantity
+ * from becoming the false token minQuantity, including Cyrillic fragments split by a comment.
+ */
+export function codeText(source: string): string {
   let out = "";
+  let gap = false;
   scanLexical(
     source,
     0,
     (_i, ch) => {
+      if (gap && out.length > 0 && !/\s/.test(ch)) {
+        const prev = out[out.length - 1] ?? "";
+        if (!(prev === "." && isIdentStart(ch))) out += " ";
+      }
+      gap = false;
       out += ch;
       return undefined;
     },
-    (raw) => {
-      out += raw;
-      return undefined;
+    undefined,
+    () => {
+      gap = true;
     }
   );
   return out;
+}
+
+type Tok = { kind: "ident" | "number" | "string" | "punct"; value: string };
+
+function punct(token: Tok, value: string): boolean {
+  return token.kind === "punct" && token.value === value;
+}
+
+function ident(token: Tok, value: string): boolean {
+  return token.kind === "ident" && token.value === value;
+}
+
+function tokenize(source: string): Tok[] {
+  const tokens: Tok[] = [];
+  let buf = "";
+  let bufKind: "ident" | "number" | null = null;
+  const flush = () => {
+    if (bufKind && buf) tokens.push({ kind: bufKind, value: buf });
+    buf = "";
+    bufKind = null;
+  };
+  scanLexical(
+    source,
+    0,
+    (_i, ch) => {
+      if (bufKind === "ident" && isIdentChar(ch)) {
+        buf += ch;
+        return undefined;
+      }
+      if (bufKind === "number" && /\d/.test(ch)) {
+        buf += ch;
+        return undefined;
+      }
+      flush();
+      if (isIdentStart(ch)) {
+        bufKind = "ident";
+        buf = ch;
+        return undefined;
+      }
+      if (/\d/.test(ch)) {
+        bufKind = "number";
+        buf = ch;
+        return undefined;
+      }
+      if (/\s/.test(ch)) return undefined;
+      tokens.push({ kind: "punct", value: ch });
+      return undefined;
+    },
+    (raw) => {
+      flush();
+      tokens.push({ kind: "string", value: stringLiteralValue(raw) });
+      return undefined;
+    },
+    () => {
+      flush();
+    }
+  );
+  flush();
+  return tokens;
 }
 
 export function codeContains(source: string, pattern: RegExp): boolean {
@@ -181,16 +273,50 @@ function extractBalanced(source: string, openIndex: number, openCh: string, clos
 }
 
 export function extractCategoryBlock(source: string, category: string): string {
-  const re = new RegExp(`(?:^|\\n)\\s*${category}\\s*:\\s*\\[`, "g");
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(source))) {
-    const nameStart = source.indexOf(category, match.index);
-    const bracket = source.indexOf("[", match.index);
-    if (nameStart < 0 || bracket < 0) continue;
-    if (!isCodeIndex(source, nameStart) || !isCodeIndex(source, bracket)) continue;
-    return extractBalanced(source, bracket, "[", "]");
-  }
-  return "";
+  let ident = "";
+  let phase: "idle" | "named" | "colon" = "idle";
+  const bracket = scanLexical(
+    source,
+    0,
+    (i, ch) => {
+      if (ident.length > 0 ? isIdentChar(ch) : isIdentStart(ch)) {
+        phase = "idle";
+        ident += ch;
+        return undefined;
+      }
+      const word = ident;
+      ident = "";
+      if (word === category) {
+        if (/\s/.test(ch)) {
+          phase = "named";
+          return undefined;
+        }
+        if (ch === ":") {
+          phase = "colon";
+          return undefined;
+        }
+        phase = "idle";
+        return undefined;
+      }
+      if (phase === "named" && /\s/.test(ch)) return undefined;
+      if (phase === "named" && ch === ":") {
+        phase = "colon";
+        return undefined;
+      }
+      if (phase === "colon" && /\s/.test(ch)) return undefined;
+      if (phase === "colon" && ch === "[") return i;
+      phase = "idle";
+      return undefined;
+    },
+    undefined,
+    (kind) => {
+      if (ident.length > 0) phase = "idle";
+      ident = "";
+      if (kind === "string") phase = "idle";
+    }
+  );
+  if (bracket === undefined) return "";
+  return extractBalanced(source, bracket, "[", "]");
 }
 
 export function findSeed(seeds: readonly ListedSeed[], name: string): ListedSeed | undefined {
@@ -228,6 +354,9 @@ export function mentionsKgUnit(source: string): boolean {
       if (phase === "colon" && /^1\s*кг$/.test(stringLiteralValue(raw))) return true;
       phase = "idle";
       return undefined;
+    },
+    () => {
+      ident = "";
     }
   );
   return hit === true;
@@ -357,6 +486,9 @@ export function flow010ArtifactsPresent(source: string): {
         if (phase === "runParen" && stringLiteralValue(raw).startsWith("FLOW-010-")) return true;
         phase = "idle";
         return undefined;
+      },
+      () => {
+        ident = "";
       }
     ) === true;
   return {
@@ -453,4 +585,28 @@ export function assertStage1ScannerContract(): void {
   assert.equal(extractNamedDeclaration("const x = 1;", "addToBasket"), "");
   assert.equal(mentionsQuantityRangeTokens("// minQuantity\nconst x = 1;"), false);
   assert.equal(flow010ArtifactsPresent(`// run("FLOW-010-A1")\nconst x = 1;`).flow010Run, false);
+
+  assert.equal(codeContains("min/*x*/Quantity", /minQuantity/), false);
+  assert.equal(mentionsQuantityRangeTokens("min/*x*/Quantity"), false);
+  assert.equal(codeContains('foo"minQuantity"bar', /minQuantity/), false);
+  assert.equal(codeContains("ме/*x*/шок", /мешок/), false);
+  assert.equal(parseListedSeeds(`const example = '{ name: "fake", price: 55, unit: "1 кг" }';`).length, 0);
+  assert.equal(parseListedSeeds(`[{ name: "a", price: 1, unit: "500 г" }]`).length, 1);
+  assert.equal(parseListedSeeds(`{ na/*x*/me: "a", price: 1, unit: "1 кг" }`).length, 0);
+  assert.equal(parseListedSeeds(`{ name: /*c*/ "a", price: 1, unit: "1 кг" }`).length, 1);
+  assert.equal(copiesPayloadField("{ unit: payload./*gap*/unit }", "unit"), true);
+  assert.equal(mentionsKgUnit(`un/*x*/it: "1 кг"`), false);
+  assert.equal(mentionsKgUnit(`unit /*c*/ : "1 кг"`), true);
+  assert.equal(extractCategoryBlock(`hon/*x*/ey: [{ name: "a", price: 1, unit: "1 кг" }]`, "honey").length, 0);
+  assert.ok(extractCategoryBlock(`honey /*c*/ : [{ name: "a", price: 1, unit: "1 кг" }]`, "honey").length > 0);
+  assert.equal(extractCategoryBlock(`honey: "not-array"\n[`, "honey"), "");
+  assert.equal(extractCategoryBlock(`const s = "honey: [{ name: \\"a\\", price: 1, unit: \\"1 кг\\" }]";`, "honey"), "");
+  assert.equal(flow010ArtifactsPresent(`ru/*x*/n("FLOW-010-A1")`).flow010Run, false);
+  assert.equal(flow010ArtifactsPresent(`run /*c*/ ("FLOW-010-A1")`).flow010Run, true);
+
+  const honeyAfterCommentedKey = honeyCategorySearch(
+    `// honey: [\nconst x = 1;\nhoney: [{ name: "a", price: 1, unit: "1 кг" }]`
+  );
+  assert.equal(honeyAfterCommentedKey.blockFound, true);
+  assert.equal(honeyAfterCommentedKey.kgUnitInBlock, true);
 }

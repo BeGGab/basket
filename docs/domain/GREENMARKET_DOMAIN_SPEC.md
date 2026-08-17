@@ -250,7 +250,7 @@ exists; no evidence yet justifies a Package entity.
 **Affected scenarios:** PACKAGE-001 / PACKAGE-SEM-001 / PACKAGE-008-001 / PACKAGE-008-002
 (unit deal CONFIRMED); PACKAGE-SEM-002 / 004 / 005 / 006 and PACKAGE-008-003 / 004 / 005 / 006
 (OPEN — OQ-002A). PACKAGE-BIZ-009-001 / 002 are catalog/spec reconstruction (OPEN), not
-business-flow confirmation. SOURCE-010-CATALOG / SOURCE-010-BASKET are Stage-1 source search
+business-flow confirmation. SOURCE-010-CATALOG-KG / HONEY / TOKENS / SOURCE-010-BASKET are Stage-1 source search
 (SOURCE ABSENT in the inspected files; no conversion/tier lookup found in ADD_TO_BASKET itself),
 not a business-flow observation.
 
@@ -672,7 +672,9 @@ PACKAGE-008-003          2 kg vs package — no conversion — OPEN (OQ-002A)
 VOLUME-008-001           3/7/12 kg do not read external tiers — OPEN (OQ-002B)
 VOLUME-008-002           tier announcement is not an Offer (I-050)
 SNAPSHOT-VOL-001         requested/agreed/current/alt/derived; package contents absent
-SOURCE-010-CATALOG       Stage-1 source search of mockSellerCatalog.ts — SOURCE ABSENT, not observation
+SOURCE-010-CATALOG-KG    lexical object seeds in mockSellerCatalog.ts — kg unit present, not observation
+SOURCE-010-CATALOG-HONEY honey block in mockSellerCatalog.ts — no 1 кг honey token
+SOURCE-010-CATALOG-TOKENS sack/range tokens in mockSellerCatalog.ts — SOURCE ABSENT
 SOURCE-010-EMULATOR      Stage-1 source search of sellers.ts — quantity-range tokens SOURCE ABSENT
 SOURCE-010-BASKET        no conversion/tier lookup found in ADD_TO_BASKET itself
 SOURCE-010-TZ025         Stage-1 source search of TZ-025 — free-text discount, range tokens SOURCE ABSENT
