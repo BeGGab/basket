@@ -1,8 +1,8 @@
-# ТЗ-BASKET-010 — Real business-flow observation for OQ-002A / OQ-002B
+# ТЗ-BASKET-010 — Stage-1 source search for OQ-002A / OQ-002B
 
 **Проект:** GreenMarket  
 **Stage:** 1 — экспериментальный Basket Domain  
-**Тип:** business-flow experiment / evidence acquisition  
+**Тип:** Stage-1 source search / evidence acquisition (primary goal not met)  
 **Приёмка:** Pull Request `basket-pr-25`  
 **Статус:** Implemented — **primary goal NOT MET**; Stage-1 source search only  
 **Основание:** TZ-BASKET-009 (catalog/spec reconstruction ≠ observation); SPEC v0.6 (не bump)  
@@ -111,7 +111,7 @@ TZ допускал «documented absence» как Variant 1. После review �
 
 ### H5. A3 с одним `honey_flower` не проверяет гипотезу
 
-Один listing 500 g не различает «один товар + упаковки» vs «два товара». A3 = **NOT TESTABLE** из Stage-1 sources. SOURCE-010-CATALOG фиксирует только listings (три имени, нет 1 kg honey), без seller classification.
+Один listing 500 g не различает «один товар + упаковки» vs «два товара». A3 = **NOT TESTABLE** из Stage-1 sources. SOURCE-010-CATALOG фиксирует: honey category has no `1 кг` row. Не seller classification.
 
 ### H6. B2 180/180/180/180 неизбежен без механизма range
 
@@ -123,19 +123,32 @@ Search log «No quantity-range table / No sack=kg / No live interview» дока
 
 ### H9. Net diff vs main has no FLOW-010 deletion hunks
 
-FLOW-010 never existed on `main`. The first commit of this PR added them; the review commit removed them. `git diff main...HEAD` therefore shows only SOURCE-010. SOURCE-010-TREE proves HEAD `scenarios.ts` has no `run("FLOW-010-…")` and no `function observeCooperativeAccept`.
+FLOW-010 never existed on `main`. The first commit of this PR added them; the review commit removed them. `git diff main...HEAD` therefore shows only SOURCE-010. SOURCE-010-TREE scans `experiments/basket/**/*.ts` for `run("FLOW-010-…")` and `function observeCooperativeAccept`.
 
 ### H10. `extractFunction("function name(")` was syntax-fragile
 
-Replaced by `extractNamedDeclaration`: `function` / `export function` / `const name = (` with brace matching, skipping `{` inside TypeScript parameter types (`Extract<Action, { type: ... }>`). SOURCE-010-BASKET requires `declarationFound=true` and `usesBasketStore=true`, so a missed or truncated extract fails closed.
+Replaced by `extractNamedDeclaration`: `function` / `export function` / `const name = (` with brace matching, skipping `{` inside TypeScript parameter types (`Extract<Action, { type: ... }>`). SOURCE-010-BASKET requires `declarationFound=true`. `usesBasketStore` is **not** OQ-002A evidence.
 
-### H11. Exact seed names are a current-file snapshot
+### H11. Exact seed names are not OQ-002 evidence
 
-`Картофель молодой` / `Томаты` / three honey names are a regression of this file, not a universal semantic detector. Semantic facts (`hasKgListedSeed`, `honey1kgCount`, sack/range tokens) do not depend on those names.
+Potato 55 / tomato 180 / three honey names were removed from SOURCE-010-CATALOG. That row now records only `hasKgListedSeed`, `honey1kgCount`, sack/range tokens (plus `honeyCategoryFound` and `honeySeedsParsed` so a missed or unparsed honey block cannot silently look like `honey1kgCount=0`).
 
 ### H12. Quantity-range detector is a token heuristic
 
 `mentionsQuantityRangeTokens` answers only whether those strings/identifiers appear. A miss is SOURCE ABSENT of tokens, not absence of a business rule.
+
+### H13. ADD_TO_BASKET claims are scoped to that function
+
+Wording is: **No conversion/tier lookup found in ADD_TO_BASKET itself.** Conversion or a pricing decision may happen before `addToBasket` writes `payload.unit` / `payload.price`. This row does not claim the whole basket path.
+
+### H14. CooperativeSeller call-shape is not OQ-002B evidence
+
+SOURCE-010-EMULATOR records identifier tokens (`minQuantity`, `maxQuantity`, `tierPrice`, `PriceSchedule`). It does not regex `acceptOffer(latestBuyer.id, "SELLER")`.
+
+### H15. FLOW-010 scan covers experiments/basket TypeScript
+
+SOURCE-010-TREE walks `experiments/basket/**/*.ts`. It does not search `docs/` (TZ-010 may mention the old ids) and does not treat PACKAGE-008 experimenter facts (`1 package = 5 kg`) as FLOW-010 leftovers. `seller-a` is not a FLOW-010 artifact.
+
 
 
 ## Search log (read-only, now executable)
@@ -145,8 +158,8 @@ Replaced by `extractNamedDeclaration`: `function` / `export function` / `const n
 | Source | What was looked for | What was found | Result kind |
 |---|---|---|---|
 | `mockSellerCatalog.ts` | `1 мешок = 5 kg`; quantity-range table; honey 500 g vs 1 kg as pack sizes of one product | Vegetables listed as `1 кг` with a unit price (картофель 55, томаты 180). Honeys are differently named listings (цветочный 500 г, липовый 500 г, с пергой 350 г). No `1 кг` honey. No sack=kg contents. No `1–4 / 5–9 / 10+` table. | SOURCE ABSENT |
-| Production `ADD_TO_BASKET` | conversion / tier lookup | Copies listed `price` and `unit`. No conversion. No quantity-range. | SOURCE ABSENT |
-| `experiments/basket/emulator/sellers.ts` | pack-contents response; quantity-range pricing; schedule version | CooperativeSeller accepts the buyer Offer as-is. NegotiatingSeller adds +1 (not a range). TimeDiscountSeller subtracts 3 over **time**. PartialAvailabilitySeller reduces same-unit stock. **No quantity-range mechanism.** Therefore a CooperativeSeller run cannot observe a range decision. | SOURCE ABSENT (no mechanism) |
+| Production `ADD_TO_BASKET` | conversion / tier lookup **in this function** | Copies listed `price` and `unit`. **No conversion/tier lookup found in ADD_TO_BASKET itself.** Conversion or pricing could occur before this call. | SOURCE ABSENT in this function |
+| `experiments/basket/emulator/sellers.ts` | pack-contents response; quantity-range identifier tokens | `minQuantity` / `maxQuantity` / `tierPrice` / `PriceSchedule` are SOURCE ABSENT in this file. Human reading still notes CooperativeSeller / time-discount / +1 negotiator; those are not OQ-002B prove() facts. | SOURCE ABSENT of those tokens |
 | ТЗ-025 | structured schedule | Free-text «Сегодня скидка на сыр». Not a quantity-range object. | SOURCE ABSENT |
 | Live seller / buyer interview in this repo | farm-gate dialogue | Not present. Stage-1 has mock catalog + deterministic emulators only. | SOURCE ABSENT |
 
@@ -190,7 +203,7 @@ Absence in these sources is **not** a market-wide claim that farmers never sell 
 
 **Prerequisite:** seller states a quantity-range price as a business fact and applies it to an order.
 
-**Source search:** tomatoes listed `1 кг @ 180`. No `1–4 → 20 / 5–9 → 17 / 10+ → 14`. Emulator has no quantity-range lookup.
+**Source search:** tomatoes listed `1 кг @ 180`. No `1–4 → 20 / 5–9 → 17 / 10+ → 14`. Quantity-range identifier tokens are SOURCE ABSENT in `sellers.ts`.
 
 **Business flow:** **NOT OBTAINED.** CooperativeSeller cannot produce this evidence.
 
@@ -224,9 +237,9 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 | Source | `mockSellerCatalog.ts` (file read by the test) |
 | Buyer action | none |
 | Seller action | none |
-| Recorded listing facts | картофель `1 кг @ 55`; томаты `1 кг @ 180`; мёд: 3 named rows, 0 with `1 кг`; no `мешок`; no quantity-range table |
+| Recorded listing facts | this file has at least one `1 кг` listing; honey category was found and parsed; 0 parsed honey-block rows have unit `1 кг`; sack/range tokens SOURCE ABSENT in this file |
 | Missing fact | pack-contents relation; seller classification of honey packs; quantity-range rule |
-| Domain conclusion | SOURCE ABSENT in this file. **Not** a business-flow observation. |
+| Domain conclusion | SOURCE ABSENT **in mockSellerCatalog.ts**. **Not** a business-flow observation. Not a snapshot of potato/tomato prices. |
 | Open question | SPEC OQ-002A / OQ-002B |
 | New concept justified? | **no** |
 
@@ -239,9 +252,9 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 | Source | `experiments/basket/emulator/sellers.ts` (file read by the test) |
 | Buyer action | none |
 | Seller action | none (mechanism inspection, not a deal) |
-| Recorded facts | CooperativeSeller accepts latest buyer Offer as-is; no `minQuantity` / `maxQuantity` / `tierPrice` / `PriceSchedule`; TimeDiscountSeller subtracts 3 over time |
+| Recorded facts | identifier tokens `minQuantity` / `maxQuantity` / `tierPrice` / `PriceSchedule` are SOURCE ABSENT in this file |
 | Missing fact | quantity-range pricing mechanism; pack-contents response |
-| Domain conclusion | Current emulator has **no mechanism** that would allow observing a quantity-range or pack-contents seller decision. That is source absence, not a market finding. |
+| Domain conclusion | SOURCE ABSENT of those tokens **in sellers.ts**. Not a CooperativeSeller call-shape test. Not a market finding. |
 | Open question | SPEC OQ-002A / OQ-002B |
 | New concept justified? | **no** |
 
@@ -252,8 +265,8 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 | Scenario ID | SOURCE-010-BASKET |
 | Kind | Stage-1 source search of production ADD_TO_BASKET |
 | Source | `BasketActionHandlers.ts` (file read by the test) |
-| Recorded facts | `addToBasket` copies `payload.unit` and `payload.price`; function body has no conversion / tier fields |
-| Domain conclusion | SOURCE ABSENT in add-to-basket. Not a seller pricing observation. |
+| Recorded facts | `addToBasket` copies `payload.unit` and `payload.price`; those identifiers for conversion/tier are not in **this function body** |
+| Domain conclusion | **No conversion/tier lookup found in ADD_TO_BASKET itself.** Not a claim that the whole basket path lacks conversion. Not a seller pricing observation. |
 | Open question | SPEC OQ-002A / OQ-002B |
 | New concept justified? | **no** |
 
@@ -267,6 +280,17 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 | Recorded facts | text «Сегодня скидка на сыр»; no quantity-range table |
 | Domain conclusion | SOURCE ABSENT for schedule-as-object. Free-text is not an Offer (already I-050). Not B3 observation. |
 | Open question | SPEC OQ-002B |
+| New concept justified? | **no** |
+
+### SOURCE-010-TREE
+
+| Field | Value |
+|---|---|
+| Scenario ID | SOURCE-010-TREE |
+| Kind | Scan of `experiments/basket/**/*.ts` for leftover synthetic FLOW-010 |
+| Recorded facts | no `run("FLOW-010-…")`; no `function observeCooperativeAccept(`; enough `.ts` files were scanned |
+| Domain conclusion | FLOW-010 is absent from **experiments/basket TypeScript**. Does not prove absence in `docs/` or other packages. Not a business-flow observation. |
+| Open question | SPEC OQ-002A |
 | New concept justified? | **no** |
 
 Required flows A1–A3 / B1–B3 have **no** executable observation cards. They are documented above as SOURCE ABSENT / NOT TESTABLE / BUSINESS-FLOW NOT OBTAINED.
@@ -291,7 +315,7 @@ SPEC VERSION: remains v0.6
 Production architecture changed: NO
 ```
 
-Source absence does **not** justify Package or PriceSchedule. Further closing still requires a business-flow observation in which a deal cannot complete without the extra fact.
+Source absence does **not** justify Package or PriceSchedule. Further closing still requires a business-flow observation in which a deal cannot complete without the extra fact. OQ-003 may proceed independently, but does not replace this observation. This PR is not another attempt to close OQ-002A/B.
 
 ## Invariants
 
@@ -301,13 +325,13 @@ I-042…I-050 unchanged. No I-051.
 
 | ID | Hypothesis | Что проверяет |
 |---|---|---|
-| SOURCE-010-CATALOG | OPEN | reads `mockSellerCatalog.ts`; semantic absences + current-file listing snapshot |
-| SOURCE-010-EMULATOR | OPEN | reads `sellers.ts`; CooperativeSeller is accept-as-is; no quantity-range tokens/mechanism |
-| SOURCE-010-BASKET | OPEN | finds `addToBasket` by declaration form; copies listed unit/price |
-| SOURCE-010-TZ025 | OPEN | reads ТЗ-025; cheese-discount text; no range tokens |
-| SOURCE-010-TREE | OPEN | HEAD `scenarios.ts` has no FLOW-010 run and no observeCooperativeAccept helper |
+| SOURCE-010-CATALOG | OPEN | `mockSellerCatalog.ts`: kg listing, no 1 kg honey row, sack/range tokens SOURCE ABSENT in this file |
+| SOURCE-010-EMULATOR | OPEN | `sellers.ts`: quantity-range identifier tokens SOURCE ABSENT in this file |
+| SOURCE-010-BASKET | OPEN | no conversion/tier lookup found in ADD_TO_BASKET itself |
+| SOURCE-010-TZ025 | OPEN | ТЗ-025: cheese-discount text; range tokens SOURCE ABSENT in this file |
+| SOURCE-010-TREE | OPEN | `experiments/basket/**/*.ts` has no FLOW-010 run / observeCooperativeAccept helper |
 
-FLOW-010-A1/A2/A3/B1/B2 are absent from HEAD (never on `main`; removed after PR-25 review). SOURCE-010-TREE is the executable proof.
+FLOW-010-A1/A2/A3/B1/B2 are absent from `experiments/basket` TypeScript (never on `main`; removed after PR-25 review). SOURCE-010-TREE is the executable proof.
 
 88 TZ-009 scenarios + 5 SOURCE-010 = 93 total.
 
@@ -334,5 +358,5 @@ FLOW-010-A1/A2/A3/B1/B2 are absent from HEAD (never on `main`; removed after PR-
 - [x] Production architecture не изменяется
 - [x] FLOW-010 отсутствует в HEAD (`experiments/basket`); SOURCE-010-TREE это доказывает
 - [x] `addToBasket` extractor устойчив к `function` / `const` и падает, если declaration не найдена
-- [x] Catalog seed names помечены как current-file snapshot, не как universal semantic detector
+- [x] SOURCE-010-CATALOG не использует snapshot цен/имён как OQ-002 evidence
 - [x] Quantity-range detector помечен как token heuristic: miss = SOURCE ABSENT of tokens

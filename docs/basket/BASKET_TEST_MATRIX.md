@@ -94,11 +94,11 @@
 | PACKAGE-BIZ-009-001 | listed 250 g representable | ✓ |  |  | OPEN reconstruction |
 | PACKAGE-BIZ-009-002 | pre-split productIds | ✓ |  |  | OPEN; not OQ-002A evidence |
 | VOLUME-BIZ-009-001 | listed price on 3/7/12 kg | ✓ |  |  | OPEN; not seller pricing |
-| SOURCE-010-CATALOG | read mockSellerCatalog.ts | ✓ |  |  | OPEN; SOURCE ABSENT, not observation |
-| SOURCE-010-EMULATOR | read sellers.ts | ✓ |  |  | OPEN; no quantity-range mechanism |
-| SOURCE-010-BASKET | read ADD_TO_BASKET | ✓ |  |  | OPEN; copies listed unit/price |
-| SOURCE-010-TZ025 | read TZ-025 | ✓ |  |  | OPEN; free-text, no range tokens |
-| SOURCE-010-TREE | HEAD has no FLOW-010 run | ✓ |  |  | OPEN; proves FLOW-010 absent from scenarios.ts |
+| SOURCE-010-CATALOG | read mockSellerCatalog.ts | ✓ |  |  | OPEN; kg listing; no 1 kg honey row; sack/range tokens SOURCE ABSENT |
+| SOURCE-010-EMULATOR | read sellers.ts | ✓ |  |  | OPEN; quantity-range tokens SOURCE ABSENT in this file |
+| SOURCE-010-BASKET | read ADD_TO_BASKET | ✓ |  |  | OPEN; no conversion/tier lookup in ADD_TO_BASKET itself |
+| SOURCE-010-TZ025 | read TZ-025 | ✓ |  |  | OPEN; free-text; range tokens SOURCE ABSENT |
+| SOURCE-010-TREE | experiments/basket **/*.ts | ✓ |  |  | OPEN; FLOW-010 run/helper absent from experiment TypeScript |
 
 TZ-004 assistant demos on `/sim` (DISCOUNT / HIKE / SELLER) are training overlays, not rows in this BS matrix.
 

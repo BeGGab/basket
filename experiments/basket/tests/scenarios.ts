@@ -9,14 +9,13 @@ import { catalogUnitPrice } from "../domain/catalog";
 import { hasStoredLinePrice, lineTotalAbsence, unitLineTotal } from "../domain/price";
 import { adviseBuyer, catalogReferencePrice } from "../assistants";
 import {
-  extractCategoryBlock,
   extractNamedDeclaration,
-  findSeed,
-  flow010ArtifactsPresent,
+  honeyCategoryKgCount,
   mentionsQuantityRangeTokens,
   mentionsSackContents,
   parseListedSeeds,
   readStage1,
+  scanBasketExperimentForFlow010,
 } from "./stage1SourceSearch";
 
 export type ScenarioResult = {
@@ -3873,39 +3872,27 @@ export function runAllScenarios(): ScenarioResult[] {
     run("SOURCE-010-CATALOG", () => {
       const source = readStage1("catalog");
       const seeds = parseListedSeeds(source);
-      const potato = findSeed(seeds, "Картофель молодой");
-      const tomato = findSeed(seeds, "Томаты");
-      const honeys = parseListedSeeds(extractCategoryBlock(source, "honey")).filter((seed) =>
-        seed.name.startsWith("Мёд")
-      );
+      const honeyKg = honeyCategoryKgCount(source);
       return prove(
         "SOURCE-010-CATALOG",
         "I-047 I-050",
         {
-          fileHasProductSeeds: true,
           hasKgListedSeed: true,
+          honeyCategoryFound: true,
+          honeySeedsParsed: true,
           honey1kgCount: 0,
           sackContentsTokens: false,
           quantityRangeTokens: false,
-          potatoSnapshotUnit: "1 кг",
-          potatoSnapshotPrice: 55,
-          tomatoSnapshotUnit: "1 кг",
-          tomatoSnapshotPrice: 180,
-          honeyNamedSnapshotCount: 3,
         },
         {
-          fileHasProductSeeds: source.includes("PRODUCT_SEEDS"),
           hasKgListedSeed: seeds.some((seed) => seed.unit === "1 кг"),
-          honey1kgCount: honeys.filter((seed) => seed.unit === "1 кг").length,
+          honeyCategoryFound: honeyKg.blockFound,
+          honeySeedsParsed: honeyKg.listedCount > 0,
+          honey1kgCount: honeyKg.kgCount,
           sackContentsTokens: mentionsSackContents(source),
           quantityRangeTokens: mentionsQuantityRangeTokens(source),
-          potatoSnapshotUnit: potato?.unit ?? null,
-          potatoSnapshotPrice: potato?.price ?? null,
-          tomatoSnapshotUnit: tomato?.unit ?? null,
-          tomatoSnapshotPrice: tomato?.price ?? null,
-          honeyNamedSnapshotCount: honeys.length,
         },
-        "Stage-1 source search of mockSellerCatalog.ts: PRODUCT_SEEDS is present; sack/range tokens are SOURCE ABSENT; no 1 kg honey listing. Potato/tomato/honey-name facts are a snapshot of the current file (rename fails this regression, not OQ-002A semantics). Token miss is not a business-flow observation and does not test A3 seller classification",
+        "Stage-1 source search of mockSellerCatalog.ts only: a kg listing exists; honey category has no 1 kg row; sack/range tokens are SOURCE ABSENT in this file. Token miss is not a market finding and does not test A3 seller classification",
         "OPEN",
         "SPEC-OQ-002A",
         { newConcept: "SOURCE ABSENT in mockSellerCatalog.ts — not a business-flow observation" }
@@ -3920,27 +3907,23 @@ export function runAllScenarios(): ScenarioResult[] {
         "SOURCE-010-EMULATOR",
         "I-047 I-050",
         {
-          cooperativeAcceptsBuyerAsIs: true,
           hasMinQuantity: false,
           hasMaxQuantity: false,
           hasTierPrice: false,
           hasPriceSchedule: false,
-          timeDiscountSubtracts3: true,
           quantityRangeTokens: false,
         },
         {
-          cooperativeAcceptsBuyerAsIs: /acceptOffer\(latestBuyer\.id,\s*"SELLER"\)/.test(source),
           hasMinQuantity: source.includes("minQuantity"),
           hasMaxQuantity: source.includes("maxQuantity"),
           hasTierPrice: source.includes("tierPrice"),
           hasPriceSchedule: source.includes("PriceSchedule"),
-          timeDiscountSubtracts3: /\(item\.price \?\? 0\) - 3/.test(source),
           quantityRangeTokens: mentionsQuantityRangeTokens(source),
         },
-        "Stage-1 source search of sellers.ts: CooperativeSeller accepts the buyer Offer as-is; quantity-range tokens/mechanism are SOURCE ABSENT in this file. A token miss is not a market finding that sellers have no range rule",
+        "Stage-1 source search of sellers.ts: minQuantity/maxQuantity/tierPrice/PriceSchedule tokens are SOURCE ABSENT in this file. This is not a CooperativeSeller call-shape regression and not a market finding that sellers have no range rule",
         "OPEN",
         "SPEC-OQ-002B",
-        { newConcept: "SOURCE ABSENT — emulator has no quantity-range mechanism" }
+        { newConcept: "SOURCE ABSENT of quantity-range tokens in sellers.ts" }
       );
     })
   );
@@ -3957,7 +3940,6 @@ export function runAllScenarios(): ScenarioResult[] {
           copiesPrice: true,
           hasConversion: false,
           hasTierPrice: false,
-          usesBasketStore: true,
         },
         {
           declarationFound: addToBasket.length > 0,
@@ -3965,12 +3947,11 @@ export function runAllScenarios(): ScenarioResult[] {
           copiesPrice: /price:\s*payload\.price/.test(addToBasket),
           hasConversion: /conversionFactor|packageContents/.test(addToBasket),
           hasTierPrice: /tierPrice|minQuantity|maxQuantity/.test(addToBasket),
-          usesBasketStore: addToBasket.includes("BasketStore"),
         },
-        "Stage-1 source search of BasketActionHandlers.ts: addToBasket declaration was found (function or const form) and copies listed unit/price. SOURCE ABSENT of conversion/tier lookup. Not a seller pricing observation",
+        "No conversion/tier lookup found in ADD_TO_BASKET itself. The function copies payload.unit and payload.price. Conversion or pricing could occur before this call; this row does not claim the whole basket path",
         "OPEN",
         "SPEC-OQ-002A",
-        { newConcept: "SOURCE ABSENT in ADD_TO_BASKET — not a business-flow observation" }
+        { newConcept: "SOURCE ABSENT in ADD_TO_BASKET itself — not a business-flow observation" }
       );
     })
   );
@@ -3999,25 +3980,24 @@ export function runAllScenarios(): ScenarioResult[] {
 
   results.push(
     run("SOURCE-010-TREE", () => {
-      const source = readStage1("scenarios");
-      const artifacts = flow010ArtifactsPresent(source);
+      const scan = scanBasketExperimentForFlow010();
       return prove(
         "SOURCE-010-TREE",
         "I-047 I-050",
         {
+          scannedEnough: true,
           flow010Run: false,
           observeCooperativeAcceptHelper: false,
-          source010CatalogRun: true,
         },
         {
-          flow010Run: artifacts.flow010Run,
-          observeCooperativeAcceptHelper: artifacts.observeCooperativeAccept,
-          source010CatalogRun: /run\(\s*"SOURCE-010-CATALOG"/.test(source),
+          scannedEnough: scan.scannedFiles >= 8,
+          flow010Run: scan.flow010Run,
+          observeCooperativeAcceptHelper: scan.observeCooperativeAccept,
         },
-        "Final experiment tree: scenarios.ts has no FLOW-010 run() and no observeCooperativeAccept helper. Net diff vs main has no FLOW-010 deletion hunks because those ids never existed on main; this row proves they are absent from HEAD",
+        "experiments/basket **/*.ts has no FLOW-010 run() and no observeCooperativeAccept helper. Does not search docs or PACKAGE-008 experimenter facts. Not a business-flow observation",
         "OPEN",
         "SPEC-OQ-002A",
-        { newConcept: "FLOW-010 absent from HEAD — not a business-flow observation" }
+        { newConcept: "FLOW-010 absent from experiments/basket TypeScript — not a business-flow observation" }
       );
     })
   );
@@ -4191,8 +4171,8 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("");
   lines.push("TZ-BASKET-010");
   lines.push("Status: primary goal NOT MET — Stage-1 source search only; BUSINESS-FLOW OBSERVATION NOT OBTAINED");
-  lines.push("OQ-002A: OPEN — SOURCE ABSENT in mockSellerCatalog / ADD_TO_BASKET; A1/A2 flow NOT OBTAINED; A3 NOT TESTABLE (no seller classification); SOURCE-010-TREE proves FLOW-010 absent from HEAD");
-  lines.push("OQ-002B: OPEN — SOURCE ABSENT of quantity-range mechanism in emulator; B1/B2/B3 flow NOT OBTAINED. CooperativeSeller accept-as-is cannot produce range evidence");
+  lines.push("OQ-002A: OPEN — SOURCE ABSENT in mockSellerCatalog; no conversion/tier lookup found in ADD_TO_BASKET itself; A1/A2 flow NOT OBTAINED; A3 NOT TESTABLE (no seller classification); SOURCE-010-TREE proves FLOW-010 absent from experiments/basket TypeScript");
+  lines.push("OQ-002B: OPEN — quantity-range tokens SOURCE ABSENT in sellers.ts / TZ-025; B1/B2/B3 flow NOT OBTAINED. Token miss is not a CooperativeSeller call-shape test and not a market finding");
   lines.push("NEW CONCEPT JUSTIFIED: no — source absence does not justify Package or PriceSchedule");
   lines.push("NO MODEL CHANGE: yes");
   lines.push("NO NEW INVARIANT: yes");
@@ -4214,7 +4194,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("Assistant unit-price comparisons are consistent with I-042; they are not the source of I-042.");
   lines.push("");
   lines.push("The model is still experimental. PASS does not close remaining OPEN questions.");
-  lines.push("Recommended next step: a real business-flow observation for OQ-002A/B, or SPEC OQ-003 (duplicate ListItems)");
+  lines.push("Recommended next step: obtain a real business-flow observation for OQ-002A/B. OQ-003 may proceed independently, but does not replace this observation");
   lines.push("```");
   lines.push("");
   return lines.join("\n");

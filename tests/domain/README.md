@@ -80,11 +80,11 @@ npx tsx experiments/basket/tests/run.ts
 | `PACKAGE-BIZ-009-001` | catalog/spec: listed 250 g representable without contents field | `scenarios.ts` PACKAGE-BIZ-009-001 |
 | `PACKAGE-BIZ-009-002` | catalog/spec: pre-split productIds; not pack-as-Product policy | `scenarios.ts` PACKAGE-BIZ-009-002 |
 | `VOLUME-BIZ-009-001` | catalog/spec: listed unit price copied onto 3/7/12 kg items | `scenarios.ts` VOLUME-BIZ-009-001 |
-| `SOURCE-010-CATALOG` | source search of mockSellerCatalog.ts; SOURCE ABSENT, not observation | `scenarios.ts` SOURCE-010-CATALOG |
-| `SOURCE-010-EMULATOR` | source search of sellers.ts; no quantity-range mechanism | `scenarios.ts` SOURCE-010-EMULATOR |
-| `SOURCE-010-BASKET` | source search of ADD_TO_BASKET; copies listed unit/price | `scenarios.ts` SOURCE-010-BASKET |
-| `SOURCE-010-TZ025` | source search of TZ-025; free-text discount, no range tokens | `scenarios.ts` SOURCE-010-TZ025 |
-| `SOURCE-010-TREE` | HEAD scenarios.ts has no FLOW-010 run / observeCooperativeAccept helper | `scenarios.ts` SOURCE-010-TREE |
+| `SOURCE-010-CATALOG` | source search of mockSellerCatalog.ts; kg listing; no 1 kg honey row; sack/range tokens SOURCE ABSENT | `scenarios.ts` SOURCE-010-CATALOG |
+| `SOURCE-010-EMULATOR` | source search of sellers.ts; quantity-range tokens SOURCE ABSENT in this file | `scenarios.ts` SOURCE-010-EMULATOR |
+| `SOURCE-010-BASKET` | no conversion/tier lookup found in ADD_TO_BASKET itself | `scenarios.ts` SOURCE-010-BASKET |
+| `SOURCE-010-TZ025` | source search of TZ-025; free-text discount; range tokens SOURCE ABSENT | `scenarios.ts` SOURCE-010-TZ025 |
+| `SOURCE-010-TREE` | experiments/basket TypeScript has no FLOW-010 run / observeCooperativeAccept helper | `scenarios.ts` SOURCE-010-TREE |
 | *(SPEC OQ-003)* | duplicate ListItems of same `(productId, unit)` | `run.ts` `DUPLICATE_LINE` (explicit, not silent collapse) |
 
 A PR that confirms a new domain rule MUST add or update a row here **and** the executable test.

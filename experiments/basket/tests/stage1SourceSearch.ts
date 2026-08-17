@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -80,6 +80,21 @@ export function findSeed(seeds: readonly ListedSeed[], name: string): ListedSeed
   return seeds.find((seed) => seed.name === name);
 }
 
+export function honeyCategoryKgCount(source: string): {
+  blockFound: boolean;
+  listedCount: number;
+  kgCount: number;
+} {
+  const block = extractCategoryBlock(source, "honey");
+  if (!block) return { blockFound: false, listedCount: 0, kgCount: 0 };
+  const seeds = parseListedSeeds(block);
+  return {
+    blockFound: true,
+    listedCount: seeds.length,
+    kgCount: seeds.filter((seed) => seed.unit === "1 кг").length,
+  };
+}
+
 export function mentionsSackContents(source: string): boolean {
   return /мешок|1\s*package\s*=\s*5/i.test(source);
 }
@@ -159,12 +174,39 @@ export function extractNamedDeclaration(source: string, name: string): string {
 }
 
 /** True only for a real FLOW-010 scenario run / helper, not for prose mentioning the old ids. */
-export function flow010ArtifactsPresent(scenariosSource: string): {
+export function flow010ArtifactsPresent(source: string): {
   flow010Run: boolean;
   observeCooperativeAccept: boolean;
 } {
   return {
-    flow010Run: /run\(\s*["']FLOW-010-/.test(scenariosSource),
-    observeCooperativeAccept: /function\s+observeCooperativeAccept\s*\(/.test(scenariosSource),
+    flow010Run: /run\(\s*["']FLOW-010-/.test(source),
+    observeCooperativeAccept: /function\s+observeCooperativeAccept\s*\(/.test(source),
   };
+}
+
+function listTsFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...listTsFiles(path));
+    else if (entry.name.endsWith(".ts")) out.push(path);
+  }
+  return out;
+}
+
+/** Scan experiments/basket TypeScript, not only scenarios.ts. */
+export function scanBasketExperimentForFlow010(): {
+  scannedFiles: number;
+  flow010Run: boolean;
+  observeCooperativeAccept: boolean;
+} {
+  const files = listTsFiles(join(GREENMARKET_ROOT, "experiments/basket"));
+  let flow010Run = false;
+  let observeCooperativeAccept = false;
+  for (const file of files) {
+    const artifacts = flow010ArtifactsPresent(readFileSync(file, "utf8"));
+    flow010Run = flow010Run || artifacts.flow010Run;
+    observeCooperativeAccept = observeCooperativeAccept || artifacts.observeCooperativeAccept;
+  }
+  return { scannedFiles: files.length, flow010Run, observeCooperativeAccept };
 }

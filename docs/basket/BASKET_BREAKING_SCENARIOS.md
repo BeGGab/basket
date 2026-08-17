@@ -394,20 +394,20 @@ Two pre-split `productId`s yield two identity keys. This does not prove pack siz
 
 ## SOURCE-010-CATALOG — Stage-1 catalog source search
 
-Reads `mockSellerCatalog.ts`. Potatoes `1 кг @ 55`, tomatoes `1 кг @ 180`, three named honeys, no `1 кг` honey, no sack contents, no quantity-range table. **SOURCE ABSENT** in this file, not a business-flow observation (**OPEN — SPEC OQ-002A / OQ-002B**).
+Reads `mockSellerCatalog.ts`. A `1 кг` listing exists; honey category was found and parsed; no `1 кг` honey-block row; sack/range tokens SOURCE ABSENT in this file. Not a potato/tomato price snapshot. Not a business-flow observation (**OPEN — SPEC OQ-002A / OQ-002B**).
 
 ## SOURCE-010-EMULATOR — Stage-1 emulator source search
 
-Reads `sellers.ts`. CooperativeSeller accepts the buyer Offer as-is. No `minQuantity` / `maxQuantity` / `tierPrice` / `PriceSchedule`. Current emulator has no mechanism that would allow observing a quantity-range decision (**OPEN — SPEC OQ-002B**).
+Reads `sellers.ts`. Identifier tokens `minQuantity` / `maxQuantity` / `tierPrice` / `PriceSchedule` are SOURCE ABSENT in this file. Not a CooperativeSeller call-shape test. Token miss is not a market finding (**OPEN — SPEC OQ-002B**).
 
 ## SOURCE-010-BASKET — ADD_TO_BASKET source search
 
-Reads `BasketActionHandlers.ts`. Copies listed `unit` and `price`. No conversion / tier lookup (**OPEN — SPEC OQ-002A**).
+Reads `BasketActionHandlers.ts`. Copies listed `unit` and `price`. **No conversion/tier lookup found in ADD_TO_BASKET itself.** Conversion or pricing could occur before this call (**OPEN — SPEC OQ-002A**).
 
 ## SOURCE-010-TZ025 — TZ-025 source search
 
 Free-text «Сегодня скидка на сыр». Quantity-range tokens SOURCE ABSENT in this file. Not B3 observation (**OPEN — SPEC OQ-002B**).
 
-## SOURCE-010-TREE — FLOW-010 absent from HEAD
+## SOURCE-010-TREE — FLOW-010 absent from experiments/basket TypeScript
 
-`scenarios.ts` has no `run("FLOW-010-…")` and no `function observeCooperativeAccept`. Net diff vs main has no FLOW-010 deletion hunks because those ids never existed on main (**OPEN — SPEC OQ-002A**).
+`experiments/basket/**/*.ts` has no `run("FLOW-010-…")` and no `function observeCooperativeAccept`. Does not search `docs/` (**OPEN — SPEC OQ-002A**).
