@@ -402,7 +402,7 @@ Reads `sellers.ts`. Identifier tokens `minQuantity` / `maxQuantity` / `tierPrice
 
 ## SOURCE-010-BASKET — ADD_TO_BASKET source search
 
-Reads `BasketActionHandlers.ts`. Copies listed `unit` and `price`. **No conversion/tier lookup found in ADD_TO_BASKET itself.** Conversion or pricing could occur before this call (**OPEN — SPEC OQ-002A**).
+Reads `BasketActionHandlers.ts`. Copies listed `unit` and `price`. **No conversion/tier lookup found in ADD_TO_BASKET itself.** Conversion or pricing could occur before this call. Source inspection, not confirmation of I-045 (**OPEN — SPEC OQ-002A**).
 
 ## SOURCE-010-TZ025 — TZ-025 source search
 

@@ -82,7 +82,7 @@ npx tsx experiments/basket/tests/run.ts
 | `VOLUME-BIZ-009-001` | catalog/spec: listed unit price copied onto 3/7/12 kg items | `scenarios.ts` VOLUME-BIZ-009-001 |
 | `SOURCE-010-CATALOG` | source search of mockSellerCatalog.ts; kg listing; no 1 kg honey row; sack/range tokens SOURCE ABSENT | `scenarios.ts` SOURCE-010-CATALOG |
 | `SOURCE-010-EMULATOR` | source search of sellers.ts; quantity-range tokens SOURCE ABSENT in this file | `scenarios.ts` SOURCE-010-EMULATOR |
-| `SOURCE-010-BASKET` | no conversion/tier lookup found in ADD_TO_BASKET itself | `scenarios.ts` SOURCE-010-BASKET |
+| `SOURCE-010-BASKET` | no conversion/tier lookup found in ADD_TO_BASKET itself; source inspection, not I-045 | `scenarios.ts` SOURCE-010-BASKET |
 | `SOURCE-010-TZ025` | source search of TZ-025; free-text discount; range tokens SOURCE ABSENT | `scenarios.ts` SOURCE-010-TZ025 |
 | `SOURCE-010-TREE` | executable check: no `run("FLOW-010-…")` / `observeCooperativeAccept` in experiments/basket TypeScript | `scenarios.ts` SOURCE-010-TREE |
 | *(SPEC OQ-003)* | duplicate ListItems of same `(productId, unit)` | `run.ts` `DUPLICATE_LINE` (explicit, not silent collapse) |

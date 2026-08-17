@@ -140,7 +140,7 @@ Potato 55 / tomato 180 / three honey names were removed from SOURCE-010-CATALOG.
 
 ### H13. ADD_TO_BASKET claims are scoped to that function
 
-Wording is: **No conversion/tier lookup found in ADD_TO_BASKET itself.** Conversion or a pricing decision may happen before `addToBasket` writes `payload.unit` / `payload.price`. This row does not claim the whole basket path.
+Wording is: **No conversion/tier lookup found in ADD_TO_BASKET itself.** Conversion or a pricing decision may happen before `addToBasket` writes `payload.unit` / `payload.price`. This row does not claim the whole basket path. The scenario field is `source inspection — not a domain invariant`; it does **not** confirm I-045.
 
 ### H14. CooperativeSeller call-shape is not OQ-002B evidence
 
@@ -267,7 +267,7 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 | Kind | Stage-1 source search of production ADD_TO_BASKET |
 | Source | `BasketActionHandlers.ts` (file read by the test) |
 | Recorded facts | `addToBasket` copies `payload.unit` and `payload.price`; those identifiers for conversion/tier are not in **this function body** |
-| Domain conclusion | **No conversion/tier lookup found in ADD_TO_BASKET itself.** Not a claim that the whole basket path lacks conversion. Not a seller pricing observation. |
+| Domain conclusion | **No conversion/tier lookup found in ADD_TO_BASKET itself.** Not a claim that the whole basket path lacks conversion. Not a seller pricing observation. Does not confirm I-045. |
 | Open question | SPEC OQ-002A / OQ-002B |
 | New concept justified? | **no** |
 

@@ -3933,7 +3933,7 @@ export function runAllScenarios(): ScenarioResult[] {
       const addToBasket = extractNamedDeclaration(readStage1("basket"), "addToBasket");
       return prove(
         "SOURCE-010-BASKET",
-        "I-045 I-050",
+        "source inspection — not a domain invariant",
         {
           declarationFound: true,
           copiesUnit: true,

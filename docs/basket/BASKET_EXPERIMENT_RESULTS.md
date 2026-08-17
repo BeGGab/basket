@@ -973,7 +973,7 @@ Record evidence from the mock domain and seller emulator.
 
 - Expected: declarationFound=true; copiesUnit=true; copiesPrice=true; hasConversion=false; hasTierPrice=false
 - Actual: declarationFound=true; copiesUnit=true; copiesPrice=true; hasConversion=false; hasTierPrice=false
-- Invariant: I-045 I-050
+- Invariant: source inspection — not a domain invariant
 - Hypothesis: OPEN
 - Open question: SPEC-OQ-002A
 - Model violation: none
