@@ -394,7 +394,7 @@ Two pre-split `productId`s yield two identity keys. This does not prove pack siz
 
 ## SOURCE-010-CATALOG — Stage-1 catalog source search
 
-Reads `mockSellerCatalog.ts`. A `1 кг` listing exists; honey category was found and parsed; no `1 кг` honey-block row; sack/range tokens SOURCE ABSENT in this file. Not a potato/tomato price snapshot. Not a business-flow observation (**OPEN — SPEC OQ-002A / OQ-002B**).
+Reads `mockSellerCatalog.ts`. A `1 кг` listing exists; honey category found; at least one seed present; no `1 кг` honey-block row; sack/range tokens SOURCE ABSENT in this file. Not a potato/tomato price snapshot. Not a business-flow observation (**OPEN — SPEC OQ-002A / OQ-002B**).
 
 ## SOURCE-010-EMULATOR — Stage-1 emulator source search
 
@@ -408,6 +408,6 @@ Reads `BasketActionHandlers.ts`. Copies listed `unit` and `price`. **No conversi
 
 Free-text «Сегодня скидка на сыр». Quantity-range tokens SOURCE ABSENT in this file. Not B3 observation (**OPEN — SPEC OQ-002B**).
 
-## SOURCE-010-TREE — FLOW-010 absent from experiments/basket TypeScript
+## SOURCE-010-TREE — two known FLOW-010 artifacts absent from experiments/basket TypeScript
 
-`experiments/basket/**/*.ts` has no `run("FLOW-010-…")` and no `function observeCooperativeAccept`. Does not search `docs/` (**OPEN — SPEC OQ-002A**).
+`experiments/basket/**/*.ts` has no `run("FLOW-010-…")` and no `function observeCooperativeAccept`. Executable check of those two artifacts, not a universal search. Does not search `docs/` (**OPEN — SPEC OQ-002A**).

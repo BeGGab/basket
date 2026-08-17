@@ -3,10 +3,11 @@
 **Проект:** GreenMarket  
 **Stage:** 1 — экспериментальный Basket Domain  
 **Тип:** Stage-1 source search / evidence acquisition (primary goal not met)  
-**Приёмка:** Pull Request `basket-pr-25`  
+**Приёмка:** GitHub Pull Request #13  
 **Статус:** Implemented — **primary goal NOT MET**; Stage-1 source search only  
 **Основание:** TZ-BASKET-009 (catalog/spec reconstruction ≠ observation); SPEC v0.6 (не bump)  
-**Ветка:** `basket-pr-25`
+**Ветка:** `basket-pr-25` (git branch name; not the GitHub PR number)  
+**Контекст ревью:** first review increment of this GitHub PR was PR-25; later increments are successive diffs of the same PR #13
 
 ## Domain Contract
 
@@ -131,7 +132,7 @@ Replaced by `extractNamedDeclaration`: `function` / `export function` / `const n
 
 ### H11. Exact seed names are not OQ-002 evidence
 
-Potato 55 / tomato 180 / three honey names were removed from SOURCE-010-CATALOG. That row now records only `hasKgListedSeed`, `honey1kgCount`, sack/range tokens (plus `honeyCategoryFound` and `honeySeedsParsed` so a missed or unparsed honey block cannot silently look like `honey1kgCount=0`).
+Potato 55 / tomato 180 / three honey names were removed from SOURCE-010-CATALOG. That row now records only `hasKgListedSeed`, `honey1kgCount`, sack/range tokens (plus `honeyCategoryFound` and `honeySeedsPresent` so a missed honey block cannot silently look like `honey1kgCount=0`). `honeySeedsPresent` means at least one listing matched the seed regex, not that the whole honey block was parsed.
 
 ### H12. Quantity-range detector is a token heuristic
 
@@ -147,7 +148,7 @@ SOURCE-010-EMULATOR records identifier tokens (`minQuantity`, `maxQuantity`, `ti
 
 ### H15. FLOW-010 scan covers experiments/basket TypeScript
 
-SOURCE-010-TREE walks `experiments/basket/**/*.ts`. It does not search `docs/` (TZ-010 may mention the old ids) and does not treat PACKAGE-008 experimenter facts (`1 package = 5 kg`) as FLOW-010 leftovers. `seller-a` is not a FLOW-010 artifact.
+SOURCE-010-TREE walks `experiments/basket/**/*.ts` and checks the two known FLOW-010 artifacts: `run("FLOW-010-…")` and `function observeCooperativeAccept`. It is an **executable check** of those patterns, not a proof that no other synthetic helper exists. It does not search `docs/` (TZ-010 may mention the old ids) and does not treat PACKAGE-008 experimenter facts (`1 package = 5 kg`) as FLOW-010 leftovers. `seller-a` is not a FLOW-010 artifact.
 
 
 
@@ -237,7 +238,7 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 | Source | `mockSellerCatalog.ts` (file read by the test) |
 | Buyer action | none |
 | Seller action | none |
-| Recorded listing facts | this file has at least one `1 кг` listing; honey category was found and parsed; 0 parsed honey-block rows have unit `1 кг`; sack/range tokens SOURCE ABSENT in this file |
+| Recorded listing facts | this file has at least one `1 кг` listing; honey category found; at least one seed present; 0 matched honey-block rows have unit `1 кг`; sack/range tokens SOURCE ABSENT in this file |
 | Missing fact | pack-contents relation; seller classification of honey packs; quantity-range rule |
 | Domain conclusion | SOURCE ABSENT **in mockSellerCatalog.ts**. **Not** a business-flow observation. Not a snapshot of potato/tomato prices. |
 | Open question | SPEC OQ-002A / OQ-002B |
@@ -289,7 +290,7 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 | Scenario ID | SOURCE-010-TREE |
 | Kind | Scan of `experiments/basket/**/*.ts` for leftover synthetic FLOW-010 |
 | Recorded facts | no `run("FLOW-010-…")`; no `function observeCooperativeAccept(`; enough `.ts` files were scanned |
-| Domain conclusion | FLOW-010 is absent from **experiments/basket TypeScript**. Does not prove absence in `docs/` or other packages. Not a business-flow observation. |
+| Domain conclusion | The two known FLOW-010 artifacts are absent from **experiments/basket TypeScript**. Does not prove absence of a differently named helper, of synthetic flow without those ids, or of leftover logic in `docs/` / other packages. Not a business-flow observation. |
 | Open question | SPEC OQ-002A |
 | New concept justified? | **no** |
 
@@ -331,7 +332,7 @@ I-042…I-050 unchanged. No I-051.
 | SOURCE-010-TZ025 | OPEN | ТЗ-025: cheese-discount text; range tokens SOURCE ABSENT in this file |
 | SOURCE-010-TREE | OPEN | `experiments/basket/**/*.ts` has no FLOW-010 run / observeCooperativeAccept helper |
 
-FLOW-010-A1/A2/A3/B1/B2 are absent from `experiments/basket` TypeScript (never on `main`; removed after PR-25 review). SOURCE-010-TREE is the executable proof.
+FLOW-010-A1/A2/A3/B1/B2 never existed on `main`; they were added in the first commit of this GitHub PR and removed after PR-25 review. SOURCE-010-TREE is an executable check of the two known FLOW-010 artifacts in `experiments/basket/**/*.ts`.
 
 88 TZ-009 scenarios + 5 SOURCE-010 = 93 total.
 
@@ -356,7 +357,7 @@ FLOW-010-A1/A2/A3/B1/B2 are absent from `experiments/basket` TypeScript (never o
 - [x] Новая сущность не введена
 - [x] SPEC остаётся v0.6
 - [x] Production architecture не изменяется
-- [x] FLOW-010 отсутствует в HEAD (`experiments/basket`); SOURCE-010-TREE это доказывает
+- [x] два известных FLOW-010 artifact patterns отсутствуют в `experiments/basket` TypeScript; SOURCE-010-TREE — executable check, не universal proof
 - [x] `addToBasket` extractor устойчив к `function` / `const` и падает, если declaration не найдена
 - [x] SOURCE-010-CATALOG не использует snapshot цен/имён как OQ-002 evidence
 - [x] Quantity-range detector помечен как token heuristic: miss = SOURCE ABSENT of tokens

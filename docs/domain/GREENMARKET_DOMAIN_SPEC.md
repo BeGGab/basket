@@ -676,7 +676,7 @@ SOURCE-010-CATALOG       Stage-1 source search of mockSellerCatalog.ts — SOURC
 SOURCE-010-EMULATOR      Stage-1 source search of sellers.ts — quantity-range tokens SOURCE ABSENT
 SOURCE-010-BASKET        no conversion/tier lookup found in ADD_TO_BASKET itself
 SOURCE-010-TZ025         Stage-1 source search of TZ-025 — free-text discount, range tokens SOURCE ABSENT
-SOURCE-010-TREE          experiments/basket TypeScript has no FLOW-010 run — not observation
+SOURCE-010-TREE          executable check of two known FLOW-010 artifacts — not observation
 ALT-PRICE-001            primary cheaper than alternative — representation only
 ALT-PRICE-002            FIRST_AVAILABLE / PRIMARY_ONLY are not BEST_PRICE; policy OPEN (OQ-008)
 PRICE-SNAPSHOT-001       agreed / current / alternative visible together

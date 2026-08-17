@@ -98,7 +98,7 @@
 | SOURCE-010-EMULATOR | read sellers.ts | ✓ |  |  | OPEN; quantity-range tokens SOURCE ABSENT in this file |
 | SOURCE-010-BASKET | read ADD_TO_BASKET | ✓ |  |  | OPEN; no conversion/tier lookup in ADD_TO_BASKET itself |
 | SOURCE-010-TZ025 | read TZ-025 | ✓ |  |  | OPEN; free-text; range tokens SOURCE ABSENT |
-| SOURCE-010-TREE | experiments/basket **/*.ts | ✓ |  |  | OPEN; FLOW-010 run/helper absent from experiment TypeScript |
+| SOURCE-010-TREE | experiments/basket **/*.ts | ✓ |  |  | OPEN; executable check of two known FLOW-010 artifacts |
 
 TZ-004 assistant demos on `/sim` (DISCOUNT / HIKE / SELLER) are training overlays, not rows in this BS matrix.
 
