@@ -379,3 +379,19 @@ External `1–5` and `6–10` both at 15 still produce distinct Offers. Bounds a
 ## VOLUME-008-007 — Equal totals regression
 
 `5×20` and `10×10` both derive 100 and remain different Offers.
+
+## PACKAGE-BIZ-009-001 — Listed pack unit deal
+
+Stage-1 catalog cottage cheese `250 g @ 140` completes as an Offer without contents-in-another-unit.
+
+## PACKAGE-BIZ-009-002 — Distinct pack Products
+
+Flower honey `500 g` and perga honey `350 g` are distinct Products. No evidence yet justifies a `Package` entity.
+
+## VOLUME-BIZ-009-001 — Listed kg unit price
+
+Buyer 3 / 7 / 12 kg tomatoes use the listed kg unit price. No standing schedule lookup.
+
+## VOLUME-BIZ-009-002 — Unstructured seller discount
+
+TZ-025 «Сегодня скидка на сыр» is not an Offer and not a PriceSchedule. The listed cheese deal completes.
