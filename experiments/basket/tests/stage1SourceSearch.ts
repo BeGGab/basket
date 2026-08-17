@@ -41,12 +41,32 @@ export function parseListedSeeds(source: string): ListedSeed[] {
   return seeds;
 }
 
-function extractBalanced(source: string, openIndex: number, openCh: string, closeCh: string): string {
-  if (openIndex < 0 || openIndex >= source.length || source[openIndex] !== openCh) return "";
-  let depth = 0;
+/**
+ * Call `onCode` for each character that is not inside a string, `//` line comment,
+ * or block comment. So `// ]` / `/* [ * /` cannot fake array or brace balance.
+ */
+function scanCode<T>(
+  source: string,
+  start: number,
+  onCode: (index: number, ch: string) => T | undefined
+): T | undefined {
   let quote: string | null = null;
-  for (let i = openIndex; i < source.length; i++) {
+  let lineComment = false;
+  let blockComment = false;
+  for (let i = start; i < source.length; i++) {
     const ch = source[i];
+    const next = i + 1 < source.length ? source[i + 1] : "";
+    if (lineComment) {
+      if (ch === "\n") lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      if (ch === "*" && next === "/") {
+        blockComment = false;
+        i += 1;
+      }
+      continue;
+    }
     if (quote) {
       if (ch === "\\") {
         i += 1;
@@ -55,25 +75,66 @@ function extractBalanced(source: string, openIndex: number, openCh: string, clos
       if (ch === quote) quote = null;
       continue;
     }
+    if (ch === "/" && next === "/") {
+      lineComment = true;
+      i += 1;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      blockComment = true;
+      i += 1;
+      continue;
+    }
     if (ch === '"' || ch === "'" || ch === "`") {
       quote = ch;
       continue;
     }
-    if (ch === openCh) depth += 1;
-    else if (ch === closeCh) {
-      depth -= 1;
-      if (depth === 0) return source.slice(openIndex, i + 1);
-    }
+    const hit = onCode(i, ch);
+    if (hit !== undefined) return hit;
   }
-  return "";
+  return undefined;
+}
+
+function isCodeIndex(source: string, index: number): boolean {
+  return (
+    scanCode(source, 0, (i) => {
+      if (i === index) return true;
+      if (i > index) return false;
+      return undefined;
+    }) === true
+  );
+}
+
+function extractBalanced(source: string, openIndex: number, openCh: string, closeCh: string): string {
+  if (openIndex < 0 || openIndex >= source.length || source[openIndex] !== openCh) return "";
+  if (!isCodeIndex(source, openIndex)) return "";
+  let depth = 0;
+  const end = scanCode(source, openIndex, (i, ch) => {
+    if (ch === openCh) {
+      depth += 1;
+      return undefined;
+    }
+    if (ch === closeCh) {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+    return undefined;
+  });
+  if (end === undefined) return "";
+  return source.slice(openIndex, end + 1);
 }
 
 export function extractCategoryBlock(source: string, category: string): string {
-  const re = new RegExp(`(?:^|\\n)\\s*${category}\\s*:\\s*\\[`);
-  const match = re.exec(source);
-  if (!match) return "";
-  const bracket = source.indexOf("[", match.index);
-  return extractBalanced(source, bracket, "[", "]");
+  const re = new RegExp(`(?:^|\\n)\\s*${category}\\s*:\\s*\\[`, "g");
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(source))) {
+    const nameStart = source.indexOf(category, match.index);
+    const bracket = source.indexOf("[", match.index);
+    if (nameStart < 0 || bracket < 0) continue;
+    if (!isCodeIndex(source, nameStart) || !isCodeIndex(source, bracket)) continue;
+    return extractBalanced(source, bracket, "[", "]");
+  }
+  return "";
 }
 
 export function findSeed(seeds: readonly ListedSeed[], name: string): ListedSeed | undefined {
@@ -115,46 +176,35 @@ export function mentionsQuantityRangeTokens(source: string): boolean {
 function findFunctionBodyOpen(source: string, openParenIndex: number): number {
   let paren = 0;
   let angle = 0;
-  let quote: string | null = null;
-  for (let i = openParenIndex; i < source.length; i++) {
-    const ch = source[i];
-    if (quote) {
-      if (ch === "\\") {
-        i += 1;
-        continue;
+  return (
+    scanCode(source, openParenIndex, (i, ch) => {
+      if (ch === "<") {
+        angle += 1;
+        return undefined;
       }
-      if (ch === quote) quote = null;
-      continue;
-    }
-    if (ch === '"' || ch === "'" || ch === "`") {
-      quote = ch;
-      continue;
-    }
-    if (ch === "<") {
-      angle += 1;
-      continue;
-    }
-    if (ch === ">" && angle > 0) {
-      angle -= 1;
-      continue;
-    }
-    if (ch === "(") {
-      paren += 1;
-      continue;
-    }
-    if (ch === ")") {
-      paren -= 1;
-      continue;
-    }
-    if (ch === "{" && paren === 0 && angle === 0) return i;
-  }
-  return -1;
+      if (ch === ">" && angle > 0) {
+        angle -= 1;
+        return undefined;
+      }
+      if (ch === "(") {
+        paren += 1;
+        return undefined;
+      }
+      if (ch === ")") {
+        paren -= 1;
+        return undefined;
+      }
+      if (ch === "{" && paren === 0 && angle === 0) return i;
+      return undefined;
+    }) ?? -1
+  );
 }
 
 /**
  * Locate a function/const declaration by name and return the `{ ... }` body,
  * including `function name(...)`, `export function name`, and `const name = (...) => {`.
  * Skips `{` inside TypeScript parameter types such as `Extract<Action, { type: "X" }>`.
+ * Skips strings and `//` / block comments so a commented `{` is not treated as the body.
  * Empty string means the declaration was not found in that form.
  */
 export function extractNamedDeclaration(source: string, name: string): string {
@@ -169,6 +219,7 @@ export function extractNamedDeclaration(source: string, name: string): string {
     const match = re.exec(source);
     if (!match) continue;
     const openParen = match.index + match[0].lastIndexOf("(");
+    if (!isCodeIndex(source, openParen)) continue;
     const bodyOpen = findFunctionBodyOpen(source, openParen);
     if (bodyOpen < 0) return "";
     return extractBalanced(source, bodyOpen, "{", "}");

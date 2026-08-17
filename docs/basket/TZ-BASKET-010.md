@@ -128,11 +128,11 @@ FLOW-010 never existed on `main`. The first commit of this PR added them; the re
 
 ### H10. `extractFunction("function name(")` was syntax-fragile
 
-Replaced by `extractNamedDeclaration`: `function` / `export function` / `const name = (` with brace matching, skipping `{` inside TypeScript parameter types (`Extract<Action, { type: ... }>`). SOURCE-010-BASKET requires `declarationFound=true`. `usesBasketStore` is **not** OQ-002A evidence.
+Replaced by `extractNamedDeclaration`: `function` / `export function` / `const name = (` with brace matching, skipping `{` inside TypeScript parameter types (`Extract<Action, { type: ... }>`), strings, and comments. SOURCE-010-BASKET requires `declarationFound=true`. `usesBasketStore` is **not** OQ-002A evidence.
 
 ### H11. Exact seed names are not OQ-002 evidence
 
-Potato 55 / tomato 180 / three honey names were removed from SOURCE-010-CATALOG. That row now records `hasKgListedSeed`, sack/range tokens, `honeyCategoryFound`, `honeySeedsPresent`, and `honeyKgUnitInBlock`. `honeySeedsPresent` means at least one listing matched the seed regex. Absence of 1 kg honey is checked on the **whole extracted honey block** (`unit: "1 кг"` / `unit: '1 кг'`), not only on successfully parsed seeds. This is still SOURCE ABSENT of that token, not a business-flow observation.
+Potato 55 / tomato 180 / three honey names were removed from SOURCE-010-CATALOG. That row now records `hasKgListedSeed`, sack/range tokens, `honeyCategoryFound`, `honeySeedsPresent`, and `honeyKgUnitInBlock`. `honeySeedsPresent` means at least one listing matched the seed regex. Absence of 1 kg honey is checked on the **whole extracted honey block** (`unit: "1 кг"` / `unit: '1 кг'`), not only on successfully parsed seeds. Block extraction skips strings and `//` / block comments, so a commented `]` cannot truncate the array. This is still SOURCE ABSENT of that token, not a business-flow observation.
 
 ### H12. Quantity-range detector is a token heuristic
 
@@ -148,7 +148,7 @@ SOURCE-010-EMULATOR records identifier tokens (`minQuantity`, `maxQuantity`, `ti
 
 ### H15. FLOW-010 scan covers experiments/basket TypeScript
 
-SOURCE-010-TREE walks `experiments/basket/**/*.ts` and checks the two known FLOW-010 artifacts: `run("FLOW-010-…")` and `function observeCooperativeAccept`. It is an **executable check** of those patterns, not a proof that no other synthetic helper exists. It does not search `docs/` (TZ-010 may mention the old ids) and does not treat PACKAGE-008 experimenter facts (`1 package = 5 kg`) as FLOW-010 leftovers. `seller-a` is not a FLOW-010 artifact.
+SOURCE-010-TREE walks `experiments/basket/**/*.ts` and checks the two known FLOW-010 artifacts: `run("FLOW-010-…")` and `function observeCooperativeAccept`. `walkComplete` means the recursive listing finished and every listed `.ts` file was inspected — not a floor such as `scannedFiles >= 8`. It is an **executable check** of those patterns, not a proof that no other synthetic helper exists. It does not search `docs/` (TZ-010 may mention the old ids) and does not treat PACKAGE-008 experimenter facts (`1 package = 5 kg`) as FLOW-010 leftovers. `seller-a` is not a FLOW-010 artifact.
 
 
 
