@@ -3503,7 +3503,7 @@ export function runAllScenarios(): ScenarioResult[] {
           reason: purchase.unresolvedItems[0]?.reason ?? null,
           packageEntity: Object.prototype.hasOwnProperty.call(w, "packages"),
         },
-        "MODEL GAP: distinct package bases are a catalog-identity limitation; Package entity is not justified",
+        "MODEL GAP: distinct package bases are a catalog-identity limitation; no evidence yet justifies a Package entity",
         "OPEN",
         "SPEC-OQ-002A",
         { newConcept: "package-base identity (not introduced)" }
@@ -3902,9 +3902,10 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("Status: PASS for Stage-1 evidence; conclusion B on both OQs; no new entity");
   lines.push("OQ-002A: OPEN / MODEL GAP / NO NEW CONCEPT — package-unit deal does not require contents (I-049)");
   lines.push("OQ-002B: OPEN schedule object / NO NEW CONCEPT — announcement is not an Offer (I-050); concrete Offers remain sufficient (I-048)");
-  lines.push("NEW CONCEPT JUSTIFIED: no");
+  lines.push("NEW CONCEPT JUSTIFIED: no — no evidence yet justifies a Package or PriceSchedule entity");
   lines.push("NO MODEL CHANGE: yes");
   lines.push("Production architecture changed: NO");
+  lines.push("Further closing OQ-002A/B requires a business observation, not another synthetic model test");
   lines.push("");
   lines.push("Still open:");
   lines.push("- SPEC OQ-002A — conversion / partial-whole package / distinct package bases");

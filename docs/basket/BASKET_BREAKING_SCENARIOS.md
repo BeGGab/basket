@@ -350,7 +350,7 @@ External `1 package = 5 kg` does not change Offer, PurchaseItem, derived total, 
 
 ## PACKAGE-008-006 — Package bases vs identity
 
-`quantity=5 @60` vs `quantity=20 @200` share `(seller, product, package)` and become `AMBIGUOUS_PRICE`. `Package` entity is not justified (**OPEN — SPEC OQ-002A**).
+`quantity=5 @60` vs `quantity=20 @200` share `(seller, product, package)` and become `AMBIGUOUS_PRICE`. No evidence yet justifies a `Package` entity (**OPEN — SPEC OQ-002A**).
 
 ## VOLUME-008-001 — No schedule lookup
 

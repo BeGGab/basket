@@ -71,7 +71,7 @@ Record evidence from the mock domain and seller emulator.
 | PACKAGE-008-003 | PASS | OPEN (SPEC-OQ-002A) | none | 2 kg vs 5 kg package is unresolved; no 0.4 package and no 24 MAD conversion |
 | PACKAGE-008-004 | PASS | OPEN (SPEC-OQ-002A) | none | MODEL GAP: 2 kg < 5 kg package has no partial/whole/split/oversupply policy |
 | PACKAGE-008-005 | PASS | OPEN (SPEC-OQ-002A) | none | MODEL GAP: 6 kg > 5 kg package does not choose 1 pack, 2 packs, split, or exact 6 kg |
-| PACKAGE-008-006 | PASS | OPEN (SPEC-OQ-002A) | none | MODEL GAP: distinct package bases are a catalog-identity limitation; Package entity is not justified |
+| PACKAGE-008-006 | PASS | OPEN (SPEC-OQ-002A) | none | MODEL GAP: distinct package bases are a catalog-identity limitation; no evidence yet justifies a Package entity |
 | PACKAGE-SEM-001 | PASS | CONFIRMED | none | package is representable as a unit through Offer, Acceptance, and snapshot; contents are not claimed |
 | PACKAGE-SEM-002 | PASS | OPEN (SPEC-OQ-002A) | none | MODEL GAP: current identity cannot represent distinct package bases |
 | PACKAGE-SEM-003 | PASS | CONFIRMED | none | catalog package size is not requested quantity and is not converted into kg |
@@ -719,7 +719,7 @@ Record evidence from the mock domain and seller emulator.
 - Model violation: none
 - New concept: package-base identity (not introduced)
 - Workaround: none
-- Decision: MODEL GAP: distinct package bases are a catalog-identity limitation; Package entity is not justified
+- Decision: MODEL GAP: distinct package bases are a catalog-identity limitation; no evidence yet justifies a Package entity
 
 ### PACKAGE-SEM-001 — Impl PASS / Domain CONFIRMED
 
@@ -1233,9 +1233,10 @@ TZ-BASKET-008
 Status: PASS for Stage-1 evidence; conclusion B on both OQs; no new entity
 OQ-002A: OPEN / MODEL GAP / NO NEW CONCEPT — package-unit deal does not require contents (I-049)
 OQ-002B: OPEN schedule object / NO NEW CONCEPT — announcement is not an Offer (I-050); concrete Offers remain sufficient (I-048)
-NEW CONCEPT JUSTIFIED: no
+NEW CONCEPT JUSTIFIED: no — no evidence yet justifies a Package or PriceSchedule entity
 NO MODEL CHANGE: yes
 Production architecture changed: NO
+Further closing OQ-002A/B requires a business observation, not another synthetic model test
 
 Still open:
 - SPEC OQ-002A — conversion / partial-whole package / distinct package bases

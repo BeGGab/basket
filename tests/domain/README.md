@@ -69,7 +69,7 @@ npx tsx experiments/basket/tests/run.ts
 | `PACKAGE-008-003` | 2 kg vs package — no conversion | `scenarios.ts` PACKAGE-008-003 |
 | `PACKAGE-008-004` | no partial/whole/split policy | `scenarios.ts` PACKAGE-008-004 |
 | `PACKAGE-008-005` | 6 kg does not choose 1/2/split packs | `scenarios.ts` PACKAGE-008-005 |
-| `PACKAGE-008-006` | package bases — identity GAP, no Package entity | `scenarios.ts` PACKAGE-008-006 |
+| `PACKAGE-008-006` | package bases — identity GAP; no evidence yet justifies Package | `scenarios.ts` PACKAGE-008-006 |
 | `VOLUME-008-001` | 3/7/12 kg do not read external tiers | `scenarios.ts` VOLUME-008-001 |
 | `VOLUME-008-002` | tier announcement is not an Offer | `scenarios.ts` VOLUME-008-002 |
 | `VOLUME-008-003` | 7@17 without schedule provenance | `scenarios.ts` VOLUME-008-003 |

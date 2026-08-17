@@ -50,9 +50,9 @@ Experiment-log OQ-001 / OQ-002 (resolution / alt *policy*) не трогать.
 
 ## Pre-execution review (дыры закрыты до кода)
 
-### H1. «UI может показать 5 kg» не должен трогать production UI и не должен добавить snapshot field
+### H1. External 5 kg must not become a stored domain term
 
-**Закрытие:** PACKAGE-008-002 проверяет, поставляет ли *domain* contents в Offer / PurchaseItem / snapshot / derived total. `domainSuppliesContents=false`. Production UI не меняется.
+**Закрытие:** PACKAGE-008-002 проверяет только domain terms: Offer / PurchaseItem / snapshot / derived total. External `5 kg` among them is absent. Domain tests do not conclude anything about UI display. Production UI is out of scope.
 
 ### H2. PACKAGE-008-003 не выбирать conversion policy
 
@@ -64,7 +64,7 @@ Experiment-log OQ-001 / OQ-002 (resolution / alt *policy*) не трогать.
 
 ### H4. PACKAGE-008-006: collapse identity ≠ «надо ввести Package»
 
-Различие external basis — MODEL GAP catalog representation. Не justified new concept: ambiguous purchase не завершается, и это не доказательство сущности Package. Same as PR-20, plus: contents still not required to complete a *package-unit* deal (008-002).
+Различие external basis — MODEL GAP catalog representation. No evidence yet justifies a Package entity: ambiguous purchase не завершается, и это не доказательство сущности Package. Same as PR-20, plus: contents still not required to complete a *package-unit* deal (008-002).
 
 ### H5. VOLUME-008-001 не писать lookup по фейковому schedule
 
@@ -128,11 +128,11 @@ I-042…I-046, I-048 unchanged.
 | ID | Hypothesis | Что проверяет |
 |---|---|---|
 | PACKAGE-008-001 | CONFIRMED | regression: 1 package @ 60, no extra fields |
-| PACKAGE-008-002 | CONFIRMED | contents not required for Offer/item/total/ACCEPT; display not a domain fact |
+| PACKAGE-008-002 | CONFIRMED | contents not required for Offer/item/total/ACCEPT; not a stored domain term |
 | PACKAGE-008-003 | OPEN (OQ-002A) | 2 kg vs 5 kg package — no auto-conversion |
 | PACKAGE-008-004 | OPEN (OQ-002A) | 2 kg < 5 kg — no partial/whole/split policy |
 | PACKAGE-008-005 | OPEN (OQ-002A) | 6 kg > 5 kg — no 1-pack/2-pack/split policy |
-| PACKAGE-008-006 | OPEN (OQ-002A) | 5 vs 20 package bases — identity GAP, Package entity not justified |
+| PACKAGE-008-006 | OPEN (OQ-002A) | 5 vs 20 package bases — identity GAP; no evidence yet justifies a Package entity |
 | VOLUME-008-001 | OPEN (OQ-002B) | 3/7/12 kg do not read an external tier from the domain |
 | VOLUME-008-002 | CONFIRMED | announcement is not an Offer / not acceptable |
 | VOLUME-008-003 | CONFIRMED | 7 kg @ 17 exists without schedule provenance |
@@ -143,7 +143,7 @@ I-042…I-046, I-048 unchanged.
 
 ## Implementation
 
-Нет новых entities и canonical fields. `unitLineTotal` / snapshot / resolution без изменения семантики. Production UI не меняется.
+Нет новых entities и canonical fields. `unitLineTotal` / snapshot / resolution без изменения семантики. Production UI is out of scope.
 
 ## Критерий завершения
 
@@ -156,11 +156,12 @@ OQ-002B: OPEN schedule object / NO NEW CONCEPT
   CONFIRMED: announcement is not an Offer (I-050); concrete Offers stay sufficient (I-048)
   OPEN: standing quantity-range schedule as a domain object
 
-NEW CONCEPT JUSTIFIED: no
+NEW CONCEPT JUSTIFIED: no — no evidence yet justifies a Package or PriceSchedule entity
 NO MODEL CHANGE: yes (no Package / PriceSchedule)
+Further closing OQ-002A/B requires a business observation, not another synthetic model test
 ```
 
-Следующему эксперименту нужно observation, которого здесь нет: реальный бизнес-поток, где сделка *не может состояться* без stored contents или без schedule-as-object — не display и не experimenter knowledge.
+Further closing OQ-002A/B requires a **business observation**, not another synthetic model test. The missing observation is a real business flow where a deal cannot complete without stored contents or without schedule-as-object. Experimenter knowledge and synthetic catalog facts are not that observation.
 
 ## Definition of Done
 
