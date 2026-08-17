@@ -2,7 +2,7 @@
 
 **Status:** Experimental Baseline v0.1
 
-`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 72 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
+`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 85 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
 
 | ID | Scenario | Model | Emulator | /sim demo | Main check |
 |---|---|:---:|:---:|:---:|---|
@@ -78,6 +78,19 @@
 | VOLUME-PRICE-007 | 5@15 → 10@12 | ✓ |  |  | seller reprice |
 | VOLUME-PRICE-008 | 20 kg @ 12 in snapshot | ✓ |  |  | price basis kept |
 | SNAPSHOT-VOL-001 | canonical vol snapshot | ✓ |  |  | contents absent |
+| PACKAGE-008-001 | 1 package @ 60 | ✓ |  |  | no extra fields |
+| PACKAGE-008-002 | contents vs deal | ✓ |  |  | not Offer terms |
+| PACKAGE-008-003 | 2 kg vs 5 kg pack | ✓ |  |  | no conversion |
+| PACKAGE-008-004 | 2 kg < pack | ✓ |  |  | no partial policy |
+| PACKAGE-008-005 | 6 kg > pack | ✓ |  |  | no 1/2/split |
+| PACKAGE-008-006 | 5 vs 20 bases | ✓ |  |  | identity GAP |
+| VOLUME-008-001 | 3/7/12 kg vs tiers | ✓ |  |  | no schedule lookup |
+| VOLUME-008-002 | announcement | ✓ |  |  | not an Offer |
+| VOLUME-008-003 | 7@17 | ✓ |  |  | no provenance |
+| VOLUME-008-004 | 17→16 | ✓ |  |  | new Offer |
+| VOLUME-008-005 | 5→8 @17 | ✓ |  |  | no schedule link |
+| VOLUME-008-006 | equal tier prices | ✓ |  |  | two Offers |
+| VOLUME-008-007 | totals 100=100 | ✓ |  |  | I-048 regression |
 
 TZ-004 assistant demos on `/sim` (DISCOUNT / HIKE / SELLER) are training overlays, not rows in this BS matrix.
 

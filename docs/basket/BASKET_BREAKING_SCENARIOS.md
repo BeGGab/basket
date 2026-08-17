@@ -327,3 +327,55 @@ Snapshot shows `20 kg @ 12`, not stored `price = 240`. Derived total is 240.
 ## SNAPSHOT-VOL-001 — Canonical volume snapshot
 
 Requested 20 kg, agreed 15, current 12, alternative 14, derived totals visible. Package contents field is absent (**OPEN — SPEC OQ-002A**).
+
+## PACKAGE-008-001 — Package-unit Offer triple
+
+`1 package @ 60` needs no extra package fields.
+
+## PACKAGE-008-002 — Contents are not Offer terms
+
+External `1 package = 5 kg` does not change Offer, PurchaseItem, derived total, or Acceptance.
+
+## PACKAGE-008-003 — No kg↔package conversion
+
+`2 kg` vs external `5 kg` package stays UNRESOLVED. No `0.4 package` / `24 MAD` (**OPEN — SPEC OQ-002A**).
+
+## PACKAGE-008-004 — No partial-package policy
+
+`2 kg < 5 kg` package: no partial / whole-only / split / oversupply policy (**OPEN — SPEC OQ-002A**).
+
+## PACKAGE-008-005 — No 1-pack / 2-pack / split choice
+
+`6 kg > 5 kg` package does not choose 1 pack, 2 packs, split, or exact 6 kg (**OPEN — SPEC OQ-002A**).
+
+## PACKAGE-008-006 — Package bases vs identity
+
+`quantity=5 @60` vs `quantity=20 @200` share `(seller, product, package)` and become `AMBIGUOUS_PRICE`. `Package` entity is not justified (**OPEN — SPEC OQ-002A**).
+
+## VOLUME-008-001 — No schedule lookup
+
+Buyer 3 / 7 / 12 kg does not read external tiers `20 / 17 / 14` from the domain (**OPEN — SPEC OQ-002B**).
+
+## VOLUME-008-002 — Announcement is not an Offer
+
+A pre-negotiation tier list has no Offer id and cannot be accepted.
+
+## VOLUME-008-003 — Concrete Offer without provenance
+
+`7 kg @ 17` is an Offer. No `derivedFromSchedule`.
+
+## VOLUME-008-004 — Price change is a new Offer
+
+`7@17` then `7@16`. Offer #1 unchanged. No schedule versioning.
+
+## VOLUME-008-005 — Quantity change without schedule link
+
+`5@17` → `8@17` is a new Offer.
+
+## VOLUME-008-006 — Equal unit price, two Offers
+
+External `1–5` and `6–10` both at 15 still produce distinct Offers. Bounds are not stored.
+
+## VOLUME-008-007 — Equal totals regression
+
+`5×20` and `10×10` both derive 100 and remain different Offers.

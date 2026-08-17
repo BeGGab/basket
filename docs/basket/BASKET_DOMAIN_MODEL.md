@@ -143,8 +143,10 @@ PurchaseItem
 
 `price` is the price of one `unit`. A line total is derived (`quantity * price`) and is not stored.
 Catalog `quantity` is a reference/package size, not this requested quantity (I-045).
-`unit = "package"` is a commercial unit. Package contents in another unit are not stored (I-047).
-A concrete volume-priced deal is this same Offer triple; a standing quantity-range schedule is not a domain object (I-048).
+`unit = "package"` is a commercial unit. Package contents in another unit are not stored (I-047)
+and are not required to complete a package-unit deal (I-049).
+A concrete volume-priced deal is this same Offer triple; a standing quantity-range announcement
+is not an Offer (I-050).
 
 Commercial history must not be duplicated here; it belongs to Offer history.
 
