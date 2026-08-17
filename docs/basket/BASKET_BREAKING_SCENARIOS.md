@@ -406,7 +406,7 @@ Reads `mockSellerCatalog.ts` lexical code. Sack/range identifier tokens SOURCE A
 
 ## SOURCE-010-EMULATOR — Stage-1 emulator source search
 
-Reads `sellers.ts`. Identifier tokens `minQuantity` / `maxQuantity` / `tierPrice` / `PriceSchedule` are SOURCE ABSENT in this file. Not a CooperativeSeller call-shape test. Token miss is not a market finding (**OPEN — SPEC OQ-002B**).
+Reads `sellers.ts`. Whole identifier tokens `minQuantity` / `maxQuantity` / `tierPrice` / `PriceSchedule` / `VolumePrice` are SOURCE ABSENT in this file. This does not claim that no quantity-range mechanism exists under another name. Not a CooperativeSeller call-shape test. Token miss is not a market finding (**OPEN — SPEC OQ-002B**).
 
 ## SOURCE-010-BASKET — ADD_TO_BASKET source search
 
@@ -414,7 +414,7 @@ Reads `BasketActionHandlers.ts`. Copies listed `unit` and `price`. **No conversi
 
 ## SOURCE-010-TZ025 — TZ-025 source search
 
-Free-text «Сегодня скидка на сыр». Quantity-range tokens SOURCE ABSENT in this file. Not B3 observation (**OPEN — SPEC OQ-002B**).
+Free-text «Сегодня скидка на сыр». Quantity-range names as whole words SOURCE ABSENT in this markdown file. Not a TypeScript lexical scan. Not B3 observation (**OPEN — SPEC OQ-002B**).
 
 ## SOURCE-010-TREE — cleanup of two historical FLOW-010 artifacts
 

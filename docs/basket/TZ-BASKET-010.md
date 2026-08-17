@@ -128,7 +128,7 @@ FLOW-010 never existed on `main`. The first commit of this PR added them; the re
 
 ### H10. `extractFunction("function name(")` was syntax-fragile
 
-Replaced by `extractNamedDeclaration` for a **documented subset**: `function` / `export function` / `const|let|var name = (` with brace matching; strings and comments skipped; `{` inside `Extract<…, { … }>` skipped by a paren/angle heuristic. This is **not** a TypeScript parser (regex literals and arbitrary `<`/`>` in defaults are unsupported). Empty extract is fail-closed. SOURCE-010-BASKET requires `declarationFound=true`. `copiesUnit` / `copiesPrice` match `field: payload.field` in **lexical code** of the body, not in comments or strings. `usesBasketStore` is **not** OQ-002A evidence.
+Replaced by `extractNamedDeclaration` from **lexical tokens**: `function` / `export function` / `const|let|var name = (` with brace matching; strings, comments, and regex literals skipped; `{` inside `Extract<…, { … }>` skipped by a paren/angle heuristic. This is **not** a TypeScript parser (template interpolations and arbitrary `<`/`>` in defaults are unsupported). Empty extract is fail-closed. SOURCE-010-BASKET requires `declarationFound=true`. `copiesUnit` / `copiesPrice` match the token sequence `field` `:` `payload` `.` `field`. `usesBasketStore` is **not** OQ-002A evidence.
 
 ### H11. Exact seed names are not OQ-002 evidence
 
@@ -136,7 +136,7 @@ Potato 55 / tomato 180 / three honey names were removed from catalog evidence. C
 
 ### H12. Quantity-range detector is a token heuristic
 
-`mentionsQuantityRangeTokens` answers only whether those identifiers/tokens appear in **lexical code** (comments and strings omitted). A miss is SOURCE ABSENT of those tokens, not absence of a business rule. TZ-025 is markdown prose, not TypeScript; that row still searches the file text.
+`mentionsQuantityRangeTokens` answers only whether those **whole identifier tokens** (or the numeric sequences `1-4` / `5-9` / `10+`) appear in TypeScript lexical code. Substrings (`minQuantityFactory`) and regex interiors do not count. A miss is SOURCE ABSENT of those tokens, not absence of a quantity-range mechanism under another name. TZ-025 is markdown prose; that row uses `mentionsQuantityRangeInProse`, not the TypeScript lexer.
 
 ### H13. ADD_TO_BASKET claims are scoped to that function
 
@@ -144,7 +144,7 @@ Wording is: **No conversion/tier lookup found in ADD_TO_BASKET itself.** Convers
 
 ### H14. CooperativeSeller call-shape is not OQ-002B evidence
 
-SOURCE-010-EMULATOR records identifier tokens (`minQuantity`, `maxQuantity`, `tierPrice`, `PriceSchedule`) in **lexical code**. It does not regex `acceptOffer(latestBuyer.id, "SELLER")`.
+SOURCE-010-EMULATOR records **whole identifier tokens** (`minQuantity`, `maxQuantity`, `tierPrice`, `PriceSchedule`, `VolumePrice`) in lexical code. It does not search substrings, regex interiors, or other names (`quantityPrices`, `getPrice`, `ranges`). It does not regex `acceptOffer(latestBuyer.id, "SELLER")`.
 
 ### H15. FLOW-010 scan covers experiments/basket TypeScript
 
@@ -156,7 +156,7 @@ Deleting comments/strings without a separator would turn `min/*x*/Quantity` into
 
 ### H17. Listed seeds are lexical object tokens, not string interiors
 
-`parseListedSeeds` walks `{ name: STRING, price: NUMBER, unit: STRING }` in code tokens. `const example = '{ name: "fake", price: 55, unit: "1 кг" }'` is not a ListedSeed.
+`parseListedSeeds` walks `{ name: STRING, price: NUMBER, unit: STRING }` in code tokens. `const example = '{ name: "fake", ... }'` and `const r = /{ name: "fake", ... }/` are not ListedSeeds.
 
 ### H18. Category blocks are found in lexical code
 
@@ -164,11 +164,31 @@ Deleting comments/strings without a separator would turn `min/*x*/Quantity` into
 
 ### H19. Scanner contract covers glue and in-string seeds
 
-`assertStage1ScannerContract()` includes `min/*x*/Quantity`, in-string fake seeds, glued `na/*x*/me`, and true positives with comments between real tokens.
+`assertStage1ScannerContract()` includes `min/*x*/Quantity`, in-string fake seeds, glued `na/*x*/me`, regex interiors, identifier boundaries, `}` in regex, and true positives with comments between real tokens.
 
 ### H20. Catalog detectors are separate SOURCE-010 rows
 
 KG / HONEY / TOKENS are separate `prove()` rows. One PASS is not a bundle of unrelated heuristics.
+
+### H21. Regex literals are a lexical state
+
+`/` starts a regex unless the previous token was an operand (identifier, number, string, regex, `]`, `++`, `--`). Interiors are not code. `const r = /\bminQuantity\b/` is not a `minQuantity` token. `/{ name: "fake", ... }/` is not a ListedSeed. `const r = /}/` cannot close `extractBalanced`. Division `a / minQuantity / b` still sees the identifier.
+
+### H22. Token detectors use identifier boundaries
+
+`hasIdent` / `mentionsQuantityRangeTokens` / `mentionsSackContents` match whole identifier tokens. `minQuantityFactory`, `myminQuantityBackup`, `мешокMetadata` are not hits.
+
+### H23. Declaration search is token-level
+
+`extractNamedDeclaration` walks lexical tokens for `function name (` / `const name = (`. Raw-source regex does not choose the match. `function addToBasketFactory` is not `addToBasket`.
+
+### H24. TZ-025 is markdown prose, not TypeScript lexical code
+
+SOURCE-010-TZ025 uses `mentionsQuantityRangeInProse` (whole-word names in markdown). It does not call `mentionsQuantityRangeTokens`.
+
+### H25. Scanner contract covers regex, boundaries, and extraction
+
+`assertStage1ScannerContract()` includes regex interiors, identifier boundaries, `}` in regex, `addToBasketFactory`, listTsFiles walk, and TREE scan of the live tree.
 
 ## Search log (enumerated files are executable; live interview is human)
 
@@ -256,7 +276,7 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 | Source | `mockSellerCatalog.ts` (file read by the test) |
 | Buyer action | none |
 | Seller action | none |
-| Recorded listing facts | lexical `{ name, price, unit }` object seeds include at least one `unit` `1 кг`. Seeds inside string literals do not count. |
+| Recorded listing facts | lexical `{ name, price, unit }` object seeds include at least one `unit` `1 кг`. Seeds inside string or regex literals do not count. |
 | Missing fact | pack-contents relation |
 | Domain conclusion | listed kg unit is **present** as an object seed **in mockSellerCatalog.ts**. **Not** a business-flow observation. Not a snapshot of potato/tomato prices. |
 | Open question | SPEC OQ-002A / OQ-002B |
@@ -297,9 +317,9 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 | Source | `experiments/basket/emulator/sellers.ts` (file read by the test) |
 | Buyer action | none |
 | Seller action | none (mechanism inspection, not a deal) |
-| Recorded facts | identifier tokens `minQuantity` / `maxQuantity` / `tierPrice` / `PriceSchedule` are SOURCE ABSENT in this file |
-| Missing fact | quantity-range pricing mechanism; pack-contents response |
-| Domain conclusion | SOURCE ABSENT of those tokens **in sellers.ts**. Not a CooperativeSeller call-shape test. Not a market finding. |
+| Recorded facts | whole identifier tokens `minQuantity` / `maxQuantity` / `tierPrice` / `PriceSchedule` / `VolumePrice` are SOURCE ABSENT in this file |
+| Missing fact | quantity-range pricing mechanism under any name; pack-contents response |
+| Domain conclusion | SOURCE ABSENT of **those five tokens** **in sellers.ts**. Not a claim that no quantity-range mechanism exists under another name. Not a CooperativeSeller call-shape test. Not a market finding. |
 | Open question | SPEC OQ-002A / OQ-002B |
 | New concept justified? | **no** |
 
@@ -320,10 +340,10 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 | Field | Value |
 |---|---|
 | Scenario ID | SOURCE-010-TZ025 |
-| Kind | Stage-1 source search of ТЗ-025 |
+| Kind | Stage-1 **markdown prose** search of ТЗ-025 |
 | Source | `docs/specifications/27_tz025_kartochka_prodavtsa_detalnaya.md` |
-| Recorded facts | text «Сегодня скидка на сыр»; no quantity-range table |
-| Domain conclusion | SOURCE ABSENT for schedule-as-object. Free-text is not an Offer (already I-050). Not B3 observation. |
+| Recorded facts | text «Сегодня скидка на сыр»; quantity-range names as whole words SOURCE ABSENT in this markdown file |
+| Domain conclusion | SOURCE ABSENT for schedule-as-object in this prose file. Not a TypeScript lexical scan. Free-text is not an Offer (already I-050). Not B3 observation. |
 | Open question | SPEC OQ-002B |
 | New concept justified? | **no** |
 
@@ -373,9 +393,9 @@ I-042…I-050 unchanged. No I-051.
 | SOURCE-010-CATALOG-KG | OPEN | `mockSellerCatalog.ts` lexical object seeds include at least one `1 кг` unit |
 | SOURCE-010-CATALOG-HONEY | OPEN | honey block found; no `unit: "1 кг"` token in that block |
 | SOURCE-010-CATALOG-TOKENS | OPEN | sack/range tokens SOURCE ABSENT in `mockSellerCatalog.ts` |
-| SOURCE-010-EMULATOR | OPEN | `sellers.ts`: quantity-range identifier tokens SOURCE ABSENT in this file |
+| SOURCE-010-EMULATOR | OPEN | `sellers.ts`: five named identifier tokens SOURCE ABSENT; not a claim no range mechanism exists under another name |
 | SOURCE-010-BASKET | OPEN | no conversion/tier lookup found in ADD_TO_BASKET itself |
-| SOURCE-010-TZ025 | OPEN | ТЗ-025: cheese-discount text; range tokens SOURCE ABSENT in this file |
+| SOURCE-010-TZ025 | OPEN | ТЗ-025 markdown prose: cheese-discount text; range names as whole words SOURCE ABSENT |
 | SOURCE-010-TREE | OPEN | cleanup check of two historical FLOW-010 names; not proof synthetic business-flow is absent |
 
 FLOW-010-A1/A2/A3/B1/B2 never existed on `main`; they were added in the first commit of this GitHub PR and removed after PR-25 review. SOURCE-010-TREE is a **cleanup check** of those two historical artifacts in `experiments/basket/**/*.ts`. It does not prove synthetic business-flow is absent.
@@ -405,7 +425,7 @@ FLOW-010-A1/A2/A3/B1/B2 never existed on `main`; they were added in the first co
 - [x] Production architecture не изменяется
 - [x] historical FLOW-010 artifacts (`run("FLOW-010-…")`, `function observeCooperativeAccept`) removed from `experiments/basket` TypeScript; SOURCE-010-TREE is this cleanup check
 - [ ] synthetic business-flow patterns absent — **не доказуемо** этим scanner; не выдавать TREE PASS за это утверждение
-- [x] `addToBasket` extractor covers the documented subset (`function` / `const` / `Extract<…,{…}>`) and fails closed if the declaration is not found; comment/string copiesUnit false-PASS cases are covered by scanner contract tests
-- [x] SOURCE-010-CATALOG-KG не использует snapshot цен/имён как OQ-002 evidence; seeds inside string literals do not count
-- [x] Quantity-range detector помечен как token heuristic: miss = SOURCE ABSENT of tokens
-- [x] scanner contract rejects comment-gap token glue and in-string fake ListedSeeds
+- [x] `addToBasket` extractor matches lexical tokens (`function` / `const` / `Extract<…,{…}>`), skips regex interiors, and fails closed if the declaration is not found
+- [x] SOURCE-010-CATALOG-KG не использует snapshot цен/имён как OQ-002 evidence; seeds inside string or regex literals do not count
+- [x] Quantity-range detector is whole-identifier tokens; miss = SOURCE ABSENT of those tokens, not of any range mechanism
+- [x] scanner contract covers regex literals, identifier boundaries, `}` in regex, factory-name mismatch, listTsFiles, and TREE walk

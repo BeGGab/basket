@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
  * These helpers inspect files in this repository.
  * They are not a GreenMarket buyer/seller business flow.
  *
- * Token detectors answer only: is this text/mechanism present in the file?
+ * Token detectors answer only: is this identifier/token present in lexical code?
  * A miss is SOURCE ABSENT of those tokens, not absence of a market business fact.
  */
 const GREENMARKET_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -27,58 +27,44 @@ export const STAGE1_PATHS = {
   scenarios: join(GREENMARKET_ROOT, "experiments/basket/tests/scenarios.ts"),
 } as const;
 
+export const QUANTITY_RANGE_IDENTS = [
+  "minQuantity",
+  "maxQuantity",
+  "tierPrice",
+  "PriceSchedule",
+  "VolumePrice",
+] as const;
+
 export type ListedSeed = { name: string; price: number; unit: string };
 
 export function readStage1(kind: keyof typeof STAGE1_PATHS): string {
   return readFileSync(STAGE1_PATHS[kind], "utf8");
 }
 
-/** Object seeds in lexical code only. Text inside string literals is not a ListedSeed. */
-export function parseListedSeeds(source: string): ListedSeed[] {
-  const tokens = tokenize(source);
-  const seeds: ListedSeed[] = [];
-  for (let i = 0; i + 11 < tokens.length; i++) {
-    if (
-      punct(tokens[i], "{") &&
-      ident(tokens[i + 1], "name") &&
-      punct(tokens[i + 2], ":") &&
-      tokens[i + 3].kind === "string" &&
-      punct(tokens[i + 4], ",") &&
-      ident(tokens[i + 5], "price") &&
-      punct(tokens[i + 6], ":") &&
-      tokens[i + 7].kind === "number" &&
-      punct(tokens[i + 8], ",") &&
-      ident(tokens[i + 9], "unit") &&
-      punct(tokens[i + 10], ":") &&
-      tokens[i + 11].kind === "string"
-    ) {
-      seeds.push({
-        name: tokens[i + 3].value,
-        price: Number(tokens[i + 7].value),
-        unit: tokens[i + 11].value,
-      });
-    }
-  }
-  return seeds;
-}
+type GapKind = "comment" | "string" | "regex";
+type PrevKind = "operand" | "other";
 
 /**
- * Lexical walk: `onCode` sees TypeScript that is not inside a string or comment.
- * `onStringLiteral` receives the raw quoted slice, including quote characters.
- * Supported comment/string subset: `//`, block comments, `'…'`, `"…"`, `` `…` ``
- * with backslash escapes. Regex literals and `${` interpolations are not parsed.
+ * Lexical walk over a TypeScript/JavaScript subset.
+ * `onCode` sees source that is not inside a string, comment, or regex literal.
+ * Regex vs division: `/` starts a regex unless the previous non-whitespace token
+ * was an operand (identifier, number, string, regex, `]`, `++`, `--`).
+ * Character classes and backslash escapes are honoured. Unterminated regex
+ * stops at newline (fail-closed: that line is not treated as extra code).
+ * Template `${` interpolations are not parsed as nested code.
  */
 function scanLexical<T>(
   source: string,
   start: number,
   onCode: (index: number, ch: string) => T | undefined,
-  onStringLiteral?: (rawIncludingQuotes: string) => T | undefined,
-  onGap?: (kind: "comment" | "string") => void
+  onStringLiteral?: (rawIncludingQuotes: string, startIndex: number) => T | undefined,
+  onGap?: (kind: GapKind) => void
 ): T | undefined {
   let quote: string | null = null;
   let stringStart = -1;
   let lineComment = false;
   let blockComment = false;
+  let prevKind: PrevKind = "other";
   for (let i = start; i < source.length; i++) {
     const ch = source[i];
     const next = i + 1 < source.length ? source[i + 1] : "";
@@ -101,8 +87,10 @@ function scanLexical<T>(
       if (ch === quote) {
         const raw = source.slice(stringStart, i + 1);
         quote = null;
+        const opened = stringStart;
         stringStart = -1;
-        const hit = onStringLiteral?.(raw);
+        prevKind = "operand";
+        const hit = onStringLiteral?.(raw, opened);
         if (hit !== undefined) return hit;
       }
       continue;
@@ -119,16 +107,66 @@ function scanLexical<T>(
       i += 1;
       continue;
     }
+    if (ch === "/" && prevKind !== "operand") {
+      onGap?.("regex");
+      i = consumeRegexLiteral(source, i);
+      prevKind = "operand";
+      continue;
+    }
     if (ch === '"' || ch === "'" || ch === "`") {
       onGap?.("string");
       quote = ch;
       stringStart = i;
       continue;
     }
+    if ((ch === "+" && next === "+") || (ch === "-" && next === "-")) {
+      const hit1 = onCode(i, ch);
+      if (hit1 !== undefined) return hit1;
+      i += 1;
+      const hit2 = onCode(i, source[i] ?? "");
+      prevKind = "operand";
+      if (hit2 !== undefined) return hit2;
+      continue;
+    }
+    if (!/\s/.test(ch)) {
+      prevKind = isIdentChar(ch) || /\d/.test(ch) || ch === "]" ? "operand" : "other";
+    }
     const hit = onCode(i, ch);
     if (hit !== undefined) return hit;
   }
   return undefined;
+}
+
+function consumeRegexLiteral(source: string, openIndex: number): number {
+  let i = openIndex + 1;
+  let inClass = false;
+  let escape = false;
+  for (; i < source.length; i++) {
+    const ch = source[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escape = true;
+      continue;
+    }
+    if (ch === "\n") return i - 1;
+    if (inClass) {
+      if (ch === "]") inClass = false;
+      continue;
+    }
+    if (ch === "[") {
+      inClass = true;
+      continue;
+    }
+    if (ch === "/") {
+      i += 1;
+      while (i < source.length && /[A-Za-z]/.test(source[i] ?? "")) i += 1;
+      return i - 1;
+    }
+  }
+  return source.length > 0 ? source.length - 1 : 0;
 }
 
 function scanCode<T>(
@@ -140,17 +178,16 @@ function scanCode<T>(
 }
 
 function isIdentChar(ch: string): boolean {
-  return /[A-Za-z0-9_$]/.test(ch);
+  return ch === "$" || /[\p{ID_Continue}]/u.test(ch);
 }
 
 function isIdentStart(ch: string): boolean {
-  return /[A-Za-z_$]/.test(ch);
+  return ch === "$" || /[\p{ID_Start}]/u.test(ch);
 }
 
 /**
- * Code characters only. A comment/string gap becomes a space, except member access
- * across a comment (payload dot field) stays glued. That prevents min-comment-Quantity
- * from becoming the false token minQuantity, including Cyrillic fragments split by a comment.
+ * Code characters only. Comment/string/regex gaps become a space, except member
+ * access across a comment (payload dot field) stays glued.
  */
 export function codeText(source: string): string {
   let out = "";
@@ -175,29 +212,31 @@ export function codeText(source: string): string {
   return out;
 }
 
-type Tok = { kind: "ident" | "number" | "string" | "punct"; value: string };
+type TokKind = "ident" | "number" | "string" | "punct";
+type Tok = { kind: TokKind; value: string; index: number };
 
-function punct(token: Tok, value: string): boolean {
-  return token.kind === "punct" && token.value === value;
+function punct(token: Tok | undefined, value: string): boolean {
+  return token !== undefined && token.kind === "punct" && token.value === value;
 }
 
-function ident(token: Tok, value: string): boolean {
-  return token.kind === "ident" && token.value === value;
+function ident(token: Tok | undefined, value: string): boolean {
+  return token !== undefined && token.kind === "ident" && token.value === value;
 }
 
 function tokenize(source: string): Tok[] {
   const tokens: Tok[] = [];
   let buf = "";
   let bufKind: "ident" | "number" | null = null;
+  let bufIndex = 0;
   const flush = () => {
-    if (bufKind && buf) tokens.push({ kind: bufKind, value: buf });
+    if (bufKind && buf) tokens.push({ kind: bufKind, value: buf, index: bufIndex });
     buf = "";
     bufKind = null;
   };
   scanLexical(
     source,
     0,
-    (_i, ch) => {
+    (i, ch) => {
       if (bufKind === "ident" && isIdentChar(ch)) {
         buf += ch;
         return undefined;
@@ -210,20 +249,22 @@ function tokenize(source: string): Tok[] {
       if (isIdentStart(ch)) {
         bufKind = "ident";
         buf = ch;
+        bufIndex = i;
         return undefined;
       }
       if (/\d/.test(ch)) {
         bufKind = "number";
         buf = ch;
+        bufIndex = i;
         return undefined;
       }
       if (/\s/.test(ch)) return undefined;
-      tokens.push({ kind: "punct", value: ch });
+      tokens.push({ kind: "punct", value: ch, index: i });
       return undefined;
     },
-    (raw) => {
+    (raw, startIndex) => {
       flush();
-      tokens.push({ kind: "string", value: stringLiteralValue(raw) });
+      tokens.push({ kind: "string", value: stringLiteralValue(raw), index: startIndex });
       return undefined;
     },
     () => {
@@ -232,6 +273,12 @@ function tokenize(source: string): Tok[] {
   );
   flush();
   return tokens;
+}
+
+/** True when one of `names` appears as a whole identifier token in lexical code. */
+export function hasIdent(source: string, names: readonly string[]): boolean {
+  const want = new Set(names);
+  return tokenize(source).some((token) => token.kind === "ident" && want.has(token.value));
 }
 
 export function codeContains(source: string, pattern: RegExp): boolean {
@@ -272,51 +319,43 @@ function extractBalanced(source: string, openIndex: number, openCh: string, clos
   return source.slice(openIndex, end + 1);
 }
 
-export function extractCategoryBlock(source: string, category: string): string {
-  let ident = "";
-  let phase: "idle" | "named" | "colon" = "idle";
-  const bracket = scanLexical(
-    source,
-    0,
-    (i, ch) => {
-      if (ident.length > 0 ? isIdentChar(ch) : isIdentStart(ch)) {
-        phase = "idle";
-        ident += ch;
-        return undefined;
-      }
-      const word = ident;
-      ident = "";
-      if (word === category) {
-        if (/\s/.test(ch)) {
-          phase = "named";
-          return undefined;
-        }
-        if (ch === ":") {
-          phase = "colon";
-          return undefined;
-        }
-        phase = "idle";
-        return undefined;
-      }
-      if (phase === "named" && /\s/.test(ch)) return undefined;
-      if (phase === "named" && ch === ":") {
-        phase = "colon";
-        return undefined;
-      }
-      if (phase === "colon" && /\s/.test(ch)) return undefined;
-      if (phase === "colon" && ch === "[") return i;
-      phase = "idle";
-      return undefined;
-    },
-    undefined,
-    (kind) => {
-      if (ident.length > 0) phase = "idle";
-      ident = "";
-      if (kind === "string") phase = "idle";
+/** Object seeds in lexical code only. String and regex interiors are not ListedSeeds. */
+export function parseListedSeeds(source: string): ListedSeed[] {
+  const tokens = tokenize(source);
+  const seeds: ListedSeed[] = [];
+  for (let i = 0; i + 11 < tokens.length; i++) {
+    if (
+      punct(tokens[i], "{") &&
+      ident(tokens[i + 1], "name") &&
+      punct(tokens[i + 2], ":") &&
+      tokens[i + 3]?.kind === "string" &&
+      punct(tokens[i + 4], ",") &&
+      ident(tokens[i + 5], "price") &&
+      punct(tokens[i + 6], ":") &&
+      tokens[i + 7]?.kind === "number" &&
+      punct(tokens[i + 8], ",") &&
+      ident(tokens[i + 9], "unit") &&
+      punct(tokens[i + 10], ":") &&
+      tokens[i + 11]?.kind === "string"
+    ) {
+      seeds.push({
+        name: tokens[i + 3].value,
+        price: Number(tokens[i + 7].value),
+        unit: tokens[i + 11].value,
+      });
     }
-  );
-  if (bracket === undefined) return "";
-  return extractBalanced(source, bracket, "[", "]");
+  }
+  return seeds;
+}
+
+export function extractCategoryBlock(source: string, category: string): string {
+  const tokens = tokenize(source);
+  for (let i = 0; i + 2 < tokens.length; i++) {
+    if (ident(tokens[i], category) && punct(tokens[i + 1], ":") && punct(tokens[i + 2], "[")) {
+      return extractBalanced(source, tokens[i + 2].index, "[", "]");
+    }
+  }
+  return "";
 }
 
 export function findSeed(seeds: readonly ListedSeed[], name: string): ListedSeed | undefined {
@@ -324,42 +363,18 @@ export function findSeed(seeds: readonly ListedSeed[], name: string): ListedSeed
 }
 
 export function mentionsKgUnit(source: string): boolean {
-  let ident = "";
-  let phase: "idle" | "unit" | "colon" = "idle";
-  const hit = scanLexical(
-    source,
-    0,
-    (_i, ch) => {
-      if (/[A-Za-z0-9_]/.test(ch)) {
-        if (phase === "colon") phase = "idle";
-        ident += ch;
-        return undefined;
-      }
-      const word = ident;
-      ident = "";
-      if (word === "unit") {
-        phase = /\s/.test(ch) ? "unit" : ch === ":" ? "colon" : "idle";
-        return undefined;
-      }
-      if (phase === "unit" && /\s/.test(ch)) return undefined;
-      if (phase === "unit" && ch === ":") {
-        phase = "colon";
-        return undefined;
-      }
-      if (phase === "colon" && /\s/.test(ch)) return undefined;
-      phase = "idle";
-      return undefined;
-    },
-    (raw) => {
-      if (phase === "colon" && /^1\s*кг$/.test(stringLiteralValue(raw))) return true;
-      phase = "idle";
-      return undefined;
-    },
-    () => {
-      ident = "";
+  const tokens = tokenize(source);
+  for (let i = 0; i + 2 < tokens.length; i++) {
+    if (
+      ident(tokens[i], "unit") &&
+      punct(tokens[i + 1], ":") &&
+      tokens[i + 2]?.kind === "string" &&
+      /^1\s*кг$/.test(tokens[i + 2].value)
+    ) {
+      return true;
     }
-  );
-  return hit === true;
+  }
+  return false;
 }
 
 export function honeyCategorySearch(source: string): {
@@ -377,22 +392,92 @@ export function honeyCategorySearch(source: string): {
 }
 
 export function mentionsSackContents(source: string): boolean {
-  return /мешок|1\s*package\s*=\s*5/i.test(codeText(source));
+  const tokens = tokenize(source);
+  if (tokens.some((token) => token.kind === "ident" && token.value.toLowerCase() === "мешок")) {
+    return true;
+  }
+  for (let i = 0; i + 3 < tokens.length; i++) {
+    if (
+      tokens[i]?.kind === "number" &&
+      tokens[i].value === "1" &&
+      ident(tokens[i + 1], "package") &&
+      punct(tokens[i + 2], "=") &&
+      tokens[i + 3]?.kind === "number" &&
+      tokens[i + 3].value === "5"
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
- * Heuristic identifier/token scan of lexical code only (comments and strings omitted).
- * A miss is SOURCE ABSENT of those tokens, not absence of a market business rule.
+ * Whole identifier tokens in TypeScript lexical code, plus the numeric range
+ * token sequences 1-4 / 5-9 / 10+. A miss is SOURCE ABSENT of those tokens,
+ * not absence of a quantity-range mechanism under another name.
  */
 export function mentionsQuantityRangeTokens(source: string): boolean {
-  return /1\s*[–-]\s*4|5\s*[–-]\s*9|10\+|minQuantity|maxQuantity|tierPrice|PriceSchedule|VolumePrice/.test(
-    codeText(source)
+  const tokens = tokenize(source);
+  const names = new Set<string>(QUANTITY_RANGE_IDENTS);
+  if (tokens.some((token) => token.kind === "ident" && names.has(token.value))) return true;
+  for (let i = 0; i + 1 < tokens.length; i++) {
+    if (
+      tokens[i]?.kind === "number" &&
+      tokens[i].value === "1" &&
+      isRangeDash(tokens[i + 1]) &&
+      tokens[i + 2]?.kind === "number" &&
+      tokens[i + 2].value === "4"
+    ) {
+      return true;
+    }
+    if (
+      tokens[i]?.kind === "number" &&
+      tokens[i].value === "5" &&
+      isRangeDash(tokens[i + 1]) &&
+      tokens[i + 2]?.kind === "number" &&
+      tokens[i + 2].value === "9"
+    ) {
+      return true;
+    }
+    if (tokens[i]?.kind === "number" && tokens[i].value === "10" && punct(tokens[i + 1], "+")) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isRangeDash(token: Tok | undefined): boolean {
+  return token !== undefined && token.kind === "punct" && (token.value === "-" || token.value === "–");
+}
+
+/**
+ * Markdown/prose search for the same quantity-range names as whole words.
+ * Not a TypeScript lexer. Do not use mentionsQuantityRangeTokens on markdown.
+ */
+export function mentionsQuantityRangeInProse(text: string): boolean {
+  const names = QUANTITY_RANGE_IDENTS.join("|");
+  return (
+    new RegExp(`(^|[^A-Za-z0-9_$])(${names})(?![A-Za-z0-9_$])`).test(text) ||
+    /1\s*[–-]\s*4/.test(text) ||
+    /5\s*[–-]\s*9/.test(text) ||
+    /10\+/.test(text)
   );
 }
 
 export function copiesPayloadField(functionBody: string, field: string): boolean {
-  const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`${escaped}:\\s*payload\\.${escaped}`).test(codeText(functionBody));
+  const tokens = tokenize(functionBody);
+  for (let i = 0; i + 4 < tokens.length; i++) {
+    if (
+      ident(tokens[i], field) &&
+      punct(tokens[i + 1], ":") &&
+      ident(tokens[i + 2], "payload") &&
+      punct(tokens[i + 3], ".") &&
+      ident(tokens[i + 4], field)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function findFunctionBodyOpen(source: string, openParenIndex: number): number {
@@ -423,26 +508,18 @@ function findFunctionBodyOpen(source: string, openParenIndex: number): number {
 }
 
 /**
- * Locate a function/const declaration by name and return the `{ ... }` body.
- * Supported subset: `function name(`, `export function name(`, `const|let|var name = (`
- * with brace matching; strings and comments skipped; `{` inside
- * `Extract<…, { … }>` skipped via a paren/angle heuristic.
- * Not a TypeScript parser: regex literals and arbitrary `<`/`>` expressions
- * in default parameters are unsupported. Empty string = not found (fail-closed).
+ * Locate a function/const declaration by name from lexical tokens and return
+ * the `{ ... }` body. Supported subset: `function name(`, `export function name(`,
+ * `const|let|var name = (` with brace matching; strings, comments, and regex
+ * literals skipped; `{` inside `Extract<…, { … }>` skipped via a paren/angle
+ * heuristic. Not a TypeScript parser: template interpolations and arbitrary
+ * `<`/`>` in defaults remain unsupported. Empty string = not found (fail-closed).
  */
 export function extractNamedDeclaration(source: string, name: string): string {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const patterns = [
-    new RegExp(`(?:export\\s+)?(?:async\\s+)?function\\s+${escaped}\\s*\\(`),
-    new RegExp(
-      `(?:export\\s+)?(?:const|let|var)\\s+${escaped}\\s*=\\s*(?:async\\s*)?(?:function\\s*\\(|\\()`
-    ),
-  ];
-  for (const re of patterns) {
-    const match = re.exec(source);
-    if (!match) continue;
-    const openParen = match.index + match[0].lastIndexOf("(");
-    if (!isCodeIndex(source, openParen)) continue;
+  const tokens = tokenize(source);
+  for (let i = 0; i < tokens.length; i++) {
+    const openParen = declarationOpenParen(tokens, i, name);
+    if (openParen < 0) continue;
     const bodyOpen = findFunctionBodyOpen(source, openParen);
     if (bodyOpen < 0) return "";
     return extractBalanced(source, bodyOpen, "{", "}");
@@ -450,54 +527,63 @@ export function extractNamedDeclaration(source: string, name: string): string {
   return "";
 }
 
-/** True only for a real FLOW-010 scenario run / helper, not for prose or comments. */
+function declarationOpenParen(tokens: Tok[], i: number, name: string): number {
+  let j = i;
+  if (ident(tokens[j], "export")) j += 1;
+  if (ident(tokens[j], "async") && ident(tokens[j + 1], "function")) j += 1;
+  if (ident(tokens[j], "function") && ident(tokens[j + 1], name) && punct(tokens[j + 2], "(")) {
+    return tokens[j + 2].index;
+  }
+  j = i;
+  if (ident(tokens[j], "export")) j += 1;
+  if (
+    (ident(tokens[j], "const") || ident(tokens[j], "let") || ident(tokens[j], "var")) &&
+    ident(tokens[j + 1], name) &&
+    punct(tokens[j + 2], "=")
+  ) {
+    let k = j + 3;
+    if (ident(tokens[k], "async")) k += 1;
+    if (ident(tokens[k], "function") && punct(tokens[k + 1], "(")) return tokens[k + 1].index;
+    if (punct(tokens[k], "(")) return tokens[k].index;
+  }
+  return -1;
+}
+
+function hasFunctionNamed(source: string, name: string): boolean {
+  const tokens = tokenize(source);
+  for (let i = 0; i + 2 < tokens.length; i++) {
+    if (ident(tokens[i], "function") && ident(tokens[i + 1], name) && punct(tokens[i + 2], "(")) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** True only for a real FLOW-010 scenario run / helper, not for prose, comments, strings, or regex. */
 export function flow010ArtifactsPresent(source: string): {
   flow010Run: boolean;
   observeCooperativeAccept: boolean;
 } {
-  let ident = "";
-  let phase: "idle" | "run" | "runParen" = "idle";
-  const flow010Run =
-    scanLexical(
-      source,
-      0,
-      (_i, ch) => {
-        if (/[A-Za-z0-9_]/.test(ch)) {
-          if (phase === "runParen") phase = "idle";
-          ident += ch;
-          return undefined;
-        }
-        const word = ident;
-        ident = "";
-        if (word === "run") {
-          phase = /\s/.test(ch) ? "run" : ch === "(" ? "runParen" : "idle";
-          return undefined;
-        }
-        if (phase === "run" && /\s/.test(ch)) return undefined;
-        if (phase === "run" && ch === "(") {
-          phase = "runParen";
-          return undefined;
-        }
-        if (phase === "runParen" && /\s/.test(ch)) return undefined;
-        phase = "idle";
-        return undefined;
-      },
-      (raw) => {
-        if (phase === "runParen" && stringLiteralValue(raw).startsWith("FLOW-010-")) return true;
-        phase = "idle";
-        return undefined;
-      },
-      () => {
-        ident = "";
-      }
-    ) === true;
+  const tokens = tokenize(source);
+  let flow010Run = false;
+  for (let i = 0; i + 2 < tokens.length; i++) {
+    if (
+      ident(tokens[i], "run") &&
+      punct(tokens[i + 1], "(") &&
+      tokens[i + 2]?.kind === "string" &&
+      tokens[i + 2].value.startsWith("FLOW-010-")
+    ) {
+      flow010Run = true;
+      break;
+    }
+  }
   return {
     flow010Run,
-    observeCooperativeAccept: /function\s+observeCooperativeAccept\s*\(/.test(codeText(source)),
+    observeCooperativeAccept: hasFunctionNamed(source, "observeCooperativeAccept"),
   };
 }
 
-function listTsFiles(dir: string): string[] {
+export function listTsFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
@@ -532,8 +618,87 @@ export function scanBasketExperimentForFlow010(): {
   };
 }
 
+function slash(pattern: string): string {
+  return `/${pattern}/`;
+}
+
 /** Scanner-contract tests. Not domain evidence. */
 export function assertStage1ScannerContract(): void {
+  const seed = `{ name: "a", price: 1, unit: "500 г" }`;
+  const kgSeed = `{ name: "a", price: 1, unit: "1 кг" }`;
+
+  assert.equal(parseListedSeeds(seed).length, 1);
+  assert.equal(parseListedSeeds("").length, 0);
+  assert.equal(parseListedSeeds("/* empty */").length, 0);
+  assert.equal(parseListedSeeds(`const example = '{ name: "fake", price: 55, unit: "1 кг" }';`).length, 0);
+  assert.equal(parseListedSeeds(`const r = ${slash('\\{ name: "fake", price: 55, unit: "1 кг" \\}')};`).length, 0);
+  assert.equal(parseListedSeeds(`{ na/*x*/me: "a", price: 1, unit: "1 кг" }`).length, 0);
+  assert.equal(parseListedSeeds(`{ name: /*c*/ "a", price: 1, unit: "1 кг" }`).length, 1);
+  assert.equal(findSeed(parseListedSeeds(seed), "a")?.price, 1);
+  assert.equal(findSeed(parseListedSeeds(seed), "missing"), undefined);
+
+  assert.equal(codeContains("min/*x*/Quantity", /minQuantity/), false);
+  assert.equal(codeContains('foo"minQuantity"bar', /minQuantity/), false);
+  assert.equal(codeContains("ме/*x*/шок", /мешок/), false);
+  assert.equal(codeContains(`const r = ${slash("minQuantity")};`, /minQuantity/), false);
+  assert.equal(hasIdent("const minQuantity = 1;", ["minQuantity"]), true);
+  assert.equal(hasIdent("const minQuantityFactory = 1;", ["minQuantity"]), false);
+  assert.equal(hasIdent("const myminQuantityBackup = 1;", ["minQuantity"]), false);
+  assert.equal(hasIdent("const PriceScheduleFactory = 1;", ["PriceSchedule"]), false);
+  assert.equal(hasIdent("some.minQuantityFactory", ["minQuantity"]), false);
+  assert.equal(hasIdent("obj.minQuantity", ["minQuantity"]), true);
+  assert.equal(hasIdent(`const r = ${slash("\\bminQuantity\\b")};`, ["minQuantity"]), false);
+  assert.equal(hasIdent("a / minQuantity / b", ["minQuantity"]), true);
+  assert.equal(hasIdent("", ["minQuantity"]), false);
+
+  assert.equal(mentionsQuantityRangeTokens("const minQuantity = 1;"), true);
+  assert.equal(mentionsQuantityRangeTokens("const minQuantityFactory = 1;"), false);
+  assert.equal(mentionsQuantityRangeTokens("const myminQuantityBackup = 1;"), false);
+  assert.equal(mentionsQuantityRangeTokens("const PriceScheduleFactory = 1;"), false);
+  assert.equal(mentionsQuantityRangeTokens("some.minQuantityFactory"), false);
+  assert.equal(mentionsQuantityRangeTokens("// minQuantity\nconst x = 1;"), false);
+  assert.equal(mentionsQuantityRangeTokens("min/*x*/Quantity"), false);
+  assert.equal(mentionsQuantityRangeTokens(`const r = ${slash("minQuantity")};`), false);
+  assert.equal(mentionsQuantityRangeTokens(""), false);
+  assert.equal(mentionsQuantityRangeTokens("const n = 1 - 4;"), true);
+
+  assert.equal(mentionsSackContents("const мешок = 1;"), true);
+  assert.equal(mentionsSackContents("const мешокMetadata = 1;"), false);
+  assert.equal(mentionsSackContents("ме/*x*/шок"), false);
+  assert.equal(mentionsSackContents("const x = 1; 1 package = 5;"), true);
+  assert.equal(mentionsSackContents(`const r = ${slash("мешок")};`), false);
+  assert.equal(mentionsSackContents(""), false);
+
+  assert.equal(mentionsQuantityRangeInProse("no range here"), false);
+  assert.equal(mentionsQuantityRangeInProse("see minQuantity in the table"), true);
+  assert.equal(mentionsQuantityRangeInProse("minQuantityFactory is not the token"), false);
+  assert.equal(mentionsQuantityRangeInProse("1-4 kg"), true);
+
+  assert.equal(mentionsKgUnit(`honey: [${seed},\n  // unit: "1 кг"\n]`), false);
+  assert.equal(mentionsKgUnit(`honey: [${kgSeed}]`), true);
+  assert.equal(mentionsKgUnit(`un/*x*/it: "1 кг"`), false);
+  assert.equal(mentionsKgUnit(`unit /*c*/ : "1 кг"`), true);
+  assert.equal(mentionsKgUnit(`const r = ${slash('unit: "1 кг"')};`), false);
+
+  assert.equal(extractCategoryBlock(`hon/*x*/ey: [${kgSeed}]`, "honey").length, 0);
+  assert.ok(extractCategoryBlock(`honey /*c*/ : [${kgSeed}]`, "honey").length > 0);
+  assert.equal(extractCategoryBlock(`honey: "not-array"\n[`, "honey"), "");
+  assert.equal(extractCategoryBlock(`const s = "honey: [${kgSeed}]";`, "honey"), "");
+  assert.equal(extractCategoryBlock(`const r = ${slash("honey: \\[")};`, "honey"), "");
+  assert.equal(extractCategoryBlock("", "honey"), "");
+  const honeyAfterCommentedKey = honeyCategorySearch(
+    `// honey: [\nconst x = 1;\nhoney: [${kgSeed}]`
+  );
+  assert.equal(honeyAfterCommentedKey.blockFound, true);
+  assert.equal(honeyAfterCommentedKey.kgUnitInBlock, true);
+  const afterCommentBracket = honeyCategorySearch(`honey: [
+  ${seed},
+  // ]
+  { name: "b", price: 2, unit: "1 кг" },
+]`);
+  assert.equal(afterCommentBracket.blockFound, true);
+  assert.equal(afterCommentBracket.kgUnitInBlock, true);
+
   const commented = `function addToBasket(payload) {
   // unit: payload.unit
   // price: payload.price
@@ -556,23 +721,8 @@ export function assertStage1ScannerContract(): void {
   const realBody = extractNamedDeclaration(real, "addToBasket");
   assert.equal(copiesPayloadField(realBody, "unit"), true);
   assert.equal(copiesPayloadField(realBody, "price"), true);
-
-  assert.equal(
-    mentionsKgUnit(`honey: [
-  { name: "a", price: 1, unit: "500 г" },
-  // unit: "1 кг"
-]`),
-    false
-  );
-  assert.equal(mentionsKgUnit(`honey: [{ name: "a", price: 1, unit: "1 кг" }]`), true);
-
-  const afterCommentBracket = honeyCategorySearch(`honey: [
-  { name: "a", price: 1, unit: "500 г" },
-  // ]
-  { name: "b", price: 2, unit: "1 кг" },
-]`);
-  assert.equal(afterCommentBracket.blockFound, true);
-  assert.equal(afterCommentBracket.kgUnitInBlock, true);
+  assert.equal(copiesPayloadField("{ unit: payload./*gap*/unit }", "unit"), true);
+  assert.equal(copiesPayloadField(`const r = ${slash("unit: payload.unit")};`, "unit"), false);
 
   const generic = `function addToBasket(payload: Extract<Action, { type: "ADD_TO_BASKET" }>) {
   return { unit: payload.unit };
@@ -582,31 +732,53 @@ export function assertStage1ScannerContract(): void {
   assert.equal(copiesPayloadField(genericBody, "unit"), true);
   assert.equal(genericBody.includes("Extract"), false);
 
-  assert.equal(extractNamedDeclaration("const x = 1;", "addToBasket"), "");
-  assert.equal(mentionsQuantityRangeTokens("// minQuantity\nconst x = 1;"), false);
-  assert.equal(flow010ArtifactsPresent(`// run("FLOW-010-A1")\nconst x = 1;`).flow010Run, false);
+  const regexBrace = `function addToBasket(payload) {
+  const r = ${slash("}")};
+  return { unit: payload.unit };
+}`;
+  const regexBraceBody = extractNamedDeclaration(regexBrace, "addToBasket");
+  assert.ok(regexBraceBody.includes("payload.unit"));
+  assert.equal(copiesPayloadField(regexBraceBody, "unit"), true);
 
-  assert.equal(codeContains("min/*x*/Quantity", /minQuantity/), false);
-  assert.equal(mentionsQuantityRangeTokens("min/*x*/Quantity"), false);
-  assert.equal(codeContains('foo"minQuantity"bar', /minQuantity/), false);
-  assert.equal(codeContains("ме/*x*/шок", /мешок/), false);
-  assert.equal(parseListedSeeds(`const example = '{ name: "fake", price: 55, unit: "1 кг" }';`).length, 0);
-  assert.equal(parseListedSeeds(`[{ name: "a", price: 1, unit: "500 г" }]`).length, 1);
-  assert.equal(parseListedSeeds(`{ na/*x*/me: "a", price: 1, unit: "1 кг" }`).length, 0);
-  assert.equal(parseListedSeeds(`{ name: /*c*/ "a", price: 1, unit: "1 кг" }`).length, 1);
-  assert.equal(copiesPayloadField("{ unit: payload./*gap*/unit }", "unit"), true);
-  assert.equal(mentionsKgUnit(`un/*x*/it: "1 кг"`), false);
-  assert.equal(mentionsKgUnit(`unit /*c*/ : "1 кг"`), true);
-  assert.equal(extractCategoryBlock(`hon/*x*/ey: [{ name: "a", price: 1, unit: "1 кг" }]`, "honey").length, 0);
-  assert.ok(extractCategoryBlock(`honey /*c*/ : [{ name: "a", price: 1, unit: "1 кг" }]`, "honey").length > 0);
-  assert.equal(extractCategoryBlock(`honey: "not-array"\n[`, "honey"), "");
-  assert.equal(extractCategoryBlock(`const s = "honey: [{ name: \\"a\\", price: 1, unit: \\"1 кг\\" }]";`, "honey"), "");
+  const classSlash = `function addToBasket(payload) {
+  const r = ${slash("[/]")};
+  return { unit: payload.unit };
+}`;
+  assert.equal(copiesPayloadField(extractNamedDeclaration(classSlash, "addToBasket"), "unit"), true);
+
+  assert.equal(extractNamedDeclaration("const x = 1;", "addToBasket"), "");
+  assert.equal(extractNamedDeclaration("", "addToBasket"), "");
+  assert.equal(extractNamedDeclaration("function addToBasketFactory(payload) { return payload; }", "addToBasket"), "");
+  assert.equal(extractNamedDeclaration(`const r = ${slash("function addToBasket(")};`, "addToBasket"), "");
+  const exprArrow = "const addToBasket = (payload) => 1;";
+  assert.equal(extractNamedDeclaration(exprArrow, "addToBasket"), "");
+  const parenArrow = "const addToBasket = (payload) => ({ unit: payload.unit });";
+  assert.equal(extractNamedDeclaration(parenArrow, "addToBasket"), "");
+  const blockArrow = "const addToBasket = (payload) => { return { unit: payload.unit }; };";
+  assert.equal(copiesPayloadField(extractNamedDeclaration(blockArrow, "addToBasket"), "unit"), true);
+  const constFunc = `const addToBasket = function (payload) {
+  return { unit: payload.unit };
+};`;
+  assert.equal(copiesPayloadField(extractNamedDeclaration(constFunc, "addToBasket"), "unit"), true);
+
+  assert.equal(flow010ArtifactsPresent(`// run("FLOW-010-A1")\nconst x = 1;`).flow010Run, false);
   assert.equal(flow010ArtifactsPresent(`ru/*x*/n("FLOW-010-A1")`).flow010Run, false);
   assert.equal(flow010ArtifactsPresent(`run /*c*/ ("FLOW-010-A1")`).flow010Run, true);
-
-  const honeyAfterCommentedKey = honeyCategorySearch(
-    `// honey: [\nconst x = 1;\nhoney: [{ name: "a", price: 1, unit: "1 кг" }]`
+  assert.equal(flow010ArtifactsPresent(`const r = ${slash('run("FLOW-010-A1")')};`).flow010Run, false);
+  assert.equal(flow010ArtifactsPresent(`function observeCooperativeAccept() {}`).observeCooperativeAccept, true);
+  assert.equal(
+    flow010ArtifactsPresent(`function observeCooperativeAcceptHelper() {}`).observeCooperativeAccept,
+    false
   );
-  assert.equal(honeyAfterCommentedKey.blockFound, true);
-  assert.equal(honeyAfterCommentedKey.kgUnitInBlock, true);
+  assert.equal(flow010ArtifactsPresent(`const r = ${slash("function observeCooperativeAccept(")};`).observeCooperativeAccept, false);
+
+  const files = listTsFiles(join(GREENMARKET_ROOT, "experiments/basket"));
+  assert.ok(files.length > 0);
+  assert.ok(files.every((file) => file.endsWith(".ts")));
+  assert.ok(files.some((file) => file.replace(/\\/g, "/").endsWith("tests/stage1SourceSearch.ts")));
+  const scan = scanBasketExperimentForFlow010();
+  assert.equal(scan.walkComplete, true);
+  assert.equal(scan.scannedFiles, files.length);
+  assert.equal(scan.flow010Run, false);
+  assert.equal(scan.observeCooperativeAccept, false);
 }

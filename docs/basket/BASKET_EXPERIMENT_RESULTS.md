@@ -94,11 +94,11 @@ Record evidence from the mock domain and seller emulator.
 | SNAPSHOT-VOL-001 | PASS | OPEN (SPEC-OQ-002A) | none | canonical snapshot distinguishes requested/agreed/current/alt/derived; package contents remain absent |
 | SOURCE-010-BASKET | PASS | OPEN (SPEC-OQ-002A) | none | No conversion/tier lookup found in ADD_TO_BASKET itself. The function copies payload.unit and payload.price. Conversion or pricing could occur before this call; this row does not claim the whole basket path |
 | SOURCE-010-CATALOG-HONEY | PASS | OPEN (SPEC-OQ-002A) | none | honey category block found with at least one object seed; no unit: 1 кг string in that block. Not A3 seller classification and not a business-flow observation |
-| SOURCE-010-CATALOG-KG | PASS | OPEN (SPEC-OQ-002A) | none | mockSellerCatalog.ts lexical object seeds include at least one unit 1 кг listing. Seeds inside string literals do not count. Not a business-flow observation |
-| SOURCE-010-CATALOG-TOKENS | PASS | OPEN (SPEC-OQ-002A) | none | sack/range identifier tokens are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Token miss is not a market finding |
-| SOURCE-010-EMULATOR | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of sellers.ts: minQuantity/maxQuantity/tierPrice/PriceSchedule tokens are SOURCE ABSENT in this file. This is not a CooperativeSeller call-shape regression and not a market finding that sellers have no range rule |
+| SOURCE-010-CATALOG-KG | PASS | OPEN (SPEC-OQ-002A) | none | mockSellerCatalog.ts lexical object seeds include at least one unit 1 кг listing. Seeds inside string or regex literals do not count. Not a business-flow observation |
+| SOURCE-010-CATALOG-TOKENS | PASS | OPEN (SPEC-OQ-002A) | none | whole identifier tokens мешок / minQuantity / maxQuantity / tierPrice / PriceSchedule / VolumePrice and 1-4 / 5-9 / 10+ sequences are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Substrings and regex interiors do not count. Token miss is not a market finding |
+| SOURCE-010-EMULATOR | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of sellers.ts: the identifier tokens minQuantity/maxQuantity/tierPrice/PriceSchedule/VolumePrice are SOURCE ABSENT in this file. This does not claim sellers.ts has no quantity-range mechanism under another name (quantityPrices, getPrice, ranges, ...). Not a CooperativeSeller call-shape test and not a market finding |
 | SOURCE-010-TREE | PASS | OPEN (SPEC-OQ-002A) | none | experiments/basket **/*.ts has no FLOW-010 run() and no observeCooperativeAccept helper. Cleanup check of those two historical artifacts only. Does not prove synthetic business-flow is absent. Does not search docs or PACKAGE-008 experimenter facts. Not a business-flow observation |
-| SOURCE-010-TZ025 | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of TZ-025: free-text cheese discount is present; quantity-range tokens are SOURCE ABSENT in this file. Token miss is not a business fact and not B3 observation |
+| SOURCE-010-TZ025 | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 markdown prose search of TZ-025: free-text cheese discount is present; quantity-range names as whole words are SOURCE ABSENT in this file. This is not a TypeScript lexical scan. Token miss is not a business fact and not B3 observation |
 | VOLUME-008-001 | PASS | OPEN (SPEC-OQ-002B) | none | Buyer 3/7/12 kg does not read an external tier schedule from the domain |
 | VOLUME-008-002 | PASS | CONFIRMED | none | a pre-negotiation tier announcement is not an Offer, has no id, and cannot be accepted |
 | VOLUME-008-003 | PASS | CONFIRMED | none | 7 kg @ 17 is a concrete Offer; schedule is not stored as provenance |
@@ -1005,7 +1005,7 @@ Record evidence from the mock domain and seller emulator.
 - Model violation: none
 - New concept: SOURCE ABSENT/present of listed kg unit in mockSellerCatalog.ts object literals
 - Workaround: none
-- Decision: mockSellerCatalog.ts lexical object seeds include at least one unit 1 кг listing. Seeds inside string literals do not count. Not a business-flow observation
+- Decision: mockSellerCatalog.ts lexical object seeds include at least one unit 1 кг listing. Seeds inside string or regex literals do not count. Not a business-flow observation
 
 ### SOURCE-010-CATALOG-TOKENS — Impl PASS / Domain OPEN (SPEC-OQ-002A)
 
@@ -1017,7 +1017,7 @@ Record evidence from the mock domain and seller emulator.
 - Model violation: none
 - New concept: SOURCE ABSENT of sack/range tokens in mockSellerCatalog.ts
 - Workaround: none
-- Decision: sack/range identifier tokens are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Token miss is not a market finding
+- Decision: whole identifier tokens мешок / minQuantity / maxQuantity / tierPrice / PriceSchedule / VolumePrice and 1-4 / 5-9 / 10+ sequences are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Substrings and regex interiors do not count. Token miss is not a market finding
 
 ### SOURCE-010-EMULATOR — Impl PASS / Domain OPEN (SPEC-OQ-002B)
 
@@ -1029,7 +1029,7 @@ Record evidence from the mock domain and seller emulator.
 - Model violation: none
 - New concept: SOURCE ABSENT of quantity-range tokens in sellers.ts
 - Workaround: none
-- Decision: Stage-1 source search of sellers.ts: minQuantity/maxQuantity/tierPrice/PriceSchedule tokens are SOURCE ABSENT in this file. This is not a CooperativeSeller call-shape regression and not a market finding that sellers have no range rule
+- Decision: Stage-1 source search of sellers.ts: the identifier tokens minQuantity/maxQuantity/tierPrice/PriceSchedule/VolumePrice are SOURCE ABSENT in this file. This does not claim sellers.ts has no quantity-range mechanism under another name (quantityPrices, getPrice, ranges, ...). Not a CooperativeSeller call-shape test and not a market finding
 
 ### SOURCE-010-TREE — Impl PASS / Domain OPEN (SPEC-OQ-002A)
 
@@ -1053,7 +1053,7 @@ Record evidence from the mock domain and seller emulator.
 - Model violation: none
 - New concept: SOURCE ABSENT in TZ-025 — not a business-flow observation
 - Workaround: none
-- Decision: Stage-1 source search of TZ-025: free-text cheese discount is present; quantity-range tokens are SOURCE ABSENT in this file. Token miss is not a business fact and not B3 observation
+- Decision: Stage-1 markdown prose search of TZ-025: free-text cheese discount is present; quantity-range names as whole words are SOURCE ABSENT in this file. This is not a TypeScript lexical scan. Token miss is not a business fact and not B3 observation
 
 ### VOLUME-008-001 — Impl PASS / Domain OPEN (SPEC-OQ-002B)
 
@@ -1383,7 +1383,7 @@ Further closing OQ-002A/B still requires a business-flow observation, not anothe
 TZ-BASKET-010
 Status: primary goal NOT MET — Stage-1 source search only; BUSINESS-FLOW OBSERVATION NOT OBTAINED
 OQ-002A: OPEN — SOURCE ABSENT in mockSellerCatalog; no conversion/tier lookup found in ADD_TO_BASKET itself; A1/A2 flow NOT OBTAINED; A3 NOT TESTABLE (no seller classification); SOURCE-010-TREE is a cleanup check of two historical FLOW-010 artifacts, not proof synthetic business-flow is absent
-OQ-002B: OPEN — quantity-range tokens SOURCE ABSENT in sellers.ts / TZ-025; B1/B2/B3 flow NOT OBTAINED. Token miss is not a CooperativeSeller call-shape test and not a market finding
+OQ-002B: OPEN — named identifier tokens SOURCE ABSENT in sellers.ts; range names as whole words SOURCE ABSENT in TZ-025 markdown; B1/B2/B3 flow NOT OBTAINED. Not a claim that no quantity-range mechanism exists under another name. Token miss is not a CooperativeSeller call-shape test and not a market finding
 NEW CONCEPT JUSTIFIED: no — source absence does not justify Package or PriceSchedule
 NO MODEL CHANGE: yes
 NO NEW INVARIANT: yes

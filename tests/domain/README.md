@@ -83,9 +83,9 @@ npx tsx experiments/basket/tests/run.ts
 | `SOURCE-010-CATALOG-KG` | lexical object seeds in mockSellerCatalog.ts include a `1 кг` unit | `scenarios.ts` SOURCE-010-CATALOG-KG |
 | `SOURCE-010-CATALOG-HONEY` | honey block found; no `unit: "1 кг"` token in that block | `scenarios.ts` SOURCE-010-CATALOG-HONEY |
 | `SOURCE-010-CATALOG-TOKENS` | sack/range tokens SOURCE ABSENT in mockSellerCatalog.ts | `scenarios.ts` SOURCE-010-CATALOG-TOKENS |
-| `SOURCE-010-EMULATOR` | source search of sellers.ts; quantity-range tokens SOURCE ABSENT in this file | `scenarios.ts` SOURCE-010-EMULATOR |
+| `SOURCE-010-EMULATOR` | five named identifier tokens SOURCE ABSENT in sellers.ts; not any-range-mechanism | `scenarios.ts` SOURCE-010-EMULATOR |
 | `SOURCE-010-BASKET` | no conversion/tier lookup found in ADD_TO_BASKET itself; source inspection, not I-045 | `scenarios.ts` SOURCE-010-BASKET |
-| `SOURCE-010-TZ025` | source search of TZ-025; free-text discount; range tokens SOURCE ABSENT | `scenarios.ts` SOURCE-010-TZ025 |
+| `SOURCE-010-TZ025` | markdown prose search of TZ-025; free-text discount; range names as whole words SOURCE ABSENT | `scenarios.ts` SOURCE-010-TZ025 |
 | `SOURCE-010-TREE` | cleanup check of two historical FLOW-010 names; not proof synthetic business-flow is absent | `scenarios.ts` SOURCE-010-TREE |
 | *(SPEC OQ-003)* | duplicate ListItems of same `(productId, unit)` | `run.ts` `DUPLICATE_LINE` (explicit, not silent collapse) |
 

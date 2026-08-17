@@ -278,9 +278,11 @@ yet justifies a PriceSchedule entity.
 VOLUME-PRICE-005B / VOLUME-008-001 (schedule lookup OPEN); SNAPSHOT-VOL-001 (contents still absent).
 VOLUME-BIZ-009-001 is catalog/spec reconstruction (OPEN): listed unit price is copied onto
 PurchaseItems; this is not observed seller pricing behavior and does not close OQ-002B.
-SOURCE-010-EMULATOR / SOURCE-010-TZ025 are Stage-1 source search: quantity-range identifier
-tokens are SOURCE ABSENT in `sellers.ts` and TZ-025. That is SOURCE ABSENT of those tokens, not a
-business-flow observation and not a CooperativeSeller call-shape test. B3 schedule change was not
+SOURCE-010-EMULATOR / SOURCE-010-TZ025 are Stage-1 source search: the named identifier tokens
+are SOURCE ABSENT in `sellers.ts` (TypeScript whole-identifier scan) and TZ-025 (markdown
+whole-word prose scan). That is SOURCE ABSENT of those names, not a claim that no quantity-range
+mechanism exists under another name, not a business-flow observation, and not a CooperativeSeller
+call-shape test. B3 schedule change was not
 obtained and has no executable scenario.
 
 Alternative *selection policy* (AUTO_ACCEPT / BEST_PRICE / ASK_BUYER) is a different question and
@@ -675,9 +677,9 @@ SNAPSHOT-VOL-001         requested/agreed/current/alt/derived; package contents 
 SOURCE-010-CATALOG-KG    lexical object seeds in mockSellerCatalog.ts — kg unit present, not observation
 SOURCE-010-CATALOG-HONEY honey block in mockSellerCatalog.ts — no 1 кг honey token
 SOURCE-010-CATALOG-TOKENS sack/range tokens in mockSellerCatalog.ts — SOURCE ABSENT
-SOURCE-010-EMULATOR      Stage-1 source search of sellers.ts — quantity-range tokens SOURCE ABSENT
+SOURCE-010-EMULATOR      named identifier tokens in sellers.ts SOURCE ABSENT — not any-range-mechanism
 SOURCE-010-BASKET        no conversion/tier lookup found in ADD_TO_BASKET itself
-SOURCE-010-TZ025         Stage-1 source search of TZ-025 — free-text discount, range tokens SOURCE ABSENT
+SOURCE-010-TZ025         markdown prose search of TZ-025 — free-text discount, range names SOURCE ABSENT
 SOURCE-010-TREE          cleanup check of two historical FLOW-010 names — not observation
 ALT-PRICE-001            primary cheaper than alternative — representation only
 ALT-PRICE-002            FIRST_AVAILABLE / PRIMARY_ONLY are not BEST_PRICE; policy OPEN (OQ-008)

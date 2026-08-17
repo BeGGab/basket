@@ -12,12 +12,13 @@ import {
   extractNamedDeclaration,
   honeyCategorySearch,
   mentionsQuantityRangeTokens,
+  mentionsQuantityRangeInProse,
   mentionsSackContents,
   parseListedSeeds,
   readStage1,
   scanBasketExperimentForFlow010,
   copiesPayloadField,
-  codeContains,
+  hasIdent,
 } from "./stage1SourceSearch";
 
 export type ScenarioResult = {
@@ -3878,7 +3879,7 @@ export function runAllScenarios(): ScenarioResult[] {
         "source inspection — not a domain invariant",
         { hasKgListedSeed: true },
         { hasKgListedSeed: seeds.some((seed) => seed.unit === "1 кг") },
-        "mockSellerCatalog.ts lexical object seeds include at least one unit 1 кг listing. Seeds inside string literals do not count. Not a business-flow observation",
+        "mockSellerCatalog.ts lexical object seeds include at least one unit 1 кг listing. Seeds inside string or regex literals do not count. Not a business-flow observation",
         "OPEN",
         "SPEC-OQ-002A",
         { newConcept: "SOURCE ABSENT/present of listed kg unit in mockSellerCatalog.ts object literals" }
@@ -3924,7 +3925,7 @@ export function runAllScenarios(): ScenarioResult[] {
           sackContentsTokens: mentionsSackContents(source),
           quantityRangeTokens: mentionsQuantityRangeTokens(source),
         },
-        "sack/range identifier tokens are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Token miss is not a market finding",
+        "whole identifier tokens мешок / minQuantity / maxQuantity / tierPrice / PriceSchedule / VolumePrice and 1-4 / 5-9 / 10+ sequences are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Substrings and regex interiors do not count. Token miss is not a market finding",
         "OPEN",
         "SPEC-OQ-002A",
         { newConcept: "SOURCE ABSENT of sack/range tokens in mockSellerCatalog.ts" }
@@ -3946,13 +3947,13 @@ export function runAllScenarios(): ScenarioResult[] {
           quantityRangeTokens: false,
         },
         {
-          hasMinQuantity: codeContains(source, /minQuantity/),
-          hasMaxQuantity: codeContains(source, /maxQuantity/),
-          hasTierPrice: codeContains(source, /tierPrice/),
-          hasPriceSchedule: codeContains(source, /PriceSchedule/),
+          hasMinQuantity: hasIdent(source, ["minQuantity"]),
+          hasMaxQuantity: hasIdent(source, ["maxQuantity"]),
+          hasTierPrice: hasIdent(source, ["tierPrice"]),
+          hasPriceSchedule: hasIdent(source, ["PriceSchedule"]),
           quantityRangeTokens: mentionsQuantityRangeTokens(source),
         },
-        "Stage-1 source search of sellers.ts: minQuantity/maxQuantity/tierPrice/PriceSchedule tokens are SOURCE ABSENT in this file. This is not a CooperativeSeller call-shape regression and not a market finding that sellers have no range rule",
+        "Stage-1 source search of sellers.ts: the identifier tokens minQuantity/maxQuantity/tierPrice/PriceSchedule/VolumePrice are SOURCE ABSENT in this file. This does not claim sellers.ts has no quantity-range mechanism under another name (quantityPrices, getPrice, ranges, ...). Not a CooperativeSeller call-shape test and not a market finding",
         "OPEN",
         "SPEC-OQ-002B",
         { newConcept: "SOURCE ABSENT of quantity-range tokens in sellers.ts" }
@@ -3977,8 +3978,8 @@ export function runAllScenarios(): ScenarioResult[] {
           declarationFound: addToBasket.length > 0,
           copiesUnit: copiesPayloadField(addToBasket, "unit"),
           copiesPrice: copiesPayloadField(addToBasket, "price"),
-          hasConversion: codeContains(addToBasket, /conversionFactor|packageContents/),
-          hasTierPrice: codeContains(addToBasket, /tierPrice|minQuantity|maxQuantity/),
+          hasConversion: hasIdent(addToBasket, ["conversionFactor", "packageContents"]),
+          hasTierPrice: hasIdent(addToBasket, ["tierPrice", "minQuantity", "maxQuantity"]),
         },
         "No conversion/tier lookup found in ADD_TO_BASKET itself. The function copies payload.unit and payload.price. Conversion or pricing could occur before this call; this row does not claim the whole basket path",
         "OPEN",
@@ -4000,9 +4001,9 @@ export function runAllScenarios(): ScenarioResult[] {
         },
         {
           cheeseDiscountText: source.includes("Сегодня скидка на сыр"),
-          quantityRangeTokens: mentionsQuantityRangeTokens(source),
+          quantityRangeTokens: mentionsQuantityRangeInProse(source),
         },
-        "Stage-1 source search of TZ-025: free-text cheese discount is present; quantity-range tokens are SOURCE ABSENT in this file. Token miss is not a business fact and not B3 observation",
+        "Stage-1 markdown prose search of TZ-025: free-text cheese discount is present; quantity-range names as whole words are SOURCE ABSENT in this file. This is not a TypeScript lexical scan. Token miss is not a business fact and not B3 observation",
         "OPEN",
         "SPEC-OQ-002B",
         { newConcept: "SOURCE ABSENT in TZ-025 — not a business-flow observation" }
@@ -4204,7 +4205,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("TZ-BASKET-010");
   lines.push("Status: primary goal NOT MET — Stage-1 source search only; BUSINESS-FLOW OBSERVATION NOT OBTAINED");
   lines.push("OQ-002A: OPEN — SOURCE ABSENT in mockSellerCatalog; no conversion/tier lookup found in ADD_TO_BASKET itself; A1/A2 flow NOT OBTAINED; A3 NOT TESTABLE (no seller classification); SOURCE-010-TREE is a cleanup check of two historical FLOW-010 artifacts, not proof synthetic business-flow is absent");
-  lines.push("OQ-002B: OPEN — quantity-range tokens SOURCE ABSENT in sellers.ts / TZ-025; B1/B2/B3 flow NOT OBTAINED. Token miss is not a CooperativeSeller call-shape test and not a market finding");
+  lines.push("OQ-002B: OPEN — named identifier tokens SOURCE ABSENT in sellers.ts; range names as whole words SOURCE ABSENT in TZ-025 markdown; B1/B2/B3 flow NOT OBTAINED. Not a claim that no quantity-range mechanism exists under another name. Token miss is not a CooperativeSeller call-shape test and not a market finding");
   lines.push("NEW CONCEPT JUSTIFIED: no — source absence does not justify Package or PriceSchedule");
   lines.push("NO MODEL CHANGE: yes");
   lines.push("NO NEW INVARIANT: yes");
