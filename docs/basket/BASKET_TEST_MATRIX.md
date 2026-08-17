@@ -2,7 +2,7 @@
 
 **Status:** Experimental Baseline v0.1
 
-`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 56 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
+`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 72 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
 
 | ID | Scenario | Model | Emulator | /sim demo | Main check |
 |---|---|:---:|:---:|:---:|---|
@@ -62,6 +62,22 @@
 | ALT-STABILITY-001 | offer/sub/replace | ✓ |  |  | List alt after primary replaced |
 | PRICE-REGRESSION-001 | hike/discount | ✓ |  |  | 15 is MAD/kg |
 | PRICE-TOTAL-001 | invalid qty/price | ✓ |  |  | I-030/I-046; absence named |
+| PACKAGE-SEM-001 | 1 package @ 60 accept | ✓ |  |  | package as unit |
+| PACKAGE-SEM-002 | 5 vs 20 package basis | ✓ |  |  | contents not stored |
+| PACKAGE-SEM-003 | catalog size ≠ requested | ✓ |  |  | I-045 / I-047 |
+| PACKAGE-SEM-004 | 2 kg vs package catalog | ✓ |  |  | no conversion |
+| PACKAGE-SEM-005 | 2 kg < external 5 kg pack | ✓ |  |  | no partial package |
+| PACKAGE-SEM-006 | 6 kg > external 5 kg pack | ✓ |  |  | no split / whole-only |
+| VOLUME-PRICE-001 | 5@15 and 20@15 | ✓ |  |  | linear baseline |
+| VOLUME-PRICE-002 | 5@15 vs 20@12 | ✓ |  |  | two Offers |
+| VOLUME-PRICE-003 | 20@15 then 20@12 | ✓ |  |  | A immutable |
+| VOLUME-PRICE-004 | same total 100 | ✓ |  |  | not Offer identity |
+| VOLUME-PRICE-005 | 3@20 / 7@17 / 12@14 | ✓ |  |  | concrete Offers |
+| VOLUME-PRICE-005B | standing tier schedule | ✓ |  |  | schedule OPEN |
+| VOLUME-PRICE-006 | qty 5→10 | ✓ |  |  | new Offer |
+| VOLUME-PRICE-007 | 5@15 → 10@12 | ✓ |  |  | seller reprice |
+| VOLUME-PRICE-008 | 20 kg @ 12 in snapshot | ✓ |  |  | price basis kept |
+| SNAPSHOT-VOL-001 | canonical vol snapshot | ✓ |  |  | contents absent |
 
 TZ-004 assistant demos on `/sim` (DISCOUNT / HIKE / SELLER) are training overlays, not rows in this BS matrix.
 

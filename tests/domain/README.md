@@ -48,6 +48,22 @@ npx tsx experiments/basket/tests/run.ts
 | `ALT-STABILITY-001` | List alternative remains after current item is replaced | `scenarios.ts` ALT-STABILITY-001 |
 | `PRICE-REGRESSION-001` | hike/discount still use unit price | `scenarios.ts` PRICE-REGRESSION-001 |
 | `PRICE-TOTAL-001` | I-030/I-046 bounds; `unitLineTotal` only multiplies | `scenarios.ts` PRICE-TOTAL-001 |
+| `PACKAGE-SEM-001` | 1 package @ 60 offered, accepted, snapshotted | `scenarios.ts` PACKAGE-SEM-001 |
+| `PACKAGE-SEM-002` | package bases not stored (OPEN OQ-002A) | `scenarios.ts` PACKAGE-SEM-002 |
+| `PACKAGE-SEM-003` | catalog package size ≠ requested quantity | `scenarios.ts` PACKAGE-SEM-003 |
+| `PACKAGE-SEM-004` | 2 kg vs package catalog — no conversion | `scenarios.ts` PACKAGE-SEM-004 |
+| `PACKAGE-SEM-005` | no partial package | `scenarios.ts` PACKAGE-SEM-005 |
+| `PACKAGE-SEM-006` | no whole-package-only / split | `scenarios.ts` PACKAGE-SEM-006 |
+| `VOLUME-PRICE-001` | linear 5@15 and 20@15 | `scenarios.ts` VOLUME-PRICE-001 |
+| `VOLUME-PRICE-002` | volume discount is two Offers | `scenarios.ts` VOLUME-PRICE-002 |
+| `VOLUME-PRICE-003` | same qty, different price; A immutable | `scenarios.ts` VOLUME-PRICE-003 |
+| `VOLUME-PRICE-004` | same derived total ≠ same Offer | `scenarios.ts` VOLUME-PRICE-004 |
+| `VOLUME-PRICE-005` | concrete quantity-dependent Offers | `scenarios.ts` VOLUME-PRICE-005 |
+| `VOLUME-PRICE-005B` | standing schedule absent (OPEN OQ-002B) | `scenarios.ts` VOLUME-PRICE-005B |
+| `VOLUME-PRICE-006` | quantity change is a new Offer | `scenarios.ts` VOLUME-PRICE-006 |
+| `VOLUME-PRICE-007` | seller reprice after qty increase | `scenarios.ts` VOLUME-PRICE-007 |
+| `VOLUME-PRICE-008` | snapshot keeps unit-price basis | `scenarios.ts` VOLUME-PRICE-008 |
+| `SNAPSHOT-VOL-001` | requested/agreed/current/alt; contents absent | `scenarios.ts` SNAPSHOT-VOL-001 |
 | *(SPEC OQ-003)* | duplicate ListItems of same `(productId, unit)` | `run.ts` `DUPLICATE_LINE` (explicit, not silent collapse) |
 
 A PR that confirms a new domain rule MUST add or update a row here **and** the executable test.

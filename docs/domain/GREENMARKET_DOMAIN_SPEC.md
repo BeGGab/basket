@@ -1,8 +1,8 @@
 # GreenMarket Domain Specification
 
-Version: 0.4
+Version: 0.5
 Status: EXPERIMENTAL
-Update basis: TZ-BASKET-006 (price semantics / package quantity)
+Update basis: TZ-BASKET-007 (package semantics / volume pricing experiment)
 Scope: Stage 1 Basket Experiment
 Purpose: a single domain contract for the core code, emulators, scenarios, tests, and the later AI layer.
 
@@ -224,27 +224,48 @@ every item (I-046).
 **Affected scenarios:** PRICE-UNIT-001, PRICE-UNIT-002, PRICE-OFFER-001, PRICE-QTY-001,
 PRICE-ABSENT-001, PRICE-CATALOG-QTY-001, PRICE-SNAPSHOT-001, PRICE-REGRESSION-001.
 
-## 13.1 Package / reference quantity (Stage-1 constraint; OQ-002 remains OPEN)
+## 13.1 Package semantics (OQ-002A remains OPEN)
 
 **Stage-1 representation (CONFIRMED).** Catalog `quantity` is a reference/package size of that
 catalog row (I-045). `unit = "package"` is a commercial unit like `kg`: `1 package @ 60` means
-60 per package. Catalog `quantity` does not scale `price` and is not a conversion into another
-unit. This specification does **not** introduce `Package` or `Price` entities and does not
-auto-convert 60 MAD/package into 12 MAD/kg.
+60 per package. That fact can be offered, accepted, and shown in a snapshot. Catalog `quantity`
+does not scale `price` and is not a conversion into another unit. This specification does
+**not** introduce a `Package` entity and does not auto-convert 60 MAD/package into 12 MAD/kg.
 
-**Business semantics (OPEN — OQ-002).** The experiment shows that the current identity
-`(sellerId, productId, unit)` cannot *represent* volume pricing (same line, different package
-sizes, different unit prices → `AMBIGUOUS_PRICE`) or package contents (`1 package = 5 kg`).
+**Package contents (OPEN — OQ-002A / I-047).** External experimenter knowledge such as
+`1 package = 5 kg` vs `1 package = 20 kg` is not a stored Catalog, Offer, or PurchaseItem fact.
+Current identity `(sellerId, productId, unit)` cannot represent distinct package bases. Two
+catalog rows that differ only in that external basis collapse or become `AMBIGUOUS_PRICE` when
+prices disagree. Distinguishability by `price` is not contents. Requested `PurchaseItem.quantity`
+is not copied from catalog package size. A `kg` ListItem is not resolved against a `package`
+catalog row. Partial / whole-only package is not a domain concept.
+
 That is a MODEL GAP / limitation of Stage-1 representation. It is **not** a decision that
-volume pricing or package-contents conversion must not exist in the future domain.
+package contents or conversion must not exist later.
 
-**Rationale.** Putting package size into CatalogLine identity, or treating catalog `quantity` as
-a hidden kg conversion, would smuggle a new rule through an existing field. The next experiment
-must decide the business semantics before any new concept is added.
+**Affected invariants:** I-036, I-045, I-047.
 
-**Affected invariants:** I-036, I-045.
+**Affected scenarios:** PACKAGE-001 / PACKAGE-SEM-001 (unit CONFIRMED); PACKAGE-SEM-002 / 004 /
+005 / 006 and PACKAGE-003 / 004 (OPEN — OQ-002A).
 
-**Affected scenarios:** PACKAGE-001 (representation CONFIRMED), PACKAGE-004 (contents OPEN), PACKAGE-002 / PACKAGE-003 (OPEN — OQ-002).
+## 13.2 Volume pricing (OQ-002B: Stage-1 constraint; standing schedule OPEN)
+
+**Stage-1 (CONFIRMED — I-048).** A concrete volume-priced deal is an Offer
+`(quantity, unit, price)`. `5 kg @ 15` and `20 kg @ 12` are two Offers. Equal derived totals
+(`5×20 = 10×10 = 100`) are arithmetic, not Offer identity. Quantity change or reprice is a new
+Offer (I-044); the previous Offer is not mutated. Snapshot keeps the unit-price basis
+(`20 kg @ 12`), not a stored `price = 240`. A `VolumePrice` entity is not required to represent
+these concrete deals. I-042 is unchanged: `price` remains the price of one unit.
+
+**Standing schedule (OPEN — OQ-002B).** A quantity-range condition such as
+`1–4 kg → 20 / 5–9 kg → 17 / 10+ kg → 14` existing *before* a concrete Offer is not a domain
+object. Concrete Offers `3@20`, `7@17`, `12@14` do not prove that schedule. This specification
+does not introduce `PriceSchedule`.
+
+**Affected invariants:** I-042, I-044, I-048.
+
+**Affected scenarios:** VOLUME-PRICE-001…008 (concrete Offers CONFIRMED);
+VOLUME-PRICE-005B (schedule OPEN); SNAPSHOT-VOL-001 (contents still absent).
 
 Alternative *selection policy* (AUTO_ACCEPT / BEST_PRICE / ASK_BUYER) is a different question and
 stays **OPEN — SPEC OQ-008**.
@@ -620,7 +641,16 @@ PRICE-OFFER-001          price 15 → 12 is a new immutable Offer
 PACKAGE-001              1 package @ 60 representable as a unit (CONFIRMED)
 PACKAGE-002              catalog qty 5 → 20: same unit price ok; different unit price AMBIGUOUS
 PACKAGE-003              MODEL GAP: current identity cannot represent distinct package bases
-PACKAGE-004              package contents / conversion absent — OPEN (OQ-002)
+PACKAGE-004              package contents / conversion absent — OPEN (OQ-002A)
+PACKAGE-SEM-001          1 package @ 60 offered, accepted, snapshotted (CONFIRMED unit)
+PACKAGE-SEM-002          5 vs 20 package basis not stored — OPEN (OQ-002A)
+PACKAGE-SEM-003          catalog package size ≠ requested quantity
+PACKAGE-SEM-004          2 kg vs package catalog — no conversion — OPEN (OQ-002A)
+VOLUME-PRICE-001         5@15=75 and 20@15=300
+VOLUME-PRICE-002         5@15 and 20@12 are two Offers
+VOLUME-PRICE-005         concrete tier-like Offers representable
+VOLUME-PRICE-005B        standing quantity-range schedule absent — OPEN (OQ-002B)
+SNAPSHOT-VOL-001         requested/agreed/current/alt/derived; package contents absent
 ALT-PRICE-001            primary cheaper than alternative — representation only
 ALT-PRICE-002            FIRST_AVAILABLE / PRIMARY_ONLY are not BEST_PRICE; policy OPEN (OQ-008)
 PRICE-SNAPSHOT-001       agreed / current / alternative visible together
@@ -651,10 +681,13 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
 
 - **OQ-001 — Price semantics.** **CLOSED** in v0.4. See §13: `price` is the price of one `unit`.
   A derived line total is `quantity * price` and is not stored.
-- **OQ-002 — Package / volume pricing business semantics.** **OPEN.** Stage-1 records a
-  representation constraint (see §13.1 / I-045): catalog `quantity` is not a multiplier or unit
-  conversion. Whether the domain should later support volume pricing or package contents is
-  undecided. PACKAGE-002 / PACKAGE-003 / PACKAGE-004 are evidence of the current limitation, not a policy.
+- **OQ-002 — Package / volume pricing.** Split in v0.5. Parent remains for traceability.
+- **OQ-002A — Package semantics.** **OPEN.** `package` is a unit (PACKAGE-SEM-001). Contents,
+  conversion, and partial/whole package are not stored facts (I-047). PACKAGE-SEM-002/004/005/006
+  are limitation evidence, not a policy that contents must not exist.
+- **OQ-002B — Volume pricing.** **Stage-1 constraint + remaining OPEN.** A concrete volume deal
+  is an Offer (I-048 / VOLUME-PRICE-002). A standing quantity-range schedule before an Offer is
+  a MODEL GAP (VOLUME-PRICE-005B). `VolumePrice` is not introduced.
 - **OQ-003 — Duplicate ListItems.** What to do with `Tomatoes / 2 kg` and `Tomatoes / 5 kg` in one
   List? **OPEN**
 - **OQ-004 — Expired agreed Offer.** **CLOSED** in v0.3 (maps to experiment OQ-009). See §38:
@@ -699,6 +732,9 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
 | v0.3 | TZ-BASKET-005 | world clock + `advance` are the time model; `tick` is not a domain operation (exp OQ-012 CLOSED) |
 | v0.4 | TZ-BASKET-006 | `price` is the price of one `unit`; no stored `linePrice` (SPEC OQ-001 CLOSED) |
 | v0.4 | TZ-BASKET-006 | catalog `quantity` is Stage-1 reference size only (I-045); SPEC OQ-002 remains OPEN for package/volume business semantics |
+| v0.5 | TZ-BASKET-007 | SPEC OQ-002 split into OQ-002A (package contents OPEN) and OQ-002B (concrete volume = Offer; standing schedule OPEN) |
+| v0.5 | TZ-BASKET-007 | I-047: package contents in another unit is not a stored fact |
+| v0.5 | TZ-BASKET-007 | I-048: concrete volume deal is an Offer; no VolumePrice / PriceSchedule entity |
 
 ## 50. Rule for the next PR
 
@@ -720,7 +756,7 @@ Observation → Domain decision → SPEC update → Invariant → Scenario → I
 
 ## 51. Current main technical conclusion
 
-After v0.4, price is split cleanly from package size, and Offer time from v0.3 remains:
+After v0.5, package-as-unit and concrete volume Offers are split from still-open contents/schedules:
 
 ```
 price          → price of one unit (derived total = quantity × price; not stored)
@@ -737,7 +773,8 @@ OQ-011 CLOSED    Stage-1 silence: no command ⇒ no lifecycle change
 OQ-012 CLOSED    passage of time: no SELLER_UNRESPONSIVE / auto-EXPIRED
 
 OQ-001 CLOSED    price = price of one unit
-OQ-002 OPEN      package/volume business semantics (Stage-1: catalog qty is not a multiplier)
+OQ-002A OPEN     package is a unit; contents/conversion/partial remain MODEL GAP
+OQ-002B Stage-1  concrete volume deal = Offer; standing schedule OPEN
 OQ-005 OPEN      negotiation lifetime / TTL
 OQ-003 OPEN      duplicate ListItems
 OQ-008 OPEN      alternative price policy (not a representation question)
