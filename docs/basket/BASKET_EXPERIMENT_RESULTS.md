@@ -1007,8 +1007,8 @@ Record evidence from the mock domain and seller emulator.
 
 ### SOURCE-010-TREE — Impl PASS / Domain OPEN (SPEC-OQ-002A)
 
-- Expected: scannedEnough=true; flow010Run=false; observeCooperativeAcceptHelper=false
-- Actual: scannedEnough=true; flow010Run=false; observeCooperativeAcceptHelper=false
+- Expected: walkComplete=true; flow010Run=false; observeCooperativeAcceptHelper=false
+- Actual: walkComplete=true; flow010Run=false; observeCooperativeAcceptHelper=false
 - Invariant: I-047 I-050
 - Hypothesis: OPEN
 - Open question: SPEC-OQ-002A

@@ -3985,12 +3985,12 @@ export function runAllScenarios(): ScenarioResult[] {
         "SOURCE-010-TREE",
         "I-047 I-050",
         {
-          scannedEnough: true,
+          walkComplete: true,
           flow010Run: false,
           observeCooperativeAcceptHelper: false,
         },
         {
-          scannedEnough: scan.scannedFiles >= 8,
+          walkComplete: scan.walkComplete,
           flow010Run: scan.flow010Run,
           observeCooperativeAcceptHelper: scan.observeCooperativeAccept,
         },

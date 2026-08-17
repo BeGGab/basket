@@ -197,19 +197,27 @@ function listTsFiles(dir: string): string[] {
   return out;
 }
 
-/** Scan experiments/basket TypeScript, not only scenarios.ts. */
+/** Scan every .ts file under experiments/basket, not only scenarios.ts. */
 export function scanBasketExperimentForFlow010(): {
+  walkComplete: boolean;
   scannedFiles: number;
   flow010Run: boolean;
   observeCooperativeAccept: boolean;
 } {
   const files = listTsFiles(join(GREENMARKET_ROOT, "experiments/basket"));
+  let inspected = 0;
   let flow010Run = false;
   let observeCooperativeAccept = false;
   for (const file of files) {
     const artifacts = flow010ArtifactsPresent(readFileSync(file, "utf8"));
     flow010Run = flow010Run || artifacts.flow010Run;
     observeCooperativeAccept = observeCooperativeAccept || artifacts.observeCooperativeAccept;
+    inspected += 1;
   }
-  return { scannedFiles: files.length, flow010Run, observeCooperativeAccept };
+  return {
+    walkComplete: files.length > 0 && inspected === files.length,
+    scannedFiles: inspected,
+    flow010Run,
+    observeCooperativeAccept,
+  };
 }

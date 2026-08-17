@@ -289,7 +289,7 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 |---|---|
 | Scenario ID | SOURCE-010-TREE |
 | Kind | Scan of `experiments/basket/**/*.ts` for leftover synthetic FLOW-010 |
-| Recorded facts | no `run("FLOW-010-…")`; no `function observeCooperativeAccept(`; enough `.ts` files were scanned |
+| Recorded facts | no `run("FLOW-010-…")`; no `function observeCooperativeAccept(`; recursive walk of `experiments/basket` completed and every listed `.ts` file was inspected |
 | Domain conclusion | The two known FLOW-010 artifacts are absent from **experiments/basket TypeScript**. Does not prove absence of a differently named helper, of synthetic flow without those ids, or of leftover logic in `docs/` / other packages. Not a business-flow observation. |
 | Open question | SPEC OQ-002A |
 | New concept justified? | **no** |
