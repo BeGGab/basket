@@ -2,7 +2,7 @@
 
 **Status:** Experimental Baseline v0.1
 
-`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 92 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
+`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 93 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
 
 | ID | Scenario | Model | Emulator | /sim demo | Main check |
 |---|---|:---:|:---:|:---:|---|
@@ -97,7 +97,8 @@
 | SOURCE-010-CATALOG | read mockSellerCatalog.ts | ✓ |  |  | OPEN; SOURCE ABSENT, not observation |
 | SOURCE-010-EMULATOR | read sellers.ts | ✓ |  |  | OPEN; no quantity-range mechanism |
 | SOURCE-010-BASKET | read ADD_TO_BASKET | ✓ |  |  | OPEN; copies listed unit/price |
-| SOURCE-010-TZ025 | read TZ-025 | ✓ |  |  | OPEN; free-text, no range table |
+| SOURCE-010-TZ025 | read TZ-025 | ✓ |  |  | OPEN; free-text, no range tokens |
+| SOURCE-010-TREE | HEAD has no FLOW-010 run | ✓ |  |  | OPEN; proves FLOW-010 absent from scenarios.ts |
 
 TZ-004 assistant demos on `/sim` (DISCOUNT / HIKE / SELLER) are training overlays, not rows in this BS matrix.
 

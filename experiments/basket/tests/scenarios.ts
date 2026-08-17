@@ -10,9 +10,10 @@ import { hasStoredLinePrice, lineTotalAbsence, unitLineTotal } from "../domain/p
 import { adviseBuyer, catalogReferencePrice } from "../assistants";
 import {
   extractCategoryBlock,
-  extractFunction,
+  extractNamedDeclaration,
   findSeed,
-  mentionsQuantityRangeTable,
+  flow010ArtifactsPresent,
+  mentionsQuantityRangeTokens,
   mentionsSackContents,
   parseListedSeeds,
   readStage1,
@@ -3881,26 +3882,30 @@ export function runAllScenarios(): ScenarioResult[] {
         "SOURCE-010-CATALOG",
         "I-047 I-050",
         {
-          potatoUnit: "1 кг",
-          potatoPrice: 55,
-          tomatoUnit: "1 кг",
-          tomatoPrice: 180,
-          honeyNamedCount: 3,
+          fileHasProductSeeds: true,
+          hasKgListedSeed: true,
           honey1kgCount: 0,
-          sackContents: false,
-          quantityRangeTable: false,
+          sackContentsTokens: false,
+          quantityRangeTokens: false,
+          potatoSnapshotUnit: "1 кг",
+          potatoSnapshotPrice: 55,
+          tomatoSnapshotUnit: "1 кг",
+          tomatoSnapshotPrice: 180,
+          honeyNamedSnapshotCount: 3,
         },
         {
-          potatoUnit: potato?.unit ?? null,
-          potatoPrice: potato?.price ?? null,
-          tomatoUnit: tomato?.unit ?? null,
-          tomatoPrice: tomato?.price ?? null,
-          honeyNamedCount: honeys.length,
+          fileHasProductSeeds: source.includes("PRODUCT_SEEDS"),
+          hasKgListedSeed: seeds.some((seed) => seed.unit === "1 кг"),
           honey1kgCount: honeys.filter((seed) => seed.unit === "1 кг").length,
-          sackContents: mentionsSackContents(source),
-          quantityRangeTable: mentionsQuantityRangeTable(source),
+          sackContentsTokens: mentionsSackContents(source),
+          quantityRangeTokens: mentionsQuantityRangeTokens(source),
+          potatoSnapshotUnit: potato?.unit ?? null,
+          potatoSnapshotPrice: potato?.price ?? null,
+          tomatoSnapshotUnit: tomato?.unit ?? null,
+          tomatoSnapshotPrice: tomato?.price ?? null,
+          honeyNamedSnapshotCount: honeys.length,
         },
-        "Stage-1 source search of mockSellerCatalog.ts: listed units/prices are in the file; sack contents and quantity-range table are SOURCE ABSENT. This is not a business-flow observation and does not test A3 seller classification",
+        "Stage-1 source search of mockSellerCatalog.ts: PRODUCT_SEEDS is present; sack/range tokens are SOURCE ABSENT; no 1 kg honey listing. Potato/tomato/honey-name facts are a snapshot of the current file (rename fails this regression, not OQ-002A semantics). Token miss is not a business-flow observation and does not test A3 seller classification",
         "OPEN",
         "SPEC-OQ-002A",
         { newConcept: "SOURCE ABSENT in mockSellerCatalog.ts — not a business-flow observation" }
@@ -3921,6 +3926,7 @@ export function runAllScenarios(): ScenarioResult[] {
           hasTierPrice: false,
           hasPriceSchedule: false,
           timeDiscountSubtracts3: true,
+          quantityRangeTokens: false,
         },
         {
           cooperativeAcceptsBuyerAsIs: /acceptOffer\(latestBuyer\.id,\s*"SELLER"\)/.test(source),
@@ -3929,8 +3935,9 @@ export function runAllScenarios(): ScenarioResult[] {
           hasTierPrice: source.includes("tierPrice"),
           hasPriceSchedule: source.includes("PriceSchedule"),
           timeDiscountSubtracts3: /\(item\.price \?\? 0\) - 3/.test(source),
+          quantityRangeTokens: mentionsQuantityRangeTokens(source),
         },
-        "Stage-1 source search of sellers.ts: CooperativeSeller accepts the buyer Offer as-is; no quantity-range mechanism exists, so a CooperativeSeller run cannot observe a range or pack-contents decision. SOURCE ABSENT of mechanism, not a business-flow finding",
+        "Stage-1 source search of sellers.ts: CooperativeSeller accepts the buyer Offer as-is; quantity-range tokens/mechanism are SOURCE ABSENT in this file. A token miss is not a market finding that sellers have no range rule",
         "OPEN",
         "SPEC-OQ-002B",
         { newConcept: "SOURCE ABSENT — emulator has no quantity-range mechanism" }
@@ -3940,23 +3947,27 @@ export function runAllScenarios(): ScenarioResult[] {
 
   results.push(
     run("SOURCE-010-BASKET", () => {
-      const addToBasket = extractFunction(readStage1("basket"), "addToBasket", "removeFromBasket");
+      const addToBasket = extractNamedDeclaration(readStage1("basket"), "addToBasket");
       return prove(
         "SOURCE-010-BASKET",
         "I-045 I-050",
         {
+          declarationFound: true,
           copiesUnit: true,
           copiesPrice: true,
           hasConversion: false,
           hasTierPrice: false,
+          usesBasketStore: true,
         },
         {
+          declarationFound: addToBasket.length > 0,
           copiesUnit: /unit:\s*payload\.unit/.test(addToBasket),
           copiesPrice: /price:\s*payload\.price/.test(addToBasket),
           hasConversion: /conversionFactor|packageContents/.test(addToBasket),
           hasTierPrice: /tierPrice|minQuantity|maxQuantity/.test(addToBasket),
+          usesBasketStore: addToBasket.includes("BasketStore"),
         },
-        "Stage-1 source search of BasketActionHandlers.ts: ADD_TO_BASKET copies listed unit and price. SOURCE ABSENT of conversion/tier lookup. Not a seller pricing observation",
+        "Stage-1 source search of BasketActionHandlers.ts: addToBasket declaration was found (function or const form) and copies listed unit/price. SOURCE ABSENT of conversion/tier lookup. Not a seller pricing observation",
         "OPEN",
         "SPEC-OQ-002A",
         { newConcept: "SOURCE ABSENT in ADD_TO_BASKET — not a business-flow observation" }
@@ -3972,16 +3983,41 @@ export function runAllScenarios(): ScenarioResult[] {
         "I-050",
         {
           cheeseDiscountText: true,
-          quantityRangeTable: false,
+          quantityRangeTokens: false,
         },
         {
           cheeseDiscountText: source.includes("Сегодня скидка на сыр"),
-          quantityRangeTable: mentionsQuantityRangeTable(source),
+          quantityRangeTokens: mentionsQuantityRangeTokens(source),
         },
-        "Stage-1 source search of TZ-025: free-text cheese discount is present; a quantity-range table is SOURCE ABSENT. Not B3 schedule-change observation",
+        "Stage-1 source search of TZ-025: free-text cheese discount is present; quantity-range tokens are SOURCE ABSENT in this file. Token miss is not a business fact and not B3 observation",
         "OPEN",
         "SPEC-OQ-002B",
         { newConcept: "SOURCE ABSENT in TZ-025 — not a business-flow observation" }
+      );
+    })
+  );
+
+  results.push(
+    run("SOURCE-010-TREE", () => {
+      const source = readStage1("scenarios");
+      const artifacts = flow010ArtifactsPresent(source);
+      return prove(
+        "SOURCE-010-TREE",
+        "I-047 I-050",
+        {
+          flow010Run: false,
+          observeCooperativeAcceptHelper: false,
+          source010CatalogRun: true,
+        },
+        {
+          flow010Run: artifacts.flow010Run,
+          observeCooperativeAcceptHelper: artifacts.observeCooperativeAccept,
+          source010CatalogRun: /run\(\s*"SOURCE-010-CATALOG"/.test(source),
+        },
+        "Final experiment tree: scenarios.ts has no FLOW-010 run() and no observeCooperativeAccept helper. Net diff vs main has no FLOW-010 deletion hunks because those ids never existed on main; this row proves they are absent from HEAD",
+        "OPEN",
+        "SPEC-OQ-002A",
+        { newConcept: "FLOW-010 absent from HEAD — not a business-flow observation" }
       );
     })
   );
@@ -4001,7 +4037,7 @@ export function formatResults(rows: ScenarioResult[]): string {
     "",
     "- **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).",
     "- **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).",
-    "- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG/BASKET, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, catalog/spec reconstruction, or Stage-1 source absence — not a business-flow observation and not a policy.",
+    "- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG/BASKET/TREE, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, catalog/spec reconstruction, or Stage-1 source absence — not a business-flow observation and not a policy.",
     "- Do not treat Impl PASS as confirmation of an unresolved OQ.",
     "- Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.",
     `- All ${rows.length} scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.`,
@@ -4155,7 +4191,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("");
   lines.push("TZ-BASKET-010");
   lines.push("Status: primary goal NOT MET — Stage-1 source search only; BUSINESS-FLOW OBSERVATION NOT OBTAINED");
-  lines.push("OQ-002A: OPEN — SOURCE ABSENT in mockSellerCatalog / ADD_TO_BASKET; A1/A2 flow NOT OBTAINED; A3 NOT TESTABLE (no seller classification)");
+  lines.push("OQ-002A: OPEN — SOURCE ABSENT in mockSellerCatalog / ADD_TO_BASKET; A1/A2 flow NOT OBTAINED; A3 NOT TESTABLE (no seller classification); SOURCE-010-TREE proves FLOW-010 absent from HEAD");
   lines.push("OQ-002B: OPEN — SOURCE ABSENT of quantity-range mechanism in emulator; B1/B2/B3 flow NOT OBTAINED. CooperativeSeller accept-as-is cannot produce range evidence");
   lines.push("NEW CONCEPT JUSTIFIED: no — source absence does not justify Package or PriceSchedule");
   lines.push("NO MODEL CHANGE: yes");

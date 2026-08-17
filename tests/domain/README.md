@@ -83,7 +83,8 @@ npx tsx experiments/basket/tests/run.ts
 | `SOURCE-010-CATALOG` | source search of mockSellerCatalog.ts; SOURCE ABSENT, not observation | `scenarios.ts` SOURCE-010-CATALOG |
 | `SOURCE-010-EMULATOR` | source search of sellers.ts; no quantity-range mechanism | `scenarios.ts` SOURCE-010-EMULATOR |
 | `SOURCE-010-BASKET` | source search of ADD_TO_BASKET; copies listed unit/price | `scenarios.ts` SOURCE-010-BASKET |
-| `SOURCE-010-TZ025` | source search of TZ-025; free-text discount, no range table | `scenarios.ts` SOURCE-010-TZ025 |
+| `SOURCE-010-TZ025` | source search of TZ-025; free-text discount, no range tokens | `scenarios.ts` SOURCE-010-TZ025 |
+| `SOURCE-010-TREE` | HEAD scenarios.ts has no FLOW-010 run / observeCooperativeAccept helper | `scenarios.ts` SOURCE-010-TREE |
 | *(SPEC OQ-003)* | duplicate ListItems of same `(productId, unit)` | `run.ts` `DUPLICATE_LINE` (explicit, not silent collapse) |
 
 A PR that confirms a new domain rule MUST add or update a row here **and** the executable test.

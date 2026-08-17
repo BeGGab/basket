@@ -121,9 +121,22 @@ TZ допускал «documented absence» как Variant 1. После review �
 
 Search log «No quantity-range table / No sack=kg / No live interview» доказывает только: Stage-1 implementation currently contains no such evidence.
 
-### H8. DoD не должен закрывать эксперимент как выполненную главную цель
+### H9. Net diff vs main has no FLOW-010 deletion hunks
 
-Documented source absence не равно полученному business-flow observation. Primary goal remains unmet.
+FLOW-010 never existed on `main`. The first commit of this PR added them; the review commit removed them. `git diff main...HEAD` therefore shows only SOURCE-010. SOURCE-010-TREE proves HEAD `scenarios.ts` has no `run("FLOW-010-…")` and no `function observeCooperativeAccept`.
+
+### H10. `extractFunction("function name(")` was syntax-fragile
+
+Replaced by `extractNamedDeclaration`: `function` / `export function` / `const name = (` with brace matching, skipping `{` inside TypeScript parameter types (`Extract<Action, { type: ... }>`). SOURCE-010-BASKET requires `declarationFound=true` and `usesBasketStore=true`, so a missed or truncated extract fails closed.
+
+### H11. Exact seed names are a current-file snapshot
+
+`Картофель молодой` / `Томаты` / three honey names are a regression of this file, not a universal semantic detector. Semantic facts (`hasKgListedSeed`, `honey1kgCount`, sack/range tokens) do not depend on those names.
+
+### H12. Quantity-range detector is a token heuristic
+
+`mentionsQuantityRangeTokens` answers only whether those strings/identifiers appear. A miss is SOURCE ABSENT of tokens, not absence of a business rule.
+
 
 ## Search log (read-only, now executable)
 
@@ -288,14 +301,15 @@ I-042…I-050 unchanged. No I-051.
 
 | ID | Hypothesis | Что проверяет |
 |---|---|---|
-| SOURCE-010-CATALOG | OPEN | reads `mockSellerCatalog.ts`; listing facts; no sack; no range table; honey names, no 1 kg honey |
-| SOURCE-010-EMULATOR | OPEN | reads `sellers.ts`; CooperativeSeller is accept-as-is; no quantity-range mechanism |
-| SOURCE-010-BASKET | OPEN | reads `BasketActionHandlers.ts`; ADD_TO_BASKET copies listed unit/price |
-| SOURCE-010-TZ025 | OPEN | reads ТЗ-025; cheese-discount text; no range table |
+| SOURCE-010-CATALOG | OPEN | reads `mockSellerCatalog.ts`; semantic absences + current-file listing snapshot |
+| SOURCE-010-EMULATOR | OPEN | reads `sellers.ts`; CooperativeSeller is accept-as-is; no quantity-range tokens/mechanism |
+| SOURCE-010-BASKET | OPEN | finds `addToBasket` by declaration form; copies listed unit/price |
+| SOURCE-010-TZ025 | OPEN | reads ТЗ-025; cheese-discount text; no range tokens |
+| SOURCE-010-TREE | OPEN | HEAD `scenarios.ts` has no FLOW-010 run and no observeCooperativeAccept helper |
 
-FLOW-010-A1/A2/A3/B1/B2 **удалены** (synthetic CooperativeSeller / handmade catalog).
+FLOW-010-A1/A2/A3/B1/B2 are absent from HEAD (never on `main`; removed after PR-25 review). SOURCE-010-TREE is the executable proof.
 
-88 prior − 0 FLOW + 4 SOURCE-010 = 92 total after this correction (93 FLOW rows replaced by 4 source-search rows).
+88 TZ-009 scenarios + 5 SOURCE-010 = 93 total.
 
 ## Implementation
 
@@ -318,4 +332,7 @@ FLOW-010-A1/A2/A3/B1/B2 **удалены** (synthetic CooperativeSeller / handma
 - [x] Новая сущность не введена
 - [x] SPEC остаётся v0.6
 - [x] Production architecture не изменяется
-- [x] Главная цель ТЗ не отмечена как выполненная
+- [x] FLOW-010 отсутствует в HEAD (`experiments/basket`); SOURCE-010-TREE это доказывает
+- [x] `addToBasket` extractor устойчив к `function` / `const` и падает, если declaration не найдена
+- [x] Catalog seed names помечены как current-file snapshot, не как universal semantic detector
+- [x] Quantity-range detector помечен как token heuristic: miss = SOURCE ABSENT of tokens

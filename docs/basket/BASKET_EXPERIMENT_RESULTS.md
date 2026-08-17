@@ -8,10 +8,10 @@
 
 - **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).
 - **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).
-- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG/BASKET, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, catalog/spec reconstruction, or Stage-1 source absence — not a business-flow observation and not a policy.
+- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG/BASKET/TREE, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, catalog/spec reconstruction, or Stage-1 source absence — not a business-flow observation and not a policy.
 - Do not treat Impl PASS as confirmation of an unresolved OQ.
 - Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.
-- All 92 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
+- All 93 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
 
 ## Purpose
 
@@ -92,10 +92,11 @@ Record evidence from the mock domain and seller emulator.
 | PRICE-UNIT-002 | PASS | CONFIRMED | none | 2kg@15 vs 1kg@30 are different Offers; equal derived totals are arithmetic, not commercial equivalence |
 | PRICE-ZERO-001 | PASS | CONFIRMED | none | price 0 is a real unit price; derived total 0 is not a missing price |
 | SNAPSHOT-VOL-001 | PASS | OPEN (SPEC-OQ-002A) | none | canonical snapshot distinguishes requested/agreed/current/alt/derived; package contents remain absent |
-| SOURCE-010-BASKET | PASS | OPEN (SPEC-OQ-002A) | none | Stage-1 source search of BasketActionHandlers.ts: ADD_TO_BASKET copies listed unit and price. SOURCE ABSENT of conversion/tier lookup. Not a seller pricing observation |
-| SOURCE-010-CATALOG | PASS | OPEN (SPEC-OQ-002A) | none | Stage-1 source search of mockSellerCatalog.ts: listed units/prices are in the file; sack contents and quantity-range table are SOURCE ABSENT. This is not a business-flow observation and does not test A3 seller classification |
-| SOURCE-010-EMULATOR | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of sellers.ts: CooperativeSeller accepts the buyer Offer as-is; no quantity-range mechanism exists, so a CooperativeSeller run cannot observe a range or pack-contents decision. SOURCE ABSENT of mechanism, not a business-flow finding |
-| SOURCE-010-TZ025 | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of TZ-025: free-text cheese discount is present; a quantity-range table is SOURCE ABSENT. Not B3 schedule-change observation |
+| SOURCE-010-BASKET | PASS | OPEN (SPEC-OQ-002A) | none | Stage-1 source search of BasketActionHandlers.ts: addToBasket declaration was found (function or const form) and copies listed unit/price. SOURCE ABSENT of conversion/tier lookup. Not a seller pricing observation |
+| SOURCE-010-CATALOG | PASS | OPEN (SPEC-OQ-002A) | none | Stage-1 source search of mockSellerCatalog.ts: PRODUCT_SEEDS is present; sack/range tokens are SOURCE ABSENT; no 1 kg honey listing. Potato/tomato/honey-name facts are a snapshot of the current file (rename fails this regression, not OQ-002A semantics). Token miss is not a business-flow observation and does not test A3 seller classification |
+| SOURCE-010-EMULATOR | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of sellers.ts: CooperativeSeller accepts the buyer Offer as-is; quantity-range tokens/mechanism are SOURCE ABSENT in this file. A token miss is not a market finding that sellers have no range rule |
+| SOURCE-010-TREE | PASS | OPEN (SPEC-OQ-002A) | none | Final experiment tree: scenarios.ts has no FLOW-010 run() and no observeCooperativeAccept helper. Net diff vs main has no FLOW-010 deletion hunks because those ids never existed on main; this row proves they are absent from HEAD |
+| SOURCE-010-TZ025 | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of TZ-025: free-text cheese discount is present; quantity-range tokens are SOURCE ABSENT in this file. Token miss is not a business fact and not B3 observation |
 | VOLUME-008-001 | PASS | OPEN (SPEC-OQ-002B) | none | Buyer 3/7/12 kg does not read an external tier schedule from the domain |
 | VOLUME-008-002 | PASS | CONFIRMED | none | a pre-negotiation tier announcement is not an Offer, has no id, and cannot be accepted |
 | VOLUME-008-003 | PASS | CONFIRMED | none | 7 kg @ 17 is a concrete Offer; schedule is not stored as provenance |
@@ -970,51 +971,63 @@ Record evidence from the mock domain and seller emulator.
 
 ### SOURCE-010-BASKET — Impl PASS / Domain OPEN (SPEC-OQ-002A)
 
-- Expected: copiesUnit=true; copiesPrice=true; hasConversion=false; hasTierPrice=false
-- Actual: copiesUnit=true; copiesPrice=true; hasConversion=false; hasTierPrice=false
+- Expected: declarationFound=true; copiesUnit=true; copiesPrice=true; hasConversion=false; hasTierPrice=false; usesBasketStore=true
+- Actual: declarationFound=true; copiesUnit=true; copiesPrice=true; hasConversion=false; hasTierPrice=false; usesBasketStore=true
 - Invariant: I-045 I-050
 - Hypothesis: OPEN
 - Open question: SPEC-OQ-002A
 - Model violation: none
 - New concept: SOURCE ABSENT in ADD_TO_BASKET — not a business-flow observation
 - Workaround: none
-- Decision: Stage-1 source search of BasketActionHandlers.ts: ADD_TO_BASKET copies listed unit and price. SOURCE ABSENT of conversion/tier lookup. Not a seller pricing observation
+- Decision: Stage-1 source search of BasketActionHandlers.ts: addToBasket declaration was found (function or const form) and copies listed unit/price. SOURCE ABSENT of conversion/tier lookup. Not a seller pricing observation
 
 ### SOURCE-010-CATALOG — Impl PASS / Domain OPEN (SPEC-OQ-002A)
 
-- Expected: potatoUnit=1 кг; potatoPrice=55; tomatoUnit=1 кг; tomatoPrice=180; honeyNamedCount=3; honey1kgCount=0; sackContents=false; quantityRangeTable=false
-- Actual: potatoUnit=1 кг; potatoPrice=55; tomatoUnit=1 кг; tomatoPrice=180; honeyNamedCount=3; honey1kgCount=0; sackContents=false; quantityRangeTable=false
+- Expected: fileHasProductSeeds=true; hasKgListedSeed=true; honey1kgCount=0; sackContentsTokens=false; quantityRangeTokens=false; potatoSnapshotUnit=1 кг; potatoSnapshotPrice=55; tomatoSnapshotUnit=1 кг; tomatoSnapshotPrice=180; honeyNamedSnapshotCount=3
+- Actual: fileHasProductSeeds=true; hasKgListedSeed=true; honey1kgCount=0; sackContentsTokens=false; quantityRangeTokens=false; potatoSnapshotUnit=1 кг; potatoSnapshotPrice=55; tomatoSnapshotUnit=1 кг; tomatoSnapshotPrice=180; honeyNamedSnapshotCount=3
 - Invariant: I-047 I-050
 - Hypothesis: OPEN
 - Open question: SPEC-OQ-002A
 - Model violation: none
 - New concept: SOURCE ABSENT in mockSellerCatalog.ts — not a business-flow observation
 - Workaround: none
-- Decision: Stage-1 source search of mockSellerCatalog.ts: listed units/prices are in the file; sack contents and quantity-range table are SOURCE ABSENT. This is not a business-flow observation and does not test A3 seller classification
+- Decision: Stage-1 source search of mockSellerCatalog.ts: PRODUCT_SEEDS is present; sack/range tokens are SOURCE ABSENT; no 1 kg honey listing. Potato/tomato/honey-name facts are a snapshot of the current file (rename fails this regression, not OQ-002A semantics). Token miss is not a business-flow observation and does not test A3 seller classification
 
 ### SOURCE-010-EMULATOR — Impl PASS / Domain OPEN (SPEC-OQ-002B)
 
-- Expected: cooperativeAcceptsBuyerAsIs=true; hasMinQuantity=false; hasMaxQuantity=false; hasTierPrice=false; hasPriceSchedule=false; timeDiscountSubtracts3=true
-- Actual: cooperativeAcceptsBuyerAsIs=true; hasMinQuantity=false; hasMaxQuantity=false; hasTierPrice=false; hasPriceSchedule=false; timeDiscountSubtracts3=true
+- Expected: cooperativeAcceptsBuyerAsIs=true; hasMinQuantity=false; hasMaxQuantity=false; hasTierPrice=false; hasPriceSchedule=false; timeDiscountSubtracts3=true; quantityRangeTokens=false
+- Actual: cooperativeAcceptsBuyerAsIs=true; hasMinQuantity=false; hasMaxQuantity=false; hasTierPrice=false; hasPriceSchedule=false; timeDiscountSubtracts3=true; quantityRangeTokens=false
 - Invariant: I-047 I-050
 - Hypothesis: OPEN
 - Open question: SPEC-OQ-002B
 - Model violation: none
 - New concept: SOURCE ABSENT — emulator has no quantity-range mechanism
 - Workaround: none
-- Decision: Stage-1 source search of sellers.ts: CooperativeSeller accepts the buyer Offer as-is; no quantity-range mechanism exists, so a CooperativeSeller run cannot observe a range or pack-contents decision. SOURCE ABSENT of mechanism, not a business-flow finding
+- Decision: Stage-1 source search of sellers.ts: CooperativeSeller accepts the buyer Offer as-is; quantity-range tokens/mechanism are SOURCE ABSENT in this file. A token miss is not a market finding that sellers have no range rule
+
+### SOURCE-010-TREE — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: flow010Run=false; observeCooperativeAcceptHelper=false; source010CatalogRun=true
+- Actual: flow010Run=false; observeCooperativeAcceptHelper=false; source010CatalogRun=true
+- Invariant: I-047 I-050
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: FLOW-010 absent from HEAD — not a business-flow observation
+- Workaround: none
+- Decision: Final experiment tree: scenarios.ts has no FLOW-010 run() and no observeCooperativeAccept helper. Net diff vs main has no FLOW-010 deletion hunks because those ids never existed on main; this row proves they are absent from HEAD
 
 ### SOURCE-010-TZ025 — Impl PASS / Domain OPEN (SPEC-OQ-002B)
 
-- Expected: cheeseDiscountText=true; quantityRangeTable=false
-- Actual: cheeseDiscountText=true; quantityRangeTable=false
+- Expected: cheeseDiscountText=true; quantityRangeTokens=false
+- Actual: cheeseDiscountText=true; quantityRangeTokens=false
 - Invariant: I-050
 - Hypothesis: OPEN
 - Open question: SPEC-OQ-002B
 - Model violation: none
 - New concept: SOURCE ABSENT in TZ-025 — not a business-flow observation
 - Workaround: none
-- Decision: Stage-1 source search of TZ-025: free-text cheese discount is present; a quantity-range table is SOURCE ABSENT. Not B3 schedule-change observation
+- Decision: Stage-1 source search of TZ-025: free-text cheese discount is present; quantity-range tokens are SOURCE ABSENT in this file. Token miss is not a business fact and not B3 observation
 
 ### VOLUME-008-001 — Impl PASS / Domain OPEN (SPEC-OQ-002B)
 
@@ -1343,7 +1356,7 @@ Further closing OQ-002A/B still requires a business-flow observation, not anothe
 
 TZ-BASKET-010
 Status: primary goal NOT MET — Stage-1 source search only; BUSINESS-FLOW OBSERVATION NOT OBTAINED
-OQ-002A: OPEN — SOURCE ABSENT in mockSellerCatalog / ADD_TO_BASKET; A1/A2 flow NOT OBTAINED; A3 NOT TESTABLE (no seller classification)
+OQ-002A: OPEN — SOURCE ABSENT in mockSellerCatalog / ADD_TO_BASKET; A1/A2 flow NOT OBTAINED; A3 NOT TESTABLE (no seller classification); SOURCE-010-TREE proves FLOW-010 absent from HEAD
 OQ-002B: OPEN — SOURCE ABSENT of quantity-range mechanism in emulator; B1/B2/B3 flow NOT OBTAINED. CooperativeSeller accept-as-is cannot produce range evidence
 NEW CONCEPT JUSTIFIED: no — source absence does not justify Package or PriceSchedule
 NO MODEL CHANGE: yes

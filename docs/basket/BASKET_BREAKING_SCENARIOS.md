@@ -406,4 +406,8 @@ Reads `BasketActionHandlers.ts`. Copies listed `unit` and `price`. No conversion
 
 ## SOURCE-010-TZ025 — TZ-025 source search
 
-Free-text «Сегодня скидка на сыр». No quantity-range table. Not B3 observation (**OPEN — SPEC OQ-002B**).
+Free-text «Сегодня скидка на сыр». Quantity-range tokens SOURCE ABSENT in this file. Not B3 observation (**OPEN — SPEC OQ-002B**).
+
+## SOURCE-010-TREE — FLOW-010 absent from HEAD
+
+`scenarios.ts` has no `run("FLOW-010-…")` and no `function observeCooperativeAccept`. Net diff vs main has no FLOW-010 deletion hunks because those ids never existed on main (**OPEN — SPEC OQ-002A**).
