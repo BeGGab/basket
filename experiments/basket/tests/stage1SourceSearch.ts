@@ -42,32 +42,87 @@ export function readStage1(kind: keyof typeof STAGE1_PATHS): string {
 }
 
 type GapKind = "comment" | "string" | "regex";
-type PrevKind = "operand" | "other";
+type PrevKind = "operand" | "regexOk";
+
+const REGEX_AFTER_KEYWORDS = new Set([
+  "return",
+  "throw",
+  "case",
+  "yield",
+  "await",
+  "typeof",
+  "void",
+  "delete",
+  "new",
+  "else",
+  "in",
+  "of",
+  "instanceof",
+  "extends",
+  "do",
+]);
+
+const COND_KEYWORDS = new Set(["if", "while", "for", "with", "switch"]);
+
+function unescapeInner(raw: string): string {
+  return raw.replace(/\\(.)/g, "$1");
+}
 
 /**
  * Lexical walk over a TypeScript/JavaScript subset.
- * `onCode` sees source that is not inside a string, comment, or regex literal.
- * Regex vs division: `/` starts a regex unless the previous non-whitespace token
- * was an operand (identifier, number, string, regex, `]`, `++`, `--`).
- * Character classes and backslash escapes are honoured. Unterminated regex
- * stops at newline (fail-closed: that line is not treated as extra code).
- * Template `${` interpolations are not parsed as nested code.
+ * `onCode` sees source that is not inside a string, comment, regex, or template
+ * fragment. Template `${ ... }` interpolations are nested code.
+ * Regex vs division uses the previous completed token: operand (identifier that
+ * is not an expression-introducing keyword, number, string, regex, `]`, `)`,
+ * `++`, `--`) vs regexOk (operators, punctuation, and keywords such as return /
+ * throw / case / yield / await). After `if`/`while`/`for`/`with`/`switch` `(...)`
+ * the following `/` is a regex. Character classes and backslash escapes are
+ * honoured. Unterminated regex stops at newline.
  */
 function scanLexical<T>(
   source: string,
   start: number,
   onCode: (index: number, ch: string) => T | undefined,
-  onStringLiteral?: (rawIncludingQuotes: string, startIndex: number) => T | undefined,
+  onStringLiteral?: (value: string, startIndex: number) => T | undefined,
   onGap?: (kind: GapKind) => void
 ): T | undefined {
-  let quote: string | null = null;
+  let quote: "'" | '"' | null = null;
   let stringStart = -1;
   let lineComment = false;
   let blockComment = false;
-  let prevKind: PrevKind = "other";
+  let prevKind: PrevKind = "regexOk";
+  let identBuf = "";
+  const templates: { fragmentStart: number }[] = [];
+  const interps: number[] = [];
+  let condParen = 0;
+  let afterCondKw = false;
+
+  const finishIdent = () => {
+    if (!identBuf) return;
+    if (REGEX_AFTER_KEYWORDS.has(identBuf)) {
+      prevKind = "regexOk";
+      afterCondKw = false;
+    } else if (COND_KEYWORDS.has(identBuf)) {
+      prevKind = "operand";
+      afterCondKw = true;
+    } else {
+      prevKind = "operand";
+      afterCondKw = false;
+    }
+    identBuf = "";
+  };
+
+  const inTemplate = () => templates.length > 0 && interps.length === 0;
+
+  const emitString = (value: string, index: number): T | undefined => {
+    if (value.length === 0) return undefined;
+    return onStringLiteral?.(value, index);
+  };
+
   for (let i = start; i < source.length; i++) {
     const ch = source[i];
     const next = i + 1 < source.length ? source[i + 1] : "";
+
     if (lineComment) {
       if (ch === "\n") lineComment = false;
       continue;
@@ -79,22 +134,52 @@ function scanLexical<T>(
       }
       continue;
     }
+
     if (quote) {
       if (ch === "\\") {
         i += 1;
         continue;
       }
       if (ch === quote) {
-        const raw = source.slice(stringStart, i + 1);
+        const value = unescapeInner(source.slice(stringStart + 1, i));
         quote = null;
         const opened = stringStart;
         stringStart = -1;
         prevKind = "operand";
-        const hit = onStringLiteral?.(raw, opened);
+        const hit = emitString(value, opened);
         if (hit !== undefined) return hit;
       }
       continue;
     }
+
+    if (inTemplate()) {
+      const tmpl = templates[templates.length - 1];
+      if (ch === "\\") {
+        i += 1;
+        continue;
+      }
+      if (ch === "$" && next === "{") {
+        const value = unescapeInner(source.slice(tmpl.fragmentStart, i));
+        const hit = emitString(value, tmpl.fragmentStart);
+        if (hit !== undefined) return hit;
+        interps.push(1);
+        i += 1;
+        prevKind = "regexOk";
+        continue;
+      }
+      if (ch === "`") {
+        const value = unescapeInner(source.slice(tmpl.fragmentStart, i));
+        templates.pop();
+        prevKind = "operand";
+        const hit = emitString(value, tmpl.fragmentStart);
+        if (hit !== undefined) return hit;
+        continue;
+      }
+      continue;
+    }
+
+    if (identBuf && !isIdentChar(ch)) finishIdent();
+
     if (ch === "/" && next === "/") {
       onGap?.("comment");
       lineComment = true;
@@ -111,12 +196,18 @@ function scanLexical<T>(
       onGap?.("regex");
       i = consumeRegexLiteral(source, i);
       prevKind = "operand";
+      afterCondKw = false;
       continue;
     }
-    if (ch === '"' || ch === "'" || ch === "`") {
+    if (ch === '"' || ch === "'") {
       onGap?.("string");
       quote = ch;
       stringStart = i;
+      continue;
+    }
+    if (ch === "`") {
+      onGap?.("string");
+      templates.push({ fragmentStart: i + 1 });
       continue;
     }
     if ((ch === "+" && next === "+") || (ch === "-" && next === "-")) {
@@ -125,12 +216,47 @@ function scanLexical<T>(
       i += 1;
       const hit2 = onCode(i, source[i] ?? "");
       prevKind = "operand";
+      afterCondKw = false;
       if (hit2 !== undefined) return hit2;
       continue;
     }
-    if (!/\s/.test(ch)) {
-      prevKind = isIdentChar(ch) || /\d/.test(ch) || ch === "]" ? "operand" : "other";
+
+    if (interps.length > 0 && ch === "}") {
+      interps[interps.length - 1] -= 1;
+      if (interps[interps.length - 1] === 0) {
+        interps.pop();
+        if (templates.length > 0) templates[templates.length - 1].fragmentStart = i + 1;
+        continue;
+      }
     }
+
+    if (ch === "(") {
+      if (afterCondKw || condParen > 0) condParen += 1;
+      afterCondKw = false;
+      prevKind = "regexOk";
+    } else if (ch === ")") {
+      if (condParen > 0) {
+        condParen -= 1;
+        prevKind = condParen === 0 ? "regexOk" : "operand";
+      } else {
+        prevKind = "operand";
+      }
+      afterCondKw = false;
+    } else if (ch === "]") {
+      prevKind = "operand";
+      afterCondKw = false;
+    } else if (!/\s/.test(ch) && !isIdentStart(ch) && !(identBuf && isIdentChar(ch)) && !/\d/.test(ch)) {
+      if (interps.length > 0 && ch === "{") interps[interps.length - 1] += 1;
+      prevKind = "regexOk";
+      afterCondKw = false;
+    } else if (/\d/.test(ch) && !identBuf) {
+      prevKind = "operand";
+      afterCondKw = false;
+    }
+
+    if (!identBuf && isIdentStart(ch)) identBuf = ch;
+    else if (identBuf && isIdentChar(ch)) identBuf += ch;
+
     const hit = onCode(i, ch);
     if (hit !== undefined) return hit;
   }
@@ -262,9 +388,9 @@ function tokenize(source: string): Tok[] {
       tokens.push({ kind: "punct", value: ch, index: i });
       return undefined;
     },
-    (raw, startIndex) => {
+    (value, startIndex) => {
       flush();
-      tokens.push({ kind: "string", value: stringLiteralValue(raw), index: startIndex });
+      tokens.push({ kind: "string", value, index: startIndex });
       return undefined;
     },
     () => {
@@ -283,11 +409,6 @@ export function hasIdent(source: string, names: readonly string[]): boolean {
 
 export function codeContains(source: string, pattern: RegExp): boolean {
   return pattern.test(codeText(source));
-}
-
-function stringLiteralValue(rawIncludingQuotes: string): string {
-  if (rawIncludingQuotes.length < 2) return "";
-  return rawIncludingQuotes.slice(1, -1).replace(/\\(.)/g, "$1");
 }
 
 function isCodeIndex(source: string, index: number): boolean {
@@ -391,19 +512,29 @@ export function honeyCategorySearch(source: string): {
   };
 }
 
+/**
+ * Pack-contents tokens in lexical code: whole ident `мешок`, or
+ * `1 мешок = 5 kg` / `1 package = 5 kg` (unit must be kg/кг).
+ * `1 package = 5 apples` is not a hit.
+ */
 export function mentionsSackContents(source: string): boolean {
   const tokens = tokenize(source);
   if (tokens.some((token) => token.kind === "ident" && token.value.toLowerCase() === "мешок")) {
     return true;
   }
-  for (let i = 0; i + 3 < tokens.length; i++) {
+  for (let i = 0; i + 4 < tokens.length; i++) {
+    const pack = tokens[i + 1];
+    const unit = tokens[i + 4];
     if (
       tokens[i]?.kind === "number" &&
       tokens[i].value === "1" &&
-      ident(tokens[i + 1], "package") &&
+      pack?.kind === "ident" &&
+      (pack.value === "package" || pack.value.toLowerCase() === "мешок") &&
       punct(tokens[i + 2], "=") &&
       tokens[i + 3]?.kind === "number" &&
-      tokens[i + 3].value === "5"
+      tokens[i + 3].value === "5" &&
+      unit?.kind === "ident" &&
+      (unit.value === "kg" || unit.value === "кг")
     ) {
       return true;
     }
@@ -512,8 +643,9 @@ function findFunctionBodyOpen(source: string, openParenIndex: number): number {
  * the `{ ... }` body. Supported subset: `function name(`, `export function name(`,
  * `const|let|var name = (` with brace matching; strings, comments, and regex
  * literals skipped; `{` inside `Extract<…, { … }>` skipped via a paren/angle
- * heuristic. Not a TypeScript parser: template interpolations and arbitrary
- * `<`/`>` in defaults remain unsupported. Empty string = not found (fail-closed).
+ * heuristic. Template `${ ... }` interpolations are nested code. Not a TypeScript
+ * parser: arbitrary `<`/`>` in defaults remain unsupported. Empty string = not found
+ * (fail-closed).
  */
 export function extractNamedDeclaration(source: string, name: string): string {
   const tokens = tokenize(source);
@@ -649,7 +781,29 @@ export function assertStage1ScannerContract(): void {
   assert.equal(hasIdent("obj.minQuantity", ["minQuantity"]), true);
   assert.equal(hasIdent(`const r = ${slash("\\bminQuantity\\b")};`, ["minQuantity"]), false);
   assert.equal(hasIdent("a / minQuantity / b", ["minQuantity"]), true);
+  assert.equal(hasIdent("this / minQuantity", ["minQuantity"]), true);
+  assert.equal(hasIdent("foo() / minQuantity", ["minQuantity"]), true);
+  assert.equal(hasIdent("return /minQuantity/;", ["minQuantity"]), false);
+  assert.equal(hasIdent("throw /minQuantity/;", ["minQuantity"]), false);
+  assert.equal(hasIdent("case /minQuantity/:", ["minQuantity"]), false);
+  assert.equal(hasIdent("yield /minQuantity/;", ["minQuantity"]), false);
+  assert.equal(hasIdent("await /minQuantity/;", ["minQuantity"]), false);
+  assert.equal(hasIdent("typeof /minQuantity/;", ["minQuantity"]), false);
+  assert.equal(hasIdent("void /minQuantity/;", ["minQuantity"]), false);
+  assert.equal(hasIdent("delete /minQuantity/;", ["minQuantity"]), false);
+  assert.equal(hasIdent("new /minQuantity/;", ["minQuantity"]), false);
+  assert.equal(hasIdent("if (x) /minQuantity/.test(s)", ["minQuantity"]), false);
+  assert.equal(hasIdent("const x = `${minQuantity}`;", ["minQuantity"]), true);
+  assert.equal(hasIdent("const x = `minQuantity`;", ["minQuantity"]), false);
   assert.equal(hasIdent("", ["minQuantity"]), false);
+
+  assert.equal(mentionsQuantityRangeTokens("return /minQuantity/;"), false);
+  assert.equal(mentionsQuantityRangeTokens("const x = `${minQuantity}`;"), true);
+  assert.equal(parseListedSeeds("return /{ name: \"fake\", price: 55, unit: \"1 кг\" }/;").length, 0);
+  assert.equal(
+    parseListedSeeds('const x = `${foo({ name: "fake", price: 55, unit: "1 кг" })}`;').length,
+    1
+  );
 
   assert.equal(mentionsQuantityRangeTokens("const minQuantity = 1;"), true);
   assert.equal(mentionsQuantityRangeTokens("const minQuantityFactory = 1;"), false);
@@ -665,7 +819,10 @@ export function assertStage1ScannerContract(): void {
   assert.equal(mentionsSackContents("const мешок = 1;"), true);
   assert.equal(mentionsSackContents("const мешокMetadata = 1;"), false);
   assert.equal(mentionsSackContents("ме/*x*/шок"), false);
-  assert.equal(mentionsSackContents("const x = 1; 1 package = 5;"), true);
+  assert.equal(mentionsSackContents("1 package = 5;"), false);
+  assert.equal(mentionsSackContents("1 package = 5 apples;"), false);
+  assert.equal(mentionsSackContents("1 package = 5 kg;"), true);
+  assert.equal(mentionsSackContents("1 мешок = 5 kg;"), true);
   assert.equal(mentionsSackContents(`const r = ${slash("мешок")};`), false);
   assert.equal(mentionsSackContents(""), false);
 

@@ -95,7 +95,7 @@ Record evidence from the mock domain and seller emulator.
 | SOURCE-010-BASKET | PASS | OPEN (SPEC-OQ-002A) | none | No conversion/tier lookup found in ADD_TO_BASKET itself. The function copies payload.unit and payload.price. Conversion or pricing could occur before this call; this row does not claim the whole basket path |
 | SOURCE-010-CATALOG-HONEY | PASS | OPEN (SPEC-OQ-002A) | none | honey category block found with at least one object seed; no unit: 1 кг string in that block. Not A3 seller classification and not a business-flow observation |
 | SOURCE-010-CATALOG-KG | PASS | OPEN (SPEC-OQ-002A) | none | mockSellerCatalog.ts lexical object seeds include at least one unit 1 кг listing. Seeds inside string or regex literals do not count. Not a business-flow observation |
-| SOURCE-010-CATALOG-TOKENS | PASS | OPEN (SPEC-OQ-002A) | none | whole identifier tokens мешок / minQuantity / maxQuantity / tierPrice / PriceSchedule / VolumePrice and 1-4 / 5-9 / 10+ sequences are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Substrings and regex interiors do not count. Token miss is not a market finding |
+| SOURCE-010-CATALOG-TOKENS | PASS | OPEN (SPEC-OQ-002A) | none | whole identifier мешок, pack-contents 1 мешок/package = 5 kg, and range tokens minQuantity/maxQuantity/tierPrice/PriceSchedule/VolumePrice / 1-4 / 5-9 / 10+ are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Substrings, regex interiors, and 1 package = 5 apples do not count. Token miss is not a market finding |
 | SOURCE-010-EMULATOR | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of sellers.ts: the identifier tokens minQuantity/maxQuantity/tierPrice/PriceSchedule/VolumePrice are SOURCE ABSENT in this file. This does not claim sellers.ts has no quantity-range mechanism under another name (quantityPrices, getPrice, ranges, ...). Not a CooperativeSeller call-shape test and not a market finding |
 | SOURCE-010-TREE | PASS | OPEN (SPEC-OQ-002A) | none | experiments/basket **/*.ts has no FLOW-010 run() and no observeCooperativeAccept helper. Cleanup check of those two historical artifacts only. Does not prove synthetic business-flow is absent. Does not search docs or PACKAGE-008 experimenter facts. Not a business-flow observation |
 | SOURCE-010-TZ025 | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 markdown prose search of TZ-025: free-text cheese discount is present; quantity-range names as whole words are SOURCE ABSENT in this file. This is not a TypeScript lexical scan. Token miss is not a business fact and not B3 observation |
@@ -1017,7 +1017,7 @@ Record evidence from the mock domain and seller emulator.
 - Model violation: none
 - New concept: SOURCE ABSENT of sack/range tokens in mockSellerCatalog.ts
 - Workaround: none
-- Decision: whole identifier tokens мешок / minQuantity / maxQuantity / tierPrice / PriceSchedule / VolumePrice and 1-4 / 5-9 / 10+ sequences are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Substrings and regex interiors do not count. Token miss is not a market finding
+- Decision: whole identifier мешок, pack-contents 1 мешок/package = 5 kg, and range tokens minQuantity/maxQuantity/tierPrice/PriceSchedule/VolumePrice / 1-4 / 5-9 / 10+ are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Substrings, regex interiors, and 1 package = 5 apples do not count. Token miss is not a market finding
 
 ### SOURCE-010-EMULATOR — Impl PASS / Domain OPEN (SPEC-OQ-002B)
 

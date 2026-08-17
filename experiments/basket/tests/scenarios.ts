@@ -3925,7 +3925,7 @@ export function runAllScenarios(): ScenarioResult[] {
           sackContentsTokens: mentionsSackContents(source),
           quantityRangeTokens: mentionsQuantityRangeTokens(source),
         },
-        "whole identifier tokens мешок / minQuantity / maxQuantity / tierPrice / PriceSchedule / VolumePrice and 1-4 / 5-9 / 10+ sequences are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Substrings and regex interiors do not count. Token miss is not a market finding",
+        "whole identifier мешок, pack-contents 1 мешок/package = 5 kg, and range tokens minQuantity/maxQuantity/tierPrice/PriceSchedule/VolumePrice / 1-4 / 5-9 / 10+ are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Substrings, regex interiors, and 1 package = 5 apples do not count. Token miss is not a market finding",
         "OPEN",
         "SPEC-OQ-002A",
         { newConcept: "SOURCE ABSENT of sack/range tokens in mockSellerCatalog.ts" }

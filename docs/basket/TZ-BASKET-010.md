@@ -128,7 +128,7 @@ FLOW-010 never existed on `main`. The first commit of this PR added them; the re
 
 ### H10. `extractFunction("function name(")` was syntax-fragile
 
-Replaced by `extractNamedDeclaration` from **lexical tokens**: `function` / `export function` / `const|let|var name = (` with brace matching; strings, comments, and regex literals skipped; `{` inside `Extract<…, { … }>` skipped by a paren/angle heuristic. This is **not** a TypeScript parser (template interpolations and arbitrary `<`/`>` in defaults are unsupported). Empty extract is fail-closed. SOURCE-010-BASKET requires `declarationFound=true`. `copiesUnit` / `copiesPrice` match the token sequence `field` `:` `payload` `.` `field`. `usesBasketStore` is **not** OQ-002A evidence.
+Replaced by `extractNamedDeclaration` from **lexical tokens**: `function` / `export function` / `const|let|var name = (` with brace matching; strings, comments, and regex literals skipped; template `${ ... }` is nested code; `{` inside `Extract<…, { … }>` skipped by a paren/angle heuristic. This is **not** a TypeScript parser (arbitrary `<`/`>` in defaults are unsupported). Empty extract is fail-closed. SOURCE-010-BASKET requires `declarationFound=true`. `copiesUnit` / `copiesPrice` match the token sequence `field` `:` `payload` `.` `field`. `usesBasketStore` is **not** OQ-002A evidence.
 
 ### H11. Exact seed names are not OQ-002 evidence
 
@@ -172,11 +172,11 @@ KG / HONEY / TOKENS are separate `prove()` rows. One PASS is not a bundle of unr
 
 ### H21. Regex literals are a lexical state
 
-`/` starts a regex unless the previous token was an operand (identifier, number, string, regex, `]`, `++`, `--`). Interiors are not code. `const r = /\bminQuantity\b/` is not a `minQuantity` token. `/{ name: "fake", ... }/` is not a ListedSeed. `const r = /}/` cannot close `extractBalanced`. Division `a / minQuantity / b` still sees the identifier.
+`/` starts a regex unless the previous **completed token** was an operand: a non-keyword identifier, number, string, regex, `]`, `)`, `++`, `--`. Expression-introducing keywords (`return`, `throw`, `case`, `yield`, `await`, `typeof`, `void`, `delete`, `new`, …) leave the scanner in regexOk position, so `return /minQuantity/` is not a `minQuantity` token. After `if`/`while`/`for` `(...)`, `/` is a regex. Division `a / minQuantity / b` and `foo() / minQuantity` still see the identifier.
 
 ### H22. Token detectors use identifier boundaries
 
-`hasIdent` / `mentionsQuantityRangeTokens` / `mentionsSackContents` match whole identifier tokens. `minQuantityFactory`, `myminQuantityBackup`, `мешокMetadata` are not hits.
+`hasIdent` / `mentionsQuantityRangeTokens` match whole identifier tokens. `minQuantityFactory` is not a hit. `mentionsSackContents` is the ident `мешок` **or** the pack-contents sequence `1 мешок = 5 kg` / `1 package = 5 kg`. `1 package = 5 apples` is not a hit. `мешокMetadata` is not `мешок`.
 
 ### H23. Declaration search is token-level
 
@@ -188,7 +188,11 @@ SOURCE-010-TZ025 uses `mentionsQuantityRangeInProse` (whole-word names in markdo
 
 ### H25. Scanner contract covers regex, boundaries, and extraction
 
-`assertStage1ScannerContract()` includes regex interiors, identifier boundaries, `}` in regex, `addToBasketFactory`, listTsFiles walk, and TREE scan of the live tree.
+`assertStage1ScannerContract()` includes regex interiors, identifier boundaries, `}` in regex, `addToBasketFactory`, listTsFiles walk, TREE scan of the live tree, `return /minQuantity/`, and template `${minQuantity}`.
+
+### H26. Template interpolations are nested code
+
+`` `${minQuantity}` `` is an identifier in code. `` `minQuantity` `` is a template fragment, not an identifier. Object literals inside `${ ... }` are lexical seeds; object-like text inside a regex after `return` is not.
 
 ## Search log (enumerated files are executable; live interview is human)
 
@@ -428,4 +432,4 @@ FLOW-010-A1/A2/A3/B1/B2 never existed on `main`; they were added in the first co
 - [x] `addToBasket` extractor matches lexical tokens (`function` / `const` / `Extract<…,{…}>`), skips regex interiors, and fails closed if the declaration is not found
 - [x] SOURCE-010-CATALOG-KG не использует snapshot цен/имён как OQ-002 evidence; seeds inside string or regex literals do not count
 - [x] Quantity-range detector is whole-identifier tokens; miss = SOURCE ABSENT of those tokens, not of any range mechanism
-- [x] scanner contract covers regex literals, identifier boundaries, `}` in regex, factory-name mismatch, listTsFiles, and TREE walk
+- [x] scanner contract covers regex after return/throw/case, template interpolations, identifier boundaries, pack-contents `1 package = 5 kg`, listTsFiles, and TREE walk
