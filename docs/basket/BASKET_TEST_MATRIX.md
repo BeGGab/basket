@@ -2,7 +2,7 @@
 
 **Status:** Experimental Baseline v0.1
 
-`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 89 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
+`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 88 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
 
 | ID | Scenario | Model | Emulator | /sim demo | Main check |
 |---|---|:---:|:---:|:---:|---|
@@ -91,10 +91,9 @@
 | VOLUME-008-005 | 5→8 @17 | ✓ |  |  | no schedule link |
 | VOLUME-008-006 | equal tier prices | ✓ |  |  | two Offers |
 | VOLUME-008-007 | totals 100=100 | ✓ |  |  | I-048 regression |
-| PACKAGE-BIZ-009-001 | listed 250 g pack | ✓ |  |  | no contents field |
-| PACKAGE-BIZ-009-002 | 500 g vs 350 g honey | ✓ |  |  | distinct Products |
-| VOLUME-BIZ-009-001 | 3/7/12 kg listed price | ✓ |  |  | no schedule lookup |
-| VOLUME-BIZ-009-002 | скидка text | ✓ |  |  | not an Offer |
+| PACKAGE-BIZ-009-001 | listed 250 g representable | ✓ |  |  | OPEN reconstruction |
+| PACKAGE-BIZ-009-002 | pre-split productIds | ✓ |  |  | OPEN; not OQ-002A evidence |
+| VOLUME-BIZ-009-001 | listed price on 3/7/12 kg | ✓ |  |  | OPEN; not seller pricing |
 
 TZ-004 assistant demos on `/sim` (DISCOUNT / HIKE / SELLER) are training overlays, not rows in this BS matrix.
 

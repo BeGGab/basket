@@ -77,10 +77,9 @@ npx tsx experiments/basket/tests/run.ts
 | `VOLUME-008-005` | qty change without schedule link | `scenarios.ts` VOLUME-008-005 |
 | `VOLUME-008-006` | equal unit price still two Offers | `scenarios.ts` VOLUME-008-006 |
 | `VOLUME-008-007` | equal derived totals ≠ Offer identity | `scenarios.ts` VOLUME-008-007 |
-| `PACKAGE-BIZ-009-001` | listed 250 g pack unit completes without contents | `scenarios.ts` PACKAGE-BIZ-009-001 |
-| `PACKAGE-BIZ-009-002` | 500 g vs 350 g honey are distinct Products | `scenarios.ts` PACKAGE-BIZ-009-002 |
-| `VOLUME-BIZ-009-001` | 3/7/12 kg tomatoes use listed kg unit price | `scenarios.ts` VOLUME-BIZ-009-001 |
-| `VOLUME-BIZ-009-002` | TZ-025 discount text is not an Offer/schedule | `scenarios.ts` VOLUME-BIZ-009-002 |
+| `PACKAGE-BIZ-009-001` | catalog/spec: listed 250 g representable without contents field | `scenarios.ts` PACKAGE-BIZ-009-001 |
+| `PACKAGE-BIZ-009-002` | catalog/spec: pre-split productIds; not pack-as-Product policy | `scenarios.ts` PACKAGE-BIZ-009-002 |
+| `VOLUME-BIZ-009-001` | catalog/spec: listed unit price copied onto 3/7/12 kg items | `scenarios.ts` VOLUME-BIZ-009-001 |
 | *(SPEC OQ-003)* | duplicate ListItems of same `(productId, unit)` | `run.ts` `DUPLICATE_LINE` (explicit, not silent collapse) |
 
 A PR that confirms a new domain rule MUST add or update a row here **and** the executable test.

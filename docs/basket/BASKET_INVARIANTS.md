@@ -91,4 +91,4 @@ Offer expiration is three separate things:
 - **I-049:** Completing a package-unit commercial deal does not require stored contents in another unit. External `1 package = 5 kg` is not an Offer / PurchaseItem / snapshot term and does not change the derived total. This does **not** close conversion or partial-package policy (**SPEC OQ-002A OPEN**).
 - **I-050:** A standing quantity-range price announcement is not an Offer: it has no Offer id and cannot be accepted. A concrete Offer `(quantity, unit, price)` does not store schedule provenance. Changing quantity or the announced unit price is a new Offer (I-044). This does **not** close whether a future schedule object is needed (**SPEC OQ-002B OPEN**).
 
-TZ-BASKET-009 adds no new invariant. Observed listed-unit GreenMarket flows complete under I-042 / I-049 / I-050. That does **not** close OQ-002A / OQ-002B.
+TZ-BASKET-009 adds no new invariant. Catalog/spec reconstruction is not a business-flow observation and does **not** close OQ-002A / OQ-002B.

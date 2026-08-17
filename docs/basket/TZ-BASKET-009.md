@@ -4,8 +4,8 @@
 **Stage:** 1 — экспериментальный Basket Domain  
 **Тип:** business-flow experiment / evidence for SPEC OQ-002A + OQ-002B  
 **Приёмка:** Pull Request (отдельный от PR-11 / TZ-BASKET-008)  
-**Статус:** Implemented  
-**Основание:** TZ-BASKET-008, `docs/domain/GREENMARKET_DOMAIN_SPEC.md` v0.6 → v0.7  
+**Статус:** Implemented — **no business-flow observation obtained**  
+**Основание:** TZ-BASKET-008, `docs/domain/GREENMARKET_DOMAIN_SPEC.md` v0.6 (не bump)  
 **Ветка:** `basket-pr-22`
 
 ## Domain Contract
@@ -25,33 +25,41 @@ Before implementation, the executor MUST read:
 Observation → Business Flow → Domain Problem → Evidence → SPEC decision → Invariant → Scenario → Implementation
 ```
 
-Не начинать с проектирования новой сущности. Новые I-* только после evidence. Этого PR **не добавляет** I-051+.
+Не начинать с проектирования новой сущности. Новые I-* только после **business-flow** evidence. Этого PR **не добавляет** I-051+.
 
 Не менять CONFIRMED: I-042…I-050.
 
 Experiment-log OQ-001 / OQ-002 (resolution / alt *policy*) не трогать.
 
+Canonical SPEC **не** повышается: catalog/spec reconstruction не является новым domain fact.
+
 ## Цель
 
-TZ-BASKET-008 установил Stage-1 ограничения на *synthetic* catalog facts. Следующий вопрос:
+TZ-BASKET-008 установил Stage-1 ограничения на synthetic catalog facts. Следующий вопрос:
 
 Существует ли **реальный** бизнес-поток GreenMarket, в котором текущей модели недостаточно для совершения или однозначного представления коммерческой сделки?
 
-Источники observation (не experimenter `1 package = 5 kg`):
+Правило evidence:
 
-- `react-vite-bootstrap-project/src/platform-core/map/repository/mockSellerCatalog.ts` — Stage-1 seller catalog
-- `docs/specifications/09_tz010_glossariy_greenmarket.md` — Product = конкретный товар продавца
-- `docs/specifications/05_tz006_user_flow_povsednevnaya_pokupka.md` — покупатель закрывает listed products
-- `docs/specifications/27_tz025_kartochka_prodavtsa_detalnaya.md` — seller announcement как свободный текст
-- `docs/specifications/14_tz016_informatsionnaya_model.md` — смена цены это событие, не schedule object
+```text
+business fact
++ real or realistically reproduced business flow
++ impossibility/ambiguity of the deal without an extra concept
+```
 
-## Главное правило
+Чтение `mockSellerCatalog.ts` / ТЗ-025 / глоссария **само по себе** этим правилом не является. Это catalog/spec observation.
 
-«Модель не умеет это представить» само по себе только MODEL GAP (уже TZ-008).
+## Результат эксперимента
 
-Нужно: business fact + реальный/реалистично воспроизведённый flow + невозможность/неоднозначность сделки без дополнительного понятия.
+**NO BUSINESS-FLOW OBSERVATION.**
 
-Только после этого — новый domain concept.
+Найдены только Stage-1 catalog/spec listings. Из них построены synthetic reconstructions в `BasketWorld`. Они показывают representability текущей модели. Они **не** наблюдают существующий buyer/seller flow и **не** отвечают, достаточна ли модель для однозначной сделки.
+
+Это **не** вариант A («текущей модели достаточно для observed flows»): flows не наблюдались.  
+Это **не** вариант C.  
+**NEW CONCEPT JUSTIFIED: no** — отсутствие observation не обосновывает Package / PriceSchedule.
+
+OQ-002A / OQ-002B остаются OPEN. Дальнейшее закрытие по-прежнему требует business-flow observation, не очередной synthetic model test.
 
 ## Вне scope
 
@@ -59,227 +67,141 @@ TZ-BASKET-008 установил Stage-1 ограничения на *synthetic*
 - `class Package | PackageContents | UnitConversion | PriceSchedule | PriceTier | VolumePrice`
 - поля `packageContents`, `conversionFactor`, `minQuantity`, `maxQuantity`, `tierPrice`, `derivedFromSchedule`, `scheduleVersion`
 - повтор synthetic PACKAGE-008-003…006 / VOLUME-008-001 как «новое» evidence
-- закрытие OQ-002A / OQ-002B только потому, что observed flows *могут* завершиться
-- выводы про UI display из domain tests
-- изменение `mockSellerCatalog.ts` (observation read-only)
+- закрытие OQ-002A / OQ-002B
+- Domain CONFIRMED для reconstruction tests
+- bump SPEC на основании catalog/spec reading
+- выводы про UI display
+- изменение `mockSellerCatalog.ts`
 
-## Pre-execution review (дыры закрыты до кода)
+## Pre-execution / post-review holes
 
-### H1. Не повторять TZ-008 под новым ID
+### H1. Catalog/spec reading ≠ business-flow observation
 
-2 kg vs `1 package = 5 kg` — synthetic MODEL GAP. Если этот flow **не найден** в GreenMarket, не плодить PACKAGE-BIZ-009, которые снова показывают UNRESOLVED.
+Копирование `250 г @ 140` в `setCatalog` + `createPurchaseFromList` — synthetic reconstruction. Не называть это «observed commerce».
 
-**Закрытие:** H1-A/B ниже = NOT OBSERVED. Executable scenarios только для listed-unit / listed-product flows.
+### H2. Не инжектировать Offer.price и потом «наблюдать» его
 
-### H2. Mock catalog ≠ «фермеры никогда не продают ящики»
+VOLUME lookup должен идти из catalog matcher / PurchaseItem, не из `proposeOffer({ price: listed })`.
 
-Observation: Stage-1 GreenMarket catalog/specs. Не universal market claim. OQ остаётся OPEN для будущего crate/schedule рынка.
+### H3. Два заранее заданных productId — не правило «фасовки должны быть Products»
 
-### H3. «250 г» — commercial unit, не contents-in-another-unit
+Если catalog уже split — identity keys = 2 это тавтология. Не evidence для OQ-002A.
 
-Production `unit: "250 г"` — цена за listed pack, не `unit=package` + stored `= 0.25 kg`. Не конвертировать в kg. Не добавлять `packageContents`.
+### H4. `acceptOffer("Сегодня скидка на сыр")` не исследует OQ-002B
 
-### H4. Разные фасовки мёда — разные Product, не Package bases
+Это I-050 на произвольной строке. Сценарий VOLUME-BIZ-009-002 **удалён**.
 
-`Мёд цветочный 500 г` и `Мёд с пергой 350 г` — разные имена/id в catalog. Не коллапсировать в `(seller, tomatoes, package)` как PACKAGE-008-006.
+### H5. H3 schedule change = NOT OBSERVED
 
-### H5. «Сегодня скидка на сыр» — не PriceSchedule
+Не использовать «не вводить version/provenance» как основание по OQ-002B. Нет executable schedule-change flow. I-044 / VOLUME-008-004 не заменяют observation.
 
-TZ-025 announcement — unstructured seller text. Не парсить в tiers. Не давать id. Не accept.
+### H6. Impl PASS ≠ Domain CONFIRMED
 
-### H6. Buyer 3/7/12 kg помидоров — listed kg unit price, не fake schedule
+Reconstruction rows — Domain **OPEN**.
 
-Mock tomatoes: `1 кг` @ 180. Concrete Offers at that unit price. Не подставлять 20/17/14 из TZ-008.
+### H7. Не bump SPEC v0.7
 
-### H7. Не закрыть OQ, потому что сделка *может* состояться
+SPEC фиксирует catalog/spec observation как таковое, без статуса CONFIRMED commerce.
 
-TZ-008: close требует flow, где сделка *не может* состояться без contents/schedule. TZ-009 нашёл обратное. OQ остаётся OPEN. NEW CONCEPT JUSTIFIED: no.
+### H8. Не закрыть OQ, потому что модель *может представить* listing
 
-### H8. Не вводить I-051 «GreenMarket never needs contents»
+Representability ≠ достаточность для сделки.
 
-Это запрет на будущее, не observation. I-049 / I-050 достаточны.
+### H9. Mock catalog ≠ «фермеры никогда не продают ящики»
 
-### H9. Domain tests не заключают про UI
+### H10. Не вводить I-051
 
-Не писать «UI показывает 250 г». Facts: Offer / PurchaseItem / derived total / Acceptance / catalog identity.
+### H11. Production architecture unchanged
 
-### H10. Impl PASS ≠ Domain CONFIRMED для NOT OBSERVED гипотез
+### H12. H1-A/B crate flows = NOT OBSERVED; не плодить UNRESOLVED repeats TZ-008
 
-H1-A/B остаются OPEN как unobserved, не как CONFIRMED «policy must not exist».
+## Catalog/spec source (not a business flow)
 
-### H11. Не менять production architecture
+Источник listings (read-only):
 
-Scenarios копируют facts в `BasketWorld`. `mockSellerCatalog.ts` не редактируется.
+- `mockSellerCatalog.ts` — `Томаты 1 кг @ 180`, `Творог 250 г @ 140`, `Мёд цветочный 500 г`, `Мёд с пергой 350 г`
+- ТЗ-025 — текст «Сегодня скидка на сыр» (не domain object; executable scenario не строится)
+- ТЗ-010 — Product = конкретный товар продавца (spec text, не observed seller behavior)
 
-### H12. Один observation → один минимальный scenario
-
-Максимум четыре executable ID. Не «покрытие» всех веток H3/H4, уже закрытых I-044.
-
-## Observed GreenMarket Stage-1 selling
-
-| Listed product (mock catalog) | unit string | price | Domain mapping |
-|---|---|---|---|
-| Томаты | 1 кг | 180 | `unit=kg`, unit price 180 |
-| Творог | 250 г | 140 | commercial unit `250 g`, price 140 per unit |
-| Сыр молодой | 200 г | 320 | commercial unit `200 g`, price 320 per unit |
-| Мёд цветочный | 500 г | 380 | Product `honey_flower`, unit `500 g` |
-| Мёд с пергой | 350 г | 450 | Product `honey_perga`, unit `350 g` |
-| Укроп | 1 пучок | 40 | commercial unit `bunch` (not used in 009 scenarios) |
-| Пирог | 1 шт | 220 | commercial unit `pcs` (not used in 009 scenarios) |
-
-Нет строк `unit=package` + contents kg. Нет quantity-range price table.
+Нет crate `1 package = 5 kg`. Нет quantity-range price table. Это **отсутствие в mock/spec**, не observation рынка.
 
 ## H1 — Package contents (OQ-002A)
 
-### H1-A. Buyer wants less than a package — NOT OBSERVED
+### H1-A / H1-B — NOT OBSERVED
 
-**Кандидат:** Buyer 2 kg vs Seller 1 package = 5 kg.
+Buyer 2 kg vs 5 kg crate / 6 kg vs 5 kg crate в catalog/spec не найден. Не executable scenario. Не policy.
 
-**Observation:** в Stage-1 catalog овощи listed per kg; фасованные товары listed своим pack unit. Нет продавца, который продаёт томаты только ящиком 5 kg против kg-потребности.
+### H1-C — catalog/spec reconstruction only
 
-**Q1:** для *этого* GreenMarket flow вопроса нет — flow не выполняется.  
-**Q2–Q4:** не применимы. Не выбирать oversupply / split / 1 package policy.
+Mock lists two differently named honeys. Reconstruction with two `productId`s shows the model distinguishes pre-split Products. **Не** доказывает, что фасовки должны быть Products. PACKAGE-BIZ-009-002 = OPEN, not OQ-002A evidence.
 
-**Conclusion:** OPEN остаётся для гипотетического crate market. Не NEW CONCEPT. Не executable scenario.
+### H1-D — representability only
 
-### H1-B. Buyer wants more than one package — NOT OBSERVED
-
-**Кандидат:** Buyer 6 kg vs 5 kg package. То же: нет такого listed seller. Не выбирать 1 pack / 2 packs / split.
-
-### H1-C. Distinct package bases — OBSERVED as distinct Products
-
-**Observation:** разные фасовки — разные Product (глоссарий ТЗ-010), не один `productId` с двумя catalog `quantity`.
-
-**Q1:** сделка однозначна: покупатель берёт listed Product.  
-**Q2:** отсутствующий fact для *этого* flow — нет.  
-**Q3:** fact живёт в Catalog / Product identity.  
-**Q4:** existing CatalogLine `(sellerId, productId, unit)` достаточен. Package entity не требуется.
-
-**Scenario:** PACKAGE-BIZ-009-002.
-
-### H1-D. Pack size and price — OBSERVED as ordinary Offers
-
-**Observation:** `1 × 250 g @ 140` и `1 × 500 g @ 380` — listed-unit Offers, не volume tiers и не Package variants одного id.
-
-**Q1:** сделка завершается однозначно.  
-**Q2:** contents-in-another-unit не нужен.  
-**Q3:** Catalog + Offer.  
-**Q4:** existing Offer triple. No new entity.
-
-**Scenario:** PACKAGE-BIZ-009-001.
+`unit = "250 g"` хранится без contents field. **Не** доказывает, что pack contents не отдельный business fact. PACKAGE-BIZ-009-001 = OPEN.
 
 ## H2–H4 — Standing volume pricing (OQ-002B)
 
-### H2. Buyer выбирает quantity — OBSERVED without schedule
+### H2 — catalog lookup is quantity-agnostic (reconstruction)
 
-**Observation:** томаты `1 кг @ 180`. Buyer 3 / 7 / 12 kg → concrete Offers at listed unit price. Domain читает catalog unit price, не quantity-range rule.
+`createPurchaseFromList` копирует listed unit price на 3 / 7 / 12 kg. Это не ответ системы «какая цена должна применяться к 7 kg?» от продавца. VOLUME-BIZ-009-001 = OPEN.
 
-**Q1:** однозначно.  
-**Q2:** «price applies to 5–9 kg» в этом flow отсутствует *и не требуется*.  
-**Q3:** Catalog unit price + Offer.  
-**Q4:** existing Offer. No PriceSchedule.
+### H3 — NOT OBSERVED
 
-**Scenario:** VOLUME-BIZ-009-001.
+Structured schedule `5–9 kg → 17` затем `→ 16` в catalog/spec нет. **Не** основание для OQ-002B. Не executable. Не дублировать VOLUME-008-004 как TZ-009 evidence.
 
-### H3. Seller меняет schedule — NOT OBSERVED as schedule
+### H4 — not re-tested
 
-**Observation:** ТЗ-016 — смена цены это событие; коммерческий факт — новый Offer (I-044). Structured `5–9 kg → 17` затем `→ 16` в catalog нет.
+Quantity change = I-044, уже CONFIRMED ранее. Не 009 scenario.
 
-Не вводить schedule version / provenance. Не executable duplicate VOLUME-008-004.
+### Seller «скидка» text — catalog/spec only
 
-### H4. Quantity меняется — already CONFIRMED (I-044)
-
-`7 kg @ 17 → 8 kg @ 17` для GreenMarket kg vegetables: new Offer. Не новый 009 scenario.
-
-### Seller «скидка» text — OBSERVED, not a schedule
-
-**Observation:** ТЗ-025 «Сегодня скидка на сыр». Нет id, нельзя accept. Сделка — listed cheese Offer.
-
-**Scenario:** VOLUME-BIZ-009-002.
+ТЗ-025 text не является Offer. I-050 уже это фиксирует для announcements. Нового OQ-002B evidence нет. Executable не добавляется.
 
 ## Evidence cards
 
-### PACKAGE-BIZ-009-001 — listed pack unit deal
+### PACKAGE-BIZ-009-001
 
 | Field | Value |
 |---|---|
-| Scenario ID | PACKAGE-BIZ-009-001 |
-| Business observation | Stage-1 catalog lists cottage cheese as `250 г @ 140`, not as kg + package contents |
-| Initial facts | CatalogLine `tvorog`, unit `250 g`, price 140, stock > 0 |
-| Buyer action | List `1 × 250 g` |
-| Seller action | Offer `1 × 250 g @ 140`; buyer accepts |
-| Expected business outcome | Deal completes; derived total 140 |
-| Actual outcome | Offer / PurchaseItem / Acceptance without contents field |
-| Missing fact | none for this flow |
-| Current model representation | Offer `(1, 250 g, 140)` |
-| Ambiguity / impossibility | none |
-| Conclusion | **CONFIRMED** — listed pack unit does not require Package contents. **NEW CONCEPT JUSTIFIED: no** |
+| Source | catalog/spec reconstruction of mock `Творог / 250 г / 140` |
+| What was tested | PurchaseItem can store `unit = "250 g"` without a contents field |
+| What was **not** tested | whether pack contents are a business fact; any real buyer/seller deal |
+| Hypothesis | **OPEN** |
+| Conclusion | representability only |
 
-### PACKAGE-BIZ-009-002 — distinct pack Products
+### PACKAGE-BIZ-009-002
 
 | Field | Value |
 |---|---|
-| Scenario ID | PACKAGE-BIZ-009-002 |
-| Business observation | Flower honey `500 г` and perga honey `350 г` are different Products |
-| Initial facts | Two CatalogLines, two `productId`s, same seller |
-| Buyer action | List flower honey `1 × 500 g` |
-| Seller action | Resolve / Offer that product only |
-| Expected business outcome | Unambiguous choice; no `AMBIGUOUS_PRICE` |
-| Actual outcome | Two identity keys; requested line completes |
-| Missing fact | none for this flow |
-| Current model representation | `(seller, honey_flower, 500 g)` vs `(seller, honey_perga, 350 g)` |
-| Ambiguity / impossibility | none in observed catalog (contrast synthetic PACKAGE-008-006) |
-| Conclusion | **CONFIRMED** — observed pack variants are Products. **NEW CONCEPT JUSTIFIED: no** |
+| Source | catalog/spec reconstruction of two named honey listings as two `productId`s |
+| What was tested | two pre-split identity keys |
+| What was **not** tested | that pack sizes must be Products |
+| Hypothesis | **OPEN** |
+| Conclusion | tautological if catalog already splits; **not OQ-002A evidence** |
 
-### VOLUME-BIZ-009-001 — listed kg unit price for 3 / 7 / 12 kg
+### VOLUME-BIZ-009-001
 
 | Field | Value |
 |---|---|
-| Scenario ID | VOLUME-BIZ-009-001 |
-| Business observation | Tomatoes listed `1 кг @ 180`; buyer quantity is still kg |
-| Initial facts | Catalog unit price 180 / kg |
-| Buyer action | Request 3 kg, 7 kg, 12 kg |
-| Seller action | Concrete Offers at listed unit price |
-| Expected business outcome | `3@180`, `7@180`, `12@180`; derived 540 / 1260 / 2160 |
-| Actual outcome | catalogUnitPrice=180 for each; no tier field |
-| Missing fact | none for this flow |
-| Current model representation | three Offers, I-042 / I-048 |
-| Ambiguity / impossibility | none |
-| Conclusion | **CONFIRMED** — observed kg pricing is not a standing schedule. **NEW CONCEPT JUSTIFIED: no** |
+| Source | catalog/spec reconstruction of mock `Томаты / 1 кг / 180` |
+| What was tested | `createPurchaseFromList` copies listed unit price onto 3/7/12 kg PurchaseItems |
+| What was **not** tested | seller pricing rule for 7 kg; standing schedule behavior |
+| Hypothesis | **OPEN** |
+| Conclusion | quantity-agnostic lookup; **not** absence of standing pricing semantics |
 
-### VOLUME-BIZ-009-002 — unstructured seller discount
-
-| Field | Value |
-|---|---|
-| Scenario ID | VOLUME-BIZ-009-002 |
-| Business observation | TZ-025 announcement «Сегодня скидка на сыр» is seller text, not a quantity-range object |
-| Initial facts | Cheese CatalogLine `200 g @ 320`; external announcement string |
-| Buyer action | Cannot accept the announcement; buys listed cheese |
-| Seller action | Offer `1 × 200 g @ 320` |
-| Expected business outcome | Announcement has no Offer id; deal is the listed Offer |
-| Actual outcome | accept(announcement) impossible; deal completes at listed price |
-| Missing fact | none for this observed flow |
-| Current model representation | Offer triple; announcement is external knowledge |
-| Ambiguity / impossibility | none for completing the listed deal |
-| Conclusion | **CONFIRMED** — observed discount talk is not PriceSchedule. **NEW CONCEPT JUSTIFIED: no** |
-
-## Принятые решения — вариант A для observed flows
+## Принятые решения
 
 ```text
 TZ-BASKET-009
+NO BUSINESS-FLOW OBSERVATION
 OQ-002A: OPEN
-  CONFIRMED observation: listed pack-unit / listed-Product deals complete without stored contents
-  NOT OBSERVED: 2 kg vs 5 kg crate; 6 kg vs 5 kg crate
-  TZ-008 MODEL GAP (conversion / partial / same-id bases) remains for unobserved hypotheticals
 OQ-002B: OPEN
-  CONFIRMED observation: listed kg unit price + unstructured «скидка» text; concrete Offers suffice
-  NOT OBSERVED: standing quantity-range schedule as a business object
+H3: NOT OBSERVED (not used as OQ-002B evidence)
 NEW CONCEPT JUSTIFIED: no
-NO MODEL CHANGE: yes (no Package / PriceSchedule)
+NO MODEL CHANGE: yes
 NO NEW INVARIANT: yes
+SPEC VERSION: remains v0.6
 ```
-
-Это **не** закрытие OQ. Дальнейшее закрытие по-прежнему требует business observation, где сделка **не может** быть завершена однозначно без contents или schedule-as-object. Observed GreenMarket Stage-1 таким observation не является.
 
 ## Invariants
 
@@ -289,12 +211,13 @@ I-042…I-050 unchanged. No I-051.
 
 | ID | Hypothesis | Что проверяет |
 |---|---|---|
-| PACKAGE-BIZ-009-001 | CONFIRMED | listed `250 g @ 140` completes without contents-in-another-unit |
-| PACKAGE-BIZ-009-002 | CONFIRMED | 500 g vs 350 g honey are distinct Products; no Package entity |
-| VOLUME-BIZ-009-001 | CONFIRMED | 3/7/12 kg tomatoes use listed kg unit price; no schedule lookup |
-| VOLUME-BIZ-009-002 | CONFIRMED | TZ-025 «скидка» text is not an Offer / not a schedule |
+| PACKAGE-BIZ-009-001 | OPEN (OQ-002A) | representability of listed unit `250 g` without contents field |
+| PACKAGE-BIZ-009-002 | OPEN (OQ-002A) | pre-split productIds → two keys; not pack-as-Product policy |
+| VOLUME-BIZ-009-001 | OPEN (OQ-002B) | listed unit price copied onto 3/7/12 kg PurchaseItems |
 
-85 prior scenarios без регрессии → 89 total.
+VOLUME-BIZ-009-002 удалён (I-050 duplicate, не business observation).
+
+85 prior + 3 reconstruction = 88 total.
 
 ## Implementation
 
@@ -302,14 +225,14 @@ I-042…I-050 unchanged. No I-051.
 
 ## Definition of Done
 
-- [x] Минимум одно реальное business observation по OQ-002A и по OQ-002B
-- [x] Observation ≠ synthetic MODEL GAP TZ-008
-- [x] Для каждого найденного flow зафиксирован business outcome
-- [x] Установлен необходимый business fact (для observed flows: listed unit / Product / catalog unit price)
-- [x] Fact представим существующей моделью
+- [ ] Минимум одно реальное business observation — **не выполнено** (явно зафиксировано)
+- [x] Catalog/spec reconstruction не выдаётся за business-flow observation
+- [x] Domain CONFIRMED не ставится на reconstruction rows
+- [x] H3 = NOT OBSERVED, не основание OQ-002B
+- [x] SPEC не bump v0.7; фиксируется catalog/spec observation
 - [x] Новые сущности не введены
 - [x] Production architecture unchanged
-- [x] Только необходимые executable scenarios
+- [x] Только reconstruction scenarios, без acceptOffer(string)
 - [x] Предыдущие scenarios проходят
-- [x] RESULTS / BREAKING / OPEN QUESTIONS / SPEC обновлены
+- [x] RESULTS / BREAKING / OPEN QUESTIONS обновлены честно
 - [x] NEW CONCEPT JUSTIFIED: no

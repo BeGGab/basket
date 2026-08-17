@@ -3762,38 +3762,26 @@ export function runAllScenarios(): ScenarioResult[] {
       const list = w.createList("package-biz-009-001");
       w.addItem(list.id, { productId: "tvorog", quantity: 1, unit: "250 g", alternatives: [] });
       const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
-      const offer = w.proposeOffer({
-        sellerPurchaseId: sp,
-        actor: "SELLER",
-        items: [{ productId: "tvorog", quantity: 1, unit: "250 g", price: 140 }],
-        reason: "PRICE_CHANGE",
-      });
-      w.acceptOffer(offer.id, "BUYER");
-      const item = w.offerById(offer.id).items[0];
+      const item = w.requireSp(sp).items[0];
       return prove(
         "PACKAGE-BIZ-009-001",
-        "I-049 I-042 I-046",
+        "I-045 I-049",
         {
-          quantity: 1,
           unit: "250 g",
-          price: 140,
-          derivedTotal: 140,
-          accepted: true,
+          catalogPrice: 140,
           contentsField: false,
-          convertedKg: false,
         },
         {
-          quantity: item.quantity,
           unit: item.unit,
-          price: item.price ?? null,
-          derivedTotal: unitLineTotal(item),
-          accepted: w.acceptances.some((row) => row.offerId === offer.id),
+          catalogPrice: item.price ?? null,
           contentsField:
             Object.prototype.hasOwnProperty.call(item, "contentsQuantity") ||
             Object.prototype.hasOwnProperty.call(item, "packageContents"),
-          convertedKg: item.unit === "kg",
         },
-        "observed listed pack unit 250 g @ 140 completes without contents-in-another-unit"
+        "catalog/spec reconstruction: listed unit 250 g is representable without a contents field; this does not prove pack contents are not a business fact",
+        "OPEN",
+        "SPEC-OQ-002A",
+        { newConcept: "catalog/spec reconstruction — not a business-flow observation" }
       );
     })
   );
@@ -3808,35 +3796,27 @@ export function runAllScenarios(): ScenarioResult[] {
           { sellerId: "seller-a", productId: "honey_perga", quantity: 1, unit: "350 g", price: 450, stock: 10 },
         ],
       });
-      const list = w.createList("package-biz-009-002");
-      w.addItem(list.id, { productId: "honey_flower", quantity: 1, unit: "500 g", alternatives: [] });
-      const purchase = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]);
       const keys = [
         ...new Set(w.catalog.availability.map((row) => `${row.sellerId}|${row.productId}|${row.unit}`)),
       ];
-      const sp = purchase.sellerPurchaseIds[0];
-      const offer = w.proposeOffer({
-        sellerPurchaseId: sp,
-        actor: "SELLER",
-        items: [{ productId: "honey_flower", quantity: 1, unit: "500 g", price: 380 }],
-        reason: "PRICE_CHANGE",
-      });
+      const list = w.createList("package-biz-009-002");
+      w.addItem(list.id, { productId: "honey_flower", quantity: 1, unit: "500 g", alternatives: [] });
+      const purchase = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]);
       return prove(
         "PACKAGE-BIZ-009-002",
-        "I-036 I-049",
+        "I-036",
         {
           identityKeyCount: 2,
           unresolved: false,
-          offeredProduct: "honey_flower",
-          offeredUnit: "500 g",
         },
         {
           identityKeyCount: keys.length,
           unresolved: purchase.unresolvedItems.length > 0,
-          offeredProduct: offer.items[0].productId,
-          offeredUnit: offer.items[0].unit,
         },
-        "observed pack variants are distinct Products; no evidence yet justifies a Package entity"
+        "catalog/spec reconstruction: two pre-split productIds yield two identity keys; this does not prove pack sizes must be Products and is not OQ-002A evidence",
+        "OPEN",
+        "SPEC-OQ-002A",
+        { newConcept: "catalog/spec reconstruction — not a business-flow observation" }
       );
     })
   );
@@ -3849,94 +3829,32 @@ export function runAllScenarios(): ScenarioResult[] {
         availability: [{ sellerId: "seller-a", productId: "tomatoes", quantity: 1, unit: "kg", price: 180, stock: 100 }],
       });
       const listed = catalogUnitPrice(w.catalog, { sellerId: "seller-a", productId: "tomatoes", unit: "kg" });
-      const totals: number[] = [];
       const prices: Array<number | null> = [];
       for (const qty of [3, 7, 12]) {
         const list = w.createList(`volume-biz-009-001-${qty}`);
         w.addItem(list.id, { productId: "tomatoes", quantity: qty, unit: "kg", alternatives: [] });
         const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
-        const offer = w.proposeOffer({
-          sellerPurchaseId: sp,
-          actor: "SELLER",
-          items: [{ productId: "tomatoes", quantity: qty, unit: "kg", price: listed ?? -1 }],
-          reason: "PRICE_CHANGE",
-        });
-        prices.push(offer.items[0].price ?? null);
-        totals.push(unitLineTotal(offer.items[0]) ?? -1);
+        prices.push(w.requireSp(sp).items[0].price ?? null);
       }
-      const sample = w.catalog.availability[0];
       return prove(
         "VOLUME-BIZ-009-001",
-        "I-042 I-048 I-050",
+        "I-042 I-045",
         {
           listedPrice: 180,
-          price3: 180,
-          price7: 180,
-          price12: 180,
-          total3: 540,
-          total7: 1260,
-          total12: 2160,
-          tierField: false,
+          purchasePrice3: 180,
+          purchasePrice7: 180,
+          purchasePrice12: 180,
         },
         {
           listedPrice: listed,
-          price3: prices[0],
-          price7: prices[1],
-          price12: prices[2],
-          total3: totals[0],
-          total7: totals[1],
-          total12: totals[2],
-          tierField:
-            Object.prototype.hasOwnProperty.call(sample, "minQuantity") ||
-            Object.prototype.hasOwnProperty.call(sample, "maxQuantity") ||
-            Object.prototype.hasOwnProperty.call(sample, "tierPrice"),
+          purchasePrice3: prices[0],
+          purchasePrice7: prices[1],
+          purchasePrice12: prices[2],
         },
-        "observed kg tomatoes use listed unit price for 3/7/12 kg; no standing schedule lookup"
-      );
-    })
-  );
-
-  results.push(
-    run("VOLUME-BIZ-009-002", () => {
-      const w = new BasketWorld();
-      w.setCatalog({
-        names: { cheese: "Young cheese" },
-        availability: [{ sellerId: "seller-a", productId: "cheese", quantity: 1, unit: "200 g", price: 320, stock: 10 }],
-      });
-      const announcement = "Сегодня скидка на сыр";
-      const list = w.createList("volume-biz-009-002");
-      w.addItem(list.id, { productId: "cheese", quantity: 1, unit: "200 g", alternatives: [] });
-      const sp = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
-      const offer = w.proposeOffer({
-        sellerPurchaseId: sp,
-        actor: "SELLER",
-        items: [{ productId: "cheese", quantity: 1, unit: "200 g", price: 320 }],
-        reason: "PRICE_CHANGE",
-      });
-      w.acceptOffer(offer.id, "BUYER");
-      const announcementAcceptFailed = threw(() => w.acceptOffer(announcement, "BUYER"), /./);
-      return prove(
-        "VOLUME-BIZ-009-002",
-        "I-050 I-042 I-046",
-        {
-          listedPrice: 320,
-          derivedTotal: 320,
-          acceptedListed: true,
-          announcementIsOfferId: false,
-          announcementAcceptFailed: true,
-          scheduleField: false,
-        },
-        {
-          listedPrice: offer.items[0].price ?? null,
-          derivedTotal: unitLineTotal(offer.items[0]),
-          acceptedListed: w.acceptances.some((row) => row.offerId === offer.id),
-          announcementIsOfferId: w.offers.some((row) => row.id === announcement),
-          announcementAcceptFailed,
-          scheduleField:
-            Object.prototype.hasOwnProperty.call(offer, "derivedFromSchedule") ||
-            Object.prototype.hasOwnProperty.call(offer, "scheduleVersion"),
-        },
-        "observed seller discount text is not an Offer and not a PriceSchedule; listed cheese deal completes"
+        "catalog/spec reconstruction: createPurchaseFromList copies listed unit price onto 3/7/12 kg items; lookup is quantity-agnostic. This does not observe which price a seller would apply to 7 kg",
+        "OPEN",
+        "SPEC-OQ-002B",
+        { newConcept: "catalog/spec reconstruction — not a business-flow observation" }
       );
     })
   );
@@ -3950,13 +3868,13 @@ export function formatResults(rows: ScenarioResult[]): string {
     "",
     "**Status:** Evidence from TZ-BASKET-001…009 mock run  ",
     "**Experiment version:** v0.1  ",
-    "**Model version:** v0.1.18 / SPEC v0.7 (observed listed-unit GreenMarket flows complete without Package or PriceSchedule; OQ-002A/B remain OPEN)",
+    "**Model version:** v0.1.17 / SPEC v0.6 (TZ-009 is catalog/spec reconstruction, not a business-flow observation; OQ-002A/B remain OPEN)",
     "",
     "## How to read results",
     "",
     "- **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).",
     "- **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).",
-    "- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, VOLUME-PRICE-005B, VOLUME-008-001, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, not a policy.",
+    "- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation or catalog/spec reconstruction, not a policy.",
     "- Do not treat Impl PASS as confirmation of an unresolved OQ.",
     "- Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.",
     `- All ${rows.length} scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.`,
@@ -3990,7 +3908,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   }
   lines.push("## Final decision", "");
   lines.push("```text");
-  lines.push("Model version: v0.1.18 / SPEC v0.7");
+  lines.push("Model version: v0.1.17 / SPEC v0.6");
   lines.push("Status: experiment implemented; production architecture not started");
   lines.push("");
   lines.push("Scope of this evidence: every CONFIRMED below confirms a SPECIFIC experimental behavior");
@@ -4043,7 +3961,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("- OQ-006 / OQ-008 closed");
   lines.push("- PartialAvailabilitySeller offers min(requested, stock) of the SAME CatalogLine (sellerId, productId, unit) — a pcs pool is not kg stock");
   lines.push("- cheapestAvailable() removed from domain catalog semantics (ambiguous ≠ cheapest); catalogUnitPrice returns null on disagreement");
-  lines.push("- GREENMARKET_DOMAIN_SPEC v0.7 is the canonical domain contract; TZ-BASKET-009 records listed-unit business observation and still does not introduce Package or PriceSchedule");
+  lines.push("- GREENMARKET_DOMAIN_SPEC v0.6 is the canonical domain contract; TZ-BASKET-009 records catalog/spec reconstruction, not a business-flow observation, and does not introduce Package or PriceSchedule");
   lines.push("- I-042: price is the price of one unit; derived total = quantity * price; no stored linePrice");
   lines.push("- I-043: changing quantity does not reread price as a line total");
   lines.push("- I-044: Offer stores (product, quantity, unit, price); a change is a new Offer");
@@ -4097,15 +4015,16 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("Further closing OQ-002A/B requires a business observation, not another synthetic model test");
   lines.push("");
   lines.push("TZ-BASKET-009");
-  lines.push("Status: PASS for observed GreenMarket Stage-1 listed-unit flows; variant A; no new entity");
-  lines.push("OQ-002A: OPEN — listed pack-unit / listed-Product deals complete without stored contents");
-  lines.push("OQ-002B: OPEN — listed kg unit price and unstructured seller discount text; concrete Offers suffice");
-  lines.push("NOT OBSERVED: 2 kg vs 5 kg crate; standing quantity-range schedule as a business object");
-  lines.push("NEW CONCEPT JUSTIFIED: no — no evidence yet justifies a Package or PriceSchedule entity");
+  lines.push("Status: catalog/spec reconstruction only; NO BUSINESS-FLOW OBSERVATION obtained");
+  lines.push("OQ-002A: OPEN — reconstruction shows listed unit 250 g is representable; pack-as-Products is tautological if catalog already splits ids");
+  lines.push("OQ-002B: OPEN — reconstruction shows listed unit price is copied onto 3/7/12 kg PurchaseItems; this is not seller pricing behavior");
+  lines.push("H3 schedule change: NOT OBSERVED — not used as OQ-002B evidence");
+  lines.push("NEW CONCEPT JUSTIFIED: no — absence of observation does not justify Package or PriceSchedule");
   lines.push("NO MODEL CHANGE: yes");
   lines.push("NO NEW INVARIANT: yes");
+  lines.push("SPEC version bump: no");
   lines.push("Production architecture changed: NO");
-  lines.push("Further closing OQ-002A/B still requires a flow where a deal cannot complete without contents or schedule-as-object");
+  lines.push("Further closing OQ-002A/B still requires a business-flow observation, not another synthetic model test");
   lines.push("");
   lines.push("Still open:");
   lines.push("- SPEC OQ-002A — conversion / partial-whole package / distinct package bases");
