@@ -392,26 +392,18 @@ Two pre-split `productId`s yield two identity keys. This does not prove pack siz
 
 `createPurchaseFromList` copies listed kg unit price onto 3 / 7 / 12 kg PurchaseItems. This is not observed seller pricing behavior (**OPEN — SPEC OQ-002B**).
 
-## FLOW-010-A1 — Pack-contents seller fact NOT OBSERVED
+## SOURCE-010-CATALOG — Stage-1 catalog source search
 
-Buyer requests 2 kg potatoes; CooperativeSeller accepts listed kg unit price. No seller fact `1 мешок = 5 kg` (**OPEN — SPEC OQ-002A**). Not `A1 = NO PROBLEM` for package contents.
+Reads `mockSellerCatalog.ts`. Potatoes `1 кг @ 55`, tomatoes `1 кг @ 180`, three named honeys, no `1 кг` honey, no sack contents, no quantity-range table. **SOURCE ABSENT** in this file, not a business-flow observation (**OPEN — SPEC OQ-002A / OQ-002B**).
 
-## FLOW-010-A2 — Pack oversupply policy NOT OBSERVED
+## SOURCE-010-EMULATOR — Stage-1 emulator source search
 
-Buyer requests 6 kg potatoes; seller accepts 6 kg. No 1+1 / 2-pack / refuse policy is invented (**OPEN — SPEC OQ-002A**).
+Reads `sellers.ts`. CooperativeSeller accepts the buyer Offer as-is. No `minQuantity` / `maxQuantity` / `tierPrice` / `PriceSchedule`. Current emulator has no mechanism that would allow observing a quantity-range decision (**OPEN — SPEC OQ-002B**).
 
-## FLOW-010-A3 — Pack-vs-product seller classification NOT OBSERVED
+## SOURCE-010-BASKET — ADD_TO_BASKET source search
 
-Seller accepts listed flower honey `500 g` and does not classify pack vs product (**OPEN — SPEC OQ-002A**).
+Reads `BasketActionHandlers.ts`. Copies listed `unit` and `price`. No conversion / tier lookup (**OPEN — SPEC OQ-002A**).
 
-## FLOW-010-B1 — Quantity-range seller fact NOT OBSERVED
+## SOURCE-010-TZ025 — TZ-025 source search
 
-Buyer requests 7 kg tomatoes; CooperativeSeller accepts listed unit price. No quantity-range table (**OPEN — SPEC OQ-002B**).
-
-## FLOW-010-B2 — Boundary quantities are not a range decision
-
-Seller accepts 4 / 5 / 9 / 10 kg at the same listed unit price. Not a quantity-range pricing decision (**OPEN — SPEC OQ-002B**).
-
-## FLOW-010-B3 — Schedule change NOT OBSERVED
-
-No structured `5–9 kg → 17` then `16` flow. No executable. Schedule version is not modelled (**OPEN — SPEC OQ-002B**).
+Free-text «Сегодня скидка на сыр». No quantity-range table. Not B3 observation (**OPEN — SPEC OQ-002B**).

@@ -4,7 +4,7 @@
 **Stage:** 1 — экспериментальный Basket Domain  
 **Тип:** business-flow experiment / evidence acquisition  
 **Приёмка:** Pull Request `basket-pr-25`  
-**Статус:** Implemented — **Variant 1: OQ remains OPEN**  
+**Статус:** Implemented — **primary goal NOT MET**; Stage-1 source search only  
 **Основание:** TZ-BASKET-009 (catalog/spec reconstruction ≠ observation); SPEC v0.6 (не bump)  
 **Ветка:** `basket-pr-25`
 
@@ -46,11 +46,23 @@ Experiment-log OQ-001 / OQ-002 (resolution / alt *policy*) не трогать.
 - **OQ-002A — Package.** Товар продаётся как package/pack, покупатель и продавец оперируют другой единицей, и без этого отношения сделку нельзя однозначно завершить.
 - **OQ-002B — Quantity-range pricing.** Цена зависит от диапазона количества, и без отдельного schedule/tier business fact нельзя однозначно определить цену конкретного заказа.
 
+## Два разных результата (не смешивать)
+
+| Результат | Что это значит | Что это не значит |
+|---|---|---|
+| **SOURCE ABSENT** | В прочитанных Stage-1 файлах нет такого listing / механизма / текста | Продавец на рынке этого не делает |
+| **BUSINESS-FLOW OBSERVATION NOT OBTAINED** | Buyer/seller flow с commercial problem не воспроизведён | Seller «промолчал» в сделке |
+
+Первый результат **не** является вторым. Отсутствие механизма в emulator **не** есть evidence отсутствия business fact.
+
+Запрещённая формулировка после review PR-25: называть source search **NOT OBSERVED** как business-flow finding.
+
 ## Результат эксперимента
 
-**Вариант 1.**
-
 ```text
+PRIMARY GOAL: NOT MET
+BUSINESS-FLOW OBSERVATION: NOT OBTAINED
+STAGE-1 SOURCE SEARCH: recorded (SOURCE ABSENT in the inspected files)
 OQ-002A OPEN
 OQ-002B OPEN
 NO NEW CONCEPT
@@ -58,18 +70,12 @@ NO MODEL CHANGE
 SPEC v0.6
 ```
 
-В доступных Stage-1 источниках **не найден** seller, который:
-
-- заявляет pack-contents в другой единице (`1 мешок = 5 kg`) и отвечает на запрос в kg; или
-- заявляет standing quantity-range цену и применяет её к заказу; или
-- классифицирует «мёд 500 g / мёд 1 kg» как один товар + упаковки vs два товара; или
-- меняет structured schedule `5–9 kg → 17` на `16` с различимым эффектом на существующий vs новый заказ.
-
-Найденные buyer/seller traces (CooperativeSeller на Stage-1 listed-unit listings) завершают сделку **в той же единице и по listed unit price**. Это не закрывает OQ-002A/B: prerequisite seller fact для обеих гипотез отсутствует.
-
-Это **не** доказательство, что Package / PriceSchedule не нужны на рынке.  
+Это **не** вариант A («модели достаточно для observed flows»): flows не наблюдались.  
 Это **не** закрытие OQ.  
-Это документированное **отсутствие** требуемого business-flow evidence в текущем Stage-1 контуре.
+Это **не** доказательство, что Package / PriceSchedule не нужны на рынке.  
+Это честная фиксация: в текущем Stage-1 контуре нет материала, из которого можно получить требуемое observation, и synthetic CooperativeSeller это не заменяет.
+
+TZ допускал «documented absence» как Variant 1. После review это означает **source absence**, а не выполненную главную цель ТЗ.
 
 ## Вне scope
 
@@ -78,210 +84,193 @@ SPEC v0.6
 - поля `packageContents`, `conversionFactor`, `minQuantity`, `maxQuantity`, `tierPrice`, `derivedFromSchedule`, `scheduleVersion`
 - изменение `mockSellerCatalog.ts` / production ADD_TO_BASKET
 - инъекция `1 мешок = 5 kg` или таблицы `1–4 / 5–9 / 10+` как experimenter catalog facts
+- `new BasketWorld()` + ручной catalog + CooperativeSeller как «observation»
 - повтор PACKAGE-008 / VOLUME-008 / PACKAGE-BIZ-009 как «новое» observation
 - закрытие OQ-002A / OQ-002B
-- Domain CONFIRMED на FLOW-010 rows
+- Domain CONFIRMED на SOURCE-010 rows
 - bump SPEC v0.7
 - I-051+
 
-## Правило, зафиксированное после TZ-009
+## PR-25 review holes (закрыты этим исправлением)
 
-Нельзя:
+### H1. Synthetic BasketWorld ≠ GreenMarket business flow
 
-1. начать с сущности, затем доказать, что она работает;
-2. назвать catalog/spec reconstruction observation;
-3. превратить Impl PASS в Domain CONFIRMED;
-4. считать два заранее заданных `productId` доказательством pack-as-Products;
-5. инжектировать Offer.price и «наблюдать» его как seller pricing.
+`observeCooperativeAccept()` создавал новый world, ручной catalog и `seller-a`. Это конструкция теста, не воспроизведение существующего flow. **Удалено.**
 
-Если flow не найден — **NOT OBSERVED**, без выдуманной seller policy в коде.
+### H2. Hardcoded 55 / 180 / 380 ≠ чтение `mockSellerCatalog.ts`
 
-## Search log (read-only)
+Тесты должны читать сам файл. SOURCE-010-CATALOG парсит `PRODUCT_SEEDS` из `mockSellerCatalog.ts`.
 
-Источники просмотрены **до** любых executable scenarios. В catalog/spec **не** создавались pack-contents или quantity-range таблицы.
+### H3. CooperativeSeller заранее предсказуем
 
-| Source | What was looked for | What was found |
-|---|---|---|
-| `react-vite-bootstrap-project/src/platform-core/map/repository/mockSellerCatalog.ts` | seller fact `1 мешок = 5 kg`; quantity-range price table; honey 500 g vs 1 kg as pack sizes of one product | Vegetables (картофель, томаты, …) listed as `1 кг` with a unit price. Dairy/meat/bakery/honey/nuts use listed unit strings (`250 г`, `500 г`, `1 шт`, `1 пучок`). Honeys are **differently named** listings (цветочный 500 г, липовый 500 г, с пергой 350 г). **No** `1 кг` honey. **No** sack=kg contents. **No** `1–4 / 5–9 / 10+` table. |
-| Production `ADD_TO_BASKET` (`BasketActionHandlers.ts`) | conversion / tier lookup at add-to-basket | Copies listed `price` and `unit`. No conversion. No quantity-range. |
-| `experiments/basket/emulator/sellers.ts` | pack-contents response; quantity-range pricing; schedule version | CooperativeSeller accepts the buyer Offer as-is. NegotiatingSeller adds +1 to unit price (not a range). TimeDiscountSeller subtracts 3 over **time** from a seller-side Offer (not a standing quantity-range change). PartialAvailabilitySeller reduces to same-unit stock. SubstitutionSeller substitutes `baguette`. **None** states pack contents or a quantity-range table. |
-| ТЗ-025 (`docs/specifications/27_tz025_kartochka_prodavtsa_detalnaya.md`) | structured schedule | Free-text example «Сегодня скидка на сыр». Not a quantity-range object. |
-| TZ-BASKET-009 search | crate / schedule in Stage-1 | Already recorded: no crate `1 package = 5 kg`; no quantity-range table. Reconstruction only. |
-| Live seller / buyer interview in this repo | real farm-gate dialogue | **Not present.** Stage-1 has mock catalog + deterministic emulators only. |
+`respondToBuyerOffer` с теми же `items`, что сформировал buyer, проверяет только accept-as-is. Из этого нельзя получить evidence о pack-contents или quantity-range. **Удалено. Не используется как seller business decision.**
 
-Interpretation is separated from fact: absence in these sources is **not** a market-wide claim that farmers never sell by the sack or never give quantity discounts.
+### H4. NOT OBSERVED смешивал два результата
+
+«В коде fact не найден» ≠ «seller в flow не сообщил fact». Сейчас: SOURCE ABSENT vs BUSINESS-FLOW NOT OBTAINED.
+
+### H5. A3 с одним `honey_flower` не проверяет гипотезу
+
+Один listing 500 g не различает «один товар + упаковки» vs «два товара». A3 = **NOT TESTABLE** из Stage-1 sources. SOURCE-010-CATALOG фиксирует только listings (три имени, нет 1 kg honey), без seller classification.
+
+### H6. B2 180/180/180/180 неизбежен без механизма range
+
+Корректный вывод: в текущем emulator **нет механизма**, позволяющего наблюдать quantity-range decision. Не: «это не quantity-range pricing decision».
+
+### H7. Absence of mechanism ≠ absence of business fact
+
+Search log «No quantity-range table / No sack=kg / No live interview» доказывает только: Stage-1 implementation currently contains no such evidence.
+
+### H8. DoD не должен закрывать эксперимент как выполненную главную цель
+
+Documented source absence не равно полученному business-flow observation. Primary goal remains unmet.
+
+## Search log (read-only, now executable)
+
+Источники читаются тестами из `experiments/basket/tests/stage1SourceSearch.ts`. В catalog/spec **не** создавались pack-contents или quantity-range таблицы.
+
+| Source | What was looked for | What was found | Result kind |
+|---|---|---|---|
+| `mockSellerCatalog.ts` | `1 мешок = 5 kg`; quantity-range table; honey 500 g vs 1 kg as pack sizes of one product | Vegetables listed as `1 кг` with a unit price (картофель 55, томаты 180). Honeys are differently named listings (цветочный 500 г, липовый 500 г, с пергой 350 г). No `1 кг` honey. No sack=kg contents. No `1–4 / 5–9 / 10+` table. | SOURCE ABSENT |
+| Production `ADD_TO_BASKET` | conversion / tier lookup | Copies listed `price` and `unit`. No conversion. No quantity-range. | SOURCE ABSENT |
+| `experiments/basket/emulator/sellers.ts` | pack-contents response; quantity-range pricing; schedule version | CooperativeSeller accepts the buyer Offer as-is. NegotiatingSeller adds +1 (not a range). TimeDiscountSeller subtracts 3 over **time**. PartialAvailabilitySeller reduces same-unit stock. **No quantity-range mechanism.** Therefore a CooperativeSeller run cannot observe a range decision. | SOURCE ABSENT (no mechanism) |
+| ТЗ-025 | structured schedule | Free-text «Сегодня скидка на сыр». Not a quantity-range object. | SOURCE ABSENT |
+| Live seller / buyer interview in this repo | farm-gate dialogue | Not present. Stage-1 has mock catalog + deterministic emulators only. | SOURCE ABSENT |
+
+Absence in these sources is **not** a market-wide claim that farmers never sell by the sack or never give quantity discounts.
 
 ## Часть A — OQ-002A
 
 ### A1 — buyer 2 kg vs pack seller
 
-**Prerequisite:** seller who actually sells by pack and states contents in another unit.
+**Prerequisite:** seller who sells by pack and states contents in another unit, then answers a kg request.
 
-**Search result:** no such seller fact. Potatoes are listed as `1 кг @ 55`, not `1 мешок = 5 kg @ 500`.
+**Source search:** potatoes listed `1 кг @ 55`, not `1 мешок = 5 kg @ 500`.
 
-Executable FLOW-010-A1 therefore does **not** plant `externalPackageKg = 5`. It runs the Stage-1 flow that **does** exist:
+**Business flow:** **NOT OBTAINED.** A1 is not executable as observation. No CooperativeSeller reconstruction.
 
-- Business fact (listing): картофель listed `kg` @ 55 (mapped from mock `1 кг @ 55`; this is listed-unit mapping, **not** pack conversion).
-- Buyer action: request 2 kg.
-- Seller action: CooperativeSeller accepts 2 kg @ 55.
-- Observed outcome: same-unit kg deal completes. Seller does not state pack contents and does not refuse partial pack (there is no pack).
-- A1 classification: **NOT OBSERVED** (pack-selling seller fact absent). This is **not** `A1 = NO PROBLEM` for the package-contents hypothesis.
+**Classification:** SOURCE ABSENT in `mockSellerCatalog.ts`. Not `A1 = NO PROBLEM`. Not business-flow NOT OBSERVED.
 
 ### A2 — buyer 6 kg vs pack seller
 
 **Prerequisite:** same pack seller as A1.
 
-**Search result:** absent. Executable FLOW-010-A2 runs 6 kg against the same kg potato listing. CooperativeSeller accepts 6 kg @ 55. No 1+1 kg / 2 packages / refuse / other-stock policy is invented.
+**Source search:** same potato listing. No 1+1 / 2-pack / refuse policy exists to observe.
 
-A2 classification: **NOT OBSERVED**.
+**Business flow:** **NOT OBTAINED.** No policy invented in code.
+
+**Classification:** SOURCE ABSENT. A2 pack policies are **NOT TESTABLE** without a pack seller.
 
 ### A3 — honey 500 g vs 1 kg: seller self-description
 
-**Search result:** mock has three differently named honeys; there is no `мёд 1 kg` listing. No seller API or emulator method classifies «один товар + разные упаковки» vs «два самостоятельных товара».
+**Prerequisite:** seller states whether two pack sizes are one product or two goods.
 
-Executable FLOW-010-A3: buyer requests listed flower honey `500 g`; CooperativeSeller accepts that line; no substitution to another honey; no pack-vs-product classification field. Identity-key counting of pre-split `productId`s is **not** used (TZ-009 H3).
+**Source search:** three differently named honeys; no `мёд 1 kg`. No seller classification API.
 
-A3 classification: **NOT OBSERVED** (seller self-description absent).
+**Business flow:** **NOT OBTAINED.** One listing cannot test the distinction. Pre-split `productId` counting is not used (TZ-009 H3).
+
+**Classification:** SOURCE ABSENT + **NOT TESTABLE**. Not seller classification evidence.
 
 ## Часть B — OQ-002B
 
 ### B1 — quantity-dependent listed price
 
-**Prerequisite:** seller who states a quantity-range price as a business fact.
+**Prerequisite:** seller states a quantity-range price as a business fact and applies it to an order.
 
-**Search result:** tomatoes listed `1 кг @ 180`. No `1–4 → 20 / 5–9 → 17 / 10+ → 14`. Emulators do not look up quantity.
+**Source search:** tomatoes listed `1 кг @ 180`. No `1–4 → 20 / 5–9 → 17 / 10+ → 14`. Emulator has no quantity-range lookup.
 
-Executable FLOW-010-B1: buyer requests 7 kg; CooperativeSeller accepts 7 kg @ listed 180. Seller does not state or apply a range.
+**Business flow:** **NOT OBTAINED.** CooperativeSeller cannot produce this evidence.
 
-B1 classification: **NOT OBSERVED**.
+**Classification:** SOURCE ABSENT (listing + no emulator mechanism).
 
 ### B2 — boundaries 4 / 5 / 9 / 10 kg
 
-Without a seller-stated range, boundaries cannot show whether a range is display-only or a commercial decision.
+Without a seller-stated range, boundaries cannot show display vs commercial decision.
 
-Executable FLOW-010-B2: CooperativeSeller accepts 4, 5, 9, and 10 kg, each at listed 180. That is listed-unit-price acceptance, **not** a quantity-range pricing decision.
+**Business flow:** **NOT OBTAINED.** Four synthetic offers at a pre-set price would be inevitable if the emulator has no range mechanism.
 
-B2 classification: **NOT OBSERVED**.
+**Classification:** SOURCE ABSENT — current emulator has **no mechanism** that would allow observing such a decision.
 
 ### B3 — schedule change 17 → 16
 
-**Search result:** no structured schedule exists to change. TimeDiscountSeller (`price − 3` over time on a seller-side Offer) is **not** B3: it is not a standing quantity-range rule, has no 5–9 kg bound, and does not distinguish existing vs new orders via schedule version.
+**Source search:** no structured schedule to change. TimeDiscountSeller (`price − 3` over time) is not B3.
 
-B3 classification: **NOT OBSERVED**. No executable scenario. Schedule version/provenance is **not** modelled.
+**Business flow:** **NOT OBTAINED.** No executable. Schedule version/provenance is not modelled.
+
+**Classification:** SOURCE ABSENT. Not used as OQ-002B evidence.
 
 ## Evidence cards
 
-### FLOW-010-A1
+### SOURCE-010-CATALOG
 
 | Field | Value |
 |---|---|
-| Scenario ID | FLOW-010-A1 |
-| Business fact | Stage-1 potato listing is `kg` @ 55. **No** seller fact `1 мешок = 5 kg`. |
-| Source | `mockSellerCatalog.ts` vegetables «Картофель молодой» `1 кг @ 55`; CooperativeSeller |
-| Buyer action | requests 2 kg |
-| Seller action | accepts 2 kg @ 55 (same unit, listed unit price) |
-| Observed outcome | kg deal STABLE; no pack contents stated |
-| Current model representation | Offer `(potatoes, 2, kg, 55)` + Acceptance |
-| Missing fact | seller pack-contents relation in another unit; partial-pack policy |
-| Ambiguity / impossibility | pack-contents hypothesis cannot be tested; kg deal itself is representable |
-| Domain conclusion | **NOT OBSERVED** for OQ-002A A1. Not `A1 = NO PROBLEM` on packages. |
-| Open question | SPEC OQ-002A |
+| Scenario ID | SOURCE-010-CATALOG |
+| Kind | Stage-1 source search of `mockSellerCatalog.ts` |
+| Business fact | none observed — file is a listing seed, not a seller utterance in a deal |
+| Source | `mockSellerCatalog.ts` (file read by the test) |
+| Buyer action | none |
+| Seller action | none |
+| Recorded listing facts | картофель `1 кг @ 55`; томаты `1 кг @ 180`; мёд: 3 named rows, 0 with `1 кг`; no `мешок`; no quantity-range table |
+| Missing fact | pack-contents relation; seller classification of honey packs; quantity-range rule |
+| Domain conclusion | SOURCE ABSENT in this file. **Not** a business-flow observation. |
+| Open question | SPEC OQ-002A / OQ-002B |
 | New concept justified? | **no** |
 
-### FLOW-010-A2
+### SOURCE-010-EMULATOR
 
 | Field | Value |
 |---|---|
-| Scenario ID | FLOW-010-A2 |
-| Business fact | same kg potato listing as A1 |
-| Source | same |
-| Buyer action | requests 6 kg |
-| Seller action | accepts 6 kg @ 55 |
-| Observed outcome | kg deal STABLE; no 1+1 / 2-pack / refuse policy stated |
-| Current model representation | Offer `(potatoes, 6, kg, 55)` + Acceptance |
-| Missing fact | pack seller; oversupply / split / whole-only rule |
-| Ambiguity / impossibility | A2 pack policies cannot be observed because the pack seller is absent |
-| Domain conclusion | **NOT OBSERVED** for OQ-002A A2 |
-| Open question | SPEC OQ-002A |
+| Scenario ID | SOURCE-010-EMULATOR |
+| Kind | Stage-1 source search of `sellers.ts` |
+| Source | `experiments/basket/emulator/sellers.ts` (file read by the test) |
+| Buyer action | none |
+| Seller action | none (mechanism inspection, not a deal) |
+| Recorded facts | CooperativeSeller accepts latest buyer Offer as-is; no `minQuantity` / `maxQuantity` / `tierPrice` / `PriceSchedule`; TimeDiscountSeller subtracts 3 over time |
+| Missing fact | quantity-range pricing mechanism; pack-contents response |
+| Domain conclusion | Current emulator has **no mechanism** that would allow observing a quantity-range or pack-contents seller decision. That is source absence, not a market finding. |
+| Open question | SPEC OQ-002A / OQ-002B |
 | New concept justified? | **no** |
 
-### FLOW-010-A3
+### SOURCE-010-BASKET
 
 | Field | Value |
 |---|---|
-| Scenario ID | FLOW-010-A3 |
-| Business fact | mock lists differently named honeys; no 1 kg honey; seller never classifies pack vs product |
-| Source | `mockSellerCatalog.ts` honey seeds; CooperativeSeller |
-| Buyer action | requests flower honey `500 g` |
-| Seller action | accepts that listed line; no substitution; no classification |
-| Observed outcome | listed-unit deal STABLE |
-| Current model representation | Offer `(honey_flower, 1, 500 g, 380)` + Acceptance |
-| Missing fact | seller self-description of 500 g vs 1 kg (one product + packs vs two products) |
-| Ambiguity / impossibility | cannot conclude pack-as-Product or pack-as-contents from this flow |
-| Domain conclusion | **NOT OBSERVED** for OQ-002A A3. Not TZ-009 identity-key tautology. |
-| Open question | SPEC OQ-002A |
+| Scenario ID | SOURCE-010-BASKET |
+| Kind | Stage-1 source search of production ADD_TO_BASKET |
+| Source | `BasketActionHandlers.ts` (file read by the test) |
+| Recorded facts | `addToBasket` copies `payload.unit` and `payload.price`; function body has no conversion / tier fields |
+| Domain conclusion | SOURCE ABSENT in add-to-basket. Not a seller pricing observation. |
+| Open question | SPEC OQ-002A / OQ-002B |
 | New concept justified? | **no** |
 
-### FLOW-010-B1
+### SOURCE-010-TZ025
 
 | Field | Value |
 |---|---|
-| Scenario ID | FLOW-010-B1 |
-| Business fact | tomatoes listed `kg` @ 180. **No** seller quantity-range table. |
-| Source | `mockSellerCatalog.ts` «Томаты» `1 кг @ 180`; CooperativeSeller |
-| Buyer action | requests 7 kg |
-| Seller action | accepts 7 kg @ 180 |
-| Observed outcome | listed unit price applied; no range stated |
-| Current model representation | Offer `(tomatoes, 7, kg, 180)` + Acceptance |
-| Missing fact | seller-stated quantity-range rule that determines the 7 kg price |
-| Ambiguity / impossibility | cannot tell what price a range-pricing seller would apply to 7 kg |
-| Domain conclusion | **NOT OBSERVED** for OQ-002B B1 |
+| Scenario ID | SOURCE-010-TZ025 |
+| Kind | Stage-1 source search of ТЗ-025 |
+| Source | `docs/specifications/27_tz025_kartochka_prodavtsa_detalnaya.md` |
+| Recorded facts | text «Сегодня скидка на сыр»; no quantity-range table |
+| Domain conclusion | SOURCE ABSENT for schedule-as-object. Free-text is not an Offer (already I-050). Not B3 observation. |
 | Open question | SPEC OQ-002B |
 | New concept justified? | **no** |
 
-### FLOW-010-B2
-
-| Field | Value |
-|---|---|
-| Scenario ID | FLOW-010-B2 |
-| Business fact | same listed `kg` @ 180; no range bounds exist to test |
-| Source | same |
-| Buyer action | requests 4, 5, 9, 10 kg |
-| Seller action | accepts each at 180 |
-| Observed outcome | same listed unit price at all four quantities |
-| Current model representation | four Offers, each `(tomatoes, qty, kg, 180)` |
-| Missing fact | seller range bounds and a pricing decision at those bounds |
-| Ambiguity / impossibility | cannot classify a non-existent range as display vs commercial |
-| Domain conclusion | **NOT OBSERVED** for OQ-002B B2 |
-| Open question | SPEC OQ-002B |
-| New concept justified? | **no** |
-
-### FLOW-010-B3
-
-| Field | Value |
-|---|---|
-| Scenario ID | FLOW-010-B3 (documentation only; no executable) |
-| Business fact | none found |
-| Source | search log; TimeDiscountSeller inspected and rejected as B3 |
-| Buyer action | not observed |
-| Seller action | not observed |
-| Observed outcome | **NOT OBSERVED** |
-| Current model representation | n/a — do not invent schedule version |
-| Missing fact | seller changing `5–9 kg → 17` to `16`; existing vs new order effect; provenance |
-| Ambiguity / impossibility | version/provenance must not be modelled without this flow |
-| Domain conclusion | **NOT OBSERVED**. Not used as OQ-002B evidence. |
-| Open question | SPEC OQ-002B |
-| New concept justified? | **no** |
+Required flows A1–A3 / B1–B3 have **no** executable observation cards. They are documented above as SOURCE ABSENT / NOT TESTABLE / BUSINESS-FLOW NOT OBTAINED.
 
 ## Принятые решения
 
 ```text
 TZ-BASKET-010
-Variant 1
+PRIMARY GOAL: NOT MET
+BUSINESS-FLOW OBSERVATION: NOT OBTAINED
+SOURCE SEARCH: SOURCE ABSENT in inspected Stage-1 files
 OQ-002A: OPEN
 OQ-002B: OPEN
-A1/A2/A3: NOT OBSERVED
-B1/B2/B3: NOT OBSERVED
+A1/A2: SOURCE ABSENT; flow NOT OBTAINED
+A3: SOURCE ABSENT + NOT TESTABLE
+B1/B2: SOURCE ABSENT (no emulator mechanism); flow NOT OBTAINED
+B3: SOURCE ABSENT; flow NOT OBTAINED
 NEW CONCEPT JUSTIFIED: no
 NO MODEL CHANGE: yes
 NO NEW INVARIANT: yes
@@ -289,7 +278,7 @@ SPEC VERSION: remains v0.6
 Production architecture changed: NO
 ```
 
-Absence of observation does **not** justify Package or PriceSchedule. Further closing still requires a business-flow observation in which a deal cannot complete without the extra fact.
+Source absence does **not** justify Package or PriceSchedule. Further closing still requires a business-flow observation in which a deal cannot complete without the extra fact.
 
 ## Invariants
 
@@ -299,17 +288,14 @@ I-042…I-050 unchanged. No I-051.
 
 | ID | Hypothesis | Что проверяет |
 |---|---|---|
-| FLOW-010-A1 | OPEN (OQ-002A) | seller action on 2 kg potatoes; pack-contents seller fact absent |
-| FLOW-010-A2 | OPEN (OQ-002A) | seller action on 6 kg potatoes; pack oversupply policy not invented |
-| FLOW-010-A3 | OPEN (OQ-002A) | seller accepts listed honey; no pack-vs-product classification |
-| FLOW-010-B1 | OPEN (OQ-002B) | seller action on 7 kg tomatoes; quantity-range seller fact absent |
-| FLOW-010-B2 | OPEN (OQ-002B) | seller accepts 4/5/9/10 kg at listed unit price; not a range decision |
+| SOURCE-010-CATALOG | OPEN | reads `mockSellerCatalog.ts`; listing facts; no sack; no range table; honey names, no 1 kg honey |
+| SOURCE-010-EMULATOR | OPEN | reads `sellers.ts`; CooperativeSeller is accept-as-is; no quantity-range mechanism |
+| SOURCE-010-BASKET | OPEN | reads `BasketActionHandlers.ts`; ADD_TO_BASKET copies listed unit/price |
+| SOURCE-010-TZ025 | OPEN | reads ТЗ-025; cheese-discount text; no range table |
 
-FLOW-010-B3 is documentation only.
+FLOW-010-A1/A2/A3/B1/B2 **удалены** (synthetic CooperativeSeller / handmade catalog).
 
-88 prior + 5 FLOW-010 = 93 total.
-
-Executable rows include buyer **and** seller actions. They are **not** catalog-only reconstruction. They still do **not** close OQ-002A/B: the hypothesised seller facts were not found.
+88 prior − 0 FLOW + 4 SOURCE-010 = 92 total after this correction (93 FLOW rows replaced by 4 source-search rows).
 
 ## Implementation
 
@@ -317,11 +303,14 @@ Executable rows include buyer **and** seller actions. They are **not** catalog-o
 
 ## Definition of Done
 
-- [x] Минимум одно business-flow observation для OQ-002A **или** документированное отсутствие — отсутствие A1/A2/A3 зафиксировано; FLOW-010-A* run seller actions on the Stage-1 flow that exists
-- [x] Минимум одно business-flow observation для OQ-002B **или** документированное отсутствие — отсутствие B1/B2/B3 зафиксировано; FLOW-010-B* run seller actions; B3 NOT OBSERVED without executable invention
-- [x] В observation участвуют buyer/seller actions, не только catalog/spec
-- [x] Business fact отделён от interpretation
-- [x] Для каждого flow зафиксирован observed outcome
+- [ ] Минимум одно **business-flow** observation для OQ-002A — **не выполнено** (явно: NOT OBTAINED)
+- [ ] Минимум одно **business-flow** observation для OQ-002B — **не выполнено** (явно: NOT OBTAINED)
+- [x] Stage-1 source search documented **and** executable against the real files (`mockSellerCatalog.ts`, `sellers.ts`, `BasketActionHandlers.ts`, ТЗ-025)
+- [x] SOURCE ABSENT отделён от BUSINESS-FLOW NOT OBTAINED
+- [x] CooperativeSeller / handmade catalog не выдаются за observation
+- [x] A3 не претендует на seller classification
+- [x] B2 не выдаёт неизбежный 180/180/180/180 за pricing decision
+- [x] Absence of mechanism не выдаётся за absence of business fact
 - [x] Synthetic reconstruction не выдаётся за observation; pack/tier tables не инжектированы
 - [x] Impl PASS не превращается в Domain CONFIRMED
 - [x] OQ-002A не закрыт
@@ -329,3 +318,4 @@ Executable rows include buyer **and** seller actions. They are **not** catalog-o
 - [x] Новая сущность не введена
 - [x] SPEC остаётся v0.6
 - [x] Production architecture не изменяется
+- [x] Главная цель ТЗ не отмечена как выполненная

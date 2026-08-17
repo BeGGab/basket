@@ -2,16 +2,16 @@
 
 **Status:** Evidence from TZ-BASKET-001…010 mock run  
 **Experiment version:** v0.1  
-**Model version:** v0.1.17 / SPEC v0.6 (TZ-010: no pack-contents or quantity-range seller fact observed; OQ-002A/B remain OPEN)
+**Model version:** v0.1.17 / SPEC v0.6 (TZ-010 is Stage-1 source search; business-flow observation not obtained; OQ-002A/B remain OPEN)
 
 ## How to read results
 
 - **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).
 - **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).
-- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, FLOW-010-A1/A2/A3, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, FLOW-010-B1/B2, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, catalog/spec reconstruction, or documented absence of a hypothesised seller fact — not a policy.
+- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG/BASKET, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, catalog/spec reconstruction, or Stage-1 source absence — not a business-flow observation and not a policy.
 - Do not treat Impl PASS as confirmation of an unresolved OQ.
 - Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.
-- All 93 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
+- All 92 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
 
 ## Purpose
 
@@ -62,11 +62,6 @@ Record evidence from the mock domain and seller emulator.
 | BS-034 | PASS | CONFIRMED | none | I-035: isCounterReason (BUYER_CHANGE / SELLER_COUNTEROFFER) cannot reply to an expired Offer; PRICE_CHANGE may replace it |
 | BS-035 | PASS | CONFIRMED | none | silence must not create a fake FSM state or rewrite waiting facts; waitMs is derived from clock |
 | BS-036 | PASS | CONFIRMED | none | determinism regression: same start + same commands → same snapshot; not a proof of all nondeterminism sources |
-| FLOW-010-A1 | PASS | OPEN (SPEC-OQ-002A) | none | NOT OBSERVED for OQ-002A A1: seller accepted 2 kg potatoes at listed kg unit price; no seller fact 1 sack = 5 kg was stated. This is not A1 = NO PROBLEM for package contents |
-| FLOW-010-A2 | PASS | OPEN (SPEC-OQ-002A) | none | NOT OBSERVED for OQ-002A A2: seller accepted 6 kg potatoes at listed kg unit price; no 1+1 kg / 2-pack / refuse policy was stated because no pack seller fact exists |
-| FLOW-010-A3 | PASS | OPEN (SPEC-OQ-002A) | none | NOT OBSERVED for OQ-002A A3: seller accepted listed flower honey 500 g and did not classify pack-vs-product; identity-key counting of pre-split productIds is not used |
-| FLOW-010-B1 | PASS | OPEN (SPEC-OQ-002B) | none | NOT OBSERVED for OQ-002B B1: seller accepted 7 kg tomatoes at listed unit price 180; no quantity-range seller fact was stated or applied |
-| FLOW-010-B2 | PASS | OPEN (SPEC-OQ-002B) | none | NOT OBSERVED for OQ-002B B2: seller accepted 4/5/9/10 kg at the same listed unit price; this is not a quantity-range pricing decision because no range was stated |
 | PACKAGE-001 | PASS | CONFIRMED | none | package is representable as a unit |
 | PACKAGE-002 | PASS | OPEN (SPEC-OQ-002) | none | Stage-1: different catalog qty + different unit price is AMBIGUOUS. Volume-pricing policy is not decided |
 | PACKAGE-003 | PASS | OPEN (SPEC-OQ-002) | none | MODEL GAP: current identity cannot represent distinct package bases |
@@ -97,6 +92,10 @@ Record evidence from the mock domain and seller emulator.
 | PRICE-UNIT-002 | PASS | CONFIRMED | none | 2kg@15 vs 1kg@30 are different Offers; equal derived totals are arithmetic, not commercial equivalence |
 | PRICE-ZERO-001 | PASS | CONFIRMED | none | price 0 is a real unit price; derived total 0 is not a missing price |
 | SNAPSHOT-VOL-001 | PASS | OPEN (SPEC-OQ-002A) | none | canonical snapshot distinguishes requested/agreed/current/alt/derived; package contents remain absent |
+| SOURCE-010-BASKET | PASS | OPEN (SPEC-OQ-002A) | none | Stage-1 source search of BasketActionHandlers.ts: ADD_TO_BASKET copies listed unit and price. SOURCE ABSENT of conversion/tier lookup. Not a seller pricing observation |
+| SOURCE-010-CATALOG | PASS | OPEN (SPEC-OQ-002A) | none | Stage-1 source search of mockSellerCatalog.ts: listed units/prices are in the file; sack contents and quantity-range table are SOURCE ABSENT. This is not a business-flow observation and does not test A3 seller classification |
+| SOURCE-010-EMULATOR | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of sellers.ts: CooperativeSeller accepts the buyer Offer as-is; no quantity-range mechanism exists, so a CooperativeSeller run cannot observe a range or pack-contents decision. SOURCE ABSENT of mechanism, not a business-flow finding |
+| SOURCE-010-TZ025 | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of TZ-025: free-text cheese discount is present; a quantity-range table is SOURCE ABSENT. Not B3 schedule-change observation |
 | VOLUME-008-001 | PASS | OPEN (SPEC-OQ-002B) | none | Buyer 3/7/12 kg does not read an external tier schedule from the domain |
 | VOLUME-008-002 | PASS | CONFIRMED | none | a pre-negotiation tier announcement is not an Offer, has no id, and cannot be accepted |
 | VOLUME-008-003 | PASS | CONFIRMED | none | 7 kg @ 17 is a concrete Offer; schedule is not stored as provenance |
@@ -609,66 +608,6 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: determinism regression: same start + same commands → same snapshot; not a proof of all nondeterminism sources
 
-### FLOW-010-A1 — Impl PASS / Domain OPEN (SPEC-OQ-002A)
-
-- Expected: status=STABLE; agreedQty=2; agreedUnit=kg; agreedPrice=55; extraFields=false
-- Actual: status=STABLE; agreedQty=2; agreedUnit=kg; agreedPrice=55; extraFields=false
-- Invariant: I-049
-- Hypothesis: OPEN
-- Open question: SPEC-OQ-002A
-- Model violation: none
-- New concept: NOT OBSERVED — pack-contents seller fact absent
-- Workaround: none
-- Decision: NOT OBSERVED for OQ-002A A1: seller accepted 2 kg potatoes at listed kg unit price; no seller fact 1 sack = 5 kg was stated. This is not A1 = NO PROBLEM for package contents
-
-### FLOW-010-A2 — Impl PASS / Domain OPEN (SPEC-OQ-002A)
-
-- Expected: status=STABLE; agreedQty=6; agreedUnit=kg; agreedPrice=55; extraFields=false
-- Actual: status=STABLE; agreedQty=6; agreedUnit=kg; agreedPrice=55; extraFields=false
-- Invariant: I-049
-- Hypothesis: OPEN
-- Open question: SPEC-OQ-002A
-- Model violation: none
-- New concept: NOT OBSERVED — pack oversupply policy not invented
-- Workaround: none
-- Decision: NOT OBSERVED for OQ-002A A2: seller accepted 6 kg potatoes at listed kg unit price; no 1+1 kg / 2-pack / refuse policy was stated because no pack seller fact exists
-
-### FLOW-010-A3 — Impl PASS / Domain OPEN (SPEC-OQ-002A)
-
-- Expected: status=STABLE; agreedProduct=honey_flower; agreedUnit=500 g; agreedPrice=380; extraFields=false; substitutionCount=0
-- Actual: status=STABLE; agreedProduct=honey_flower; agreedUnit=500 g; agreedPrice=380; extraFields=false; substitutionCount=0
-- Invariant: I-049
-- Hypothesis: OPEN
-- Open question: SPEC-OQ-002A
-- Model violation: none
-- New concept: NOT OBSERVED — seller self-description of pack vs product absent
-- Workaround: none
-- Decision: NOT OBSERVED for OQ-002A A3: seller accepted listed flower honey 500 g and did not classify pack-vs-product; identity-key counting of pre-split productIds is not used
-
-### FLOW-010-B1 — Impl PASS / Domain OPEN (SPEC-OQ-002B)
-
-- Expected: status=STABLE; agreedQty=7; agreedUnit=kg; agreedPrice=180; extraFields=false
-- Actual: status=STABLE; agreedQty=7; agreedUnit=kg; agreedPrice=180; extraFields=false
-- Invariant: I-050
-- Hypothesis: OPEN
-- Open question: SPEC-OQ-002B
-- Model violation: none
-- New concept: NOT OBSERVED — quantity-range seller fact absent
-- Workaround: none
-- Decision: NOT OBSERVED for OQ-002B B1: seller accepted 7 kg tomatoes at listed unit price 180; no quantity-range seller fact was stated or applied
-
-### FLOW-010-B2 — Impl PASS / Domain OPEN (SPEC-OQ-002B)
-
-- Expected: price4=180; price5=180; price9=180; price10=180; allStable=true; extraFields=false
-- Actual: price4=180; price5=180; price9=180; price10=180; allStable=true; extraFields=false
-- Invariant: I-050
-- Hypothesis: OPEN
-- Open question: SPEC-OQ-002B
-- Model violation: none
-- New concept: NOT OBSERVED — range bounds were not a seller fact
-- Workaround: none
-- Decision: NOT OBSERVED for OQ-002B B2: seller accepted 4/5/9/10 kg at the same listed unit price; this is not a quantity-range pricing decision because no range was stated
-
 ### PACKAGE-001 — Impl PASS / Domain CONFIRMED
 
 - Expected: quantity=1; unit=package; price=60; derivedTotal=60
@@ -1029,6 +968,54 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: canonical snapshot distinguishes requested/agreed/current/alt/derived; package contents remain absent
 
+### SOURCE-010-BASKET — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: copiesUnit=true; copiesPrice=true; hasConversion=false; hasTierPrice=false
+- Actual: copiesUnit=true; copiesPrice=true; hasConversion=false; hasTierPrice=false
+- Invariant: I-045 I-050
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: SOURCE ABSENT in ADD_TO_BASKET — not a business-flow observation
+- Workaround: none
+- Decision: Stage-1 source search of BasketActionHandlers.ts: ADD_TO_BASKET copies listed unit and price. SOURCE ABSENT of conversion/tier lookup. Not a seller pricing observation
+
+### SOURCE-010-CATALOG — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: potatoUnit=1 кг; potatoPrice=55; tomatoUnit=1 кг; tomatoPrice=180; honeyNamedCount=3; honey1kgCount=0; sackContents=false; quantityRangeTable=false
+- Actual: potatoUnit=1 кг; potatoPrice=55; tomatoUnit=1 кг; tomatoPrice=180; honeyNamedCount=3; honey1kgCount=0; sackContents=false; quantityRangeTable=false
+- Invariant: I-047 I-050
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: SOURCE ABSENT in mockSellerCatalog.ts — not a business-flow observation
+- Workaround: none
+- Decision: Stage-1 source search of mockSellerCatalog.ts: listed units/prices are in the file; sack contents and quantity-range table are SOURCE ABSENT. This is not a business-flow observation and does not test A3 seller classification
+
+### SOURCE-010-EMULATOR — Impl PASS / Domain OPEN (SPEC-OQ-002B)
+
+- Expected: cooperativeAcceptsBuyerAsIs=true; hasMinQuantity=false; hasMaxQuantity=false; hasTierPrice=false; hasPriceSchedule=false; timeDiscountSubtracts3=true
+- Actual: cooperativeAcceptsBuyerAsIs=true; hasMinQuantity=false; hasMaxQuantity=false; hasTierPrice=false; hasPriceSchedule=false; timeDiscountSubtracts3=true
+- Invariant: I-047 I-050
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002B
+- Model violation: none
+- New concept: SOURCE ABSENT — emulator has no quantity-range mechanism
+- Workaround: none
+- Decision: Stage-1 source search of sellers.ts: CooperativeSeller accepts the buyer Offer as-is; no quantity-range mechanism exists, so a CooperativeSeller run cannot observe a range or pack-contents decision. SOURCE ABSENT of mechanism, not a business-flow finding
+
+### SOURCE-010-TZ025 — Impl PASS / Domain OPEN (SPEC-OQ-002B)
+
+- Expected: cheeseDiscountText=true; quantityRangeTable=false
+- Actual: cheeseDiscountText=true; quantityRangeTable=false
+- Invariant: I-050
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002B
+- Model violation: none
+- New concept: SOURCE ABSENT in TZ-025 — not a business-flow observation
+- Workaround: none
+- Decision: Stage-1 source search of TZ-025: free-text cheese discount is present; a quantity-range table is SOURCE ABSENT. Not B3 schedule-change observation
+
 ### VOLUME-008-001 — Impl PASS / Domain OPEN (SPEC-OQ-002B)
 
 - Expected: externalTier3=20; externalTier7=17; externalTier12=14; domainPrice=15; scheduleApplied3=false; scheduleApplied7=false; scheduleApplied12=false
@@ -1289,7 +1276,7 @@ Changes in this PR (already implemented and tested):
 - OQ-006 / OQ-008 closed
 - PartialAvailabilitySeller offers min(requested, stock) of the SAME CatalogLine (sellerId, productId, unit) — a pcs pool is not kg stock
 - cheapestAvailable() removed from domain catalog semantics (ambiguous ≠ cheapest); catalogUnitPrice returns null on disagreement
-- GREENMARKET_DOMAIN_SPEC v0.6 is the canonical domain contract; TZ-BASKET-009 records catalog/spec reconstruction; TZ-BASKET-010 records absence of pack-contents and quantity-range seller facts; neither introduces Package or PriceSchedule
+- GREENMARKET_DOMAIN_SPEC v0.6 is the canonical domain contract; TZ-BASKET-009 records catalog/spec reconstruction; TZ-BASKET-010 records Stage-1 source search (SOURCE ABSENT in inspected files) and does not obtain a business-flow observation; neither introduces Package or PriceSchedule
 - I-042: price is the price of one unit; derived total = quantity * price; no stored linePrice
 - I-043: changing quantity does not reread price as a line total
 - I-044: Offer stores (product, quantity, unit, price); a change is a new Offer
@@ -1355,10 +1342,10 @@ Production architecture changed: NO
 Further closing OQ-002A/B still requires a business-flow observation, not another synthetic model test
 
 TZ-BASKET-010
-Status: Variant 1 — hypothesised pack-contents and quantity-range seller facts NOT OBSERVED
-OQ-002A: OPEN — A1/A2/A3 NOT OBSERVED; CooperativeSeller completed listed-unit kg/honey deals without stating pack contents or pack-vs-product classification
-OQ-002B: OPEN — B1/B2 NOT OBSERVED; CooperativeSeller accepted listed unit price at 7 kg and at 4/5/9/10 kg; B3 schedule change NOT OBSERVED (no executable)
-NEW CONCEPT JUSTIFIED: no — absence of the hypothesised seller facts does not justify Package or PriceSchedule
+Status: primary goal NOT MET — Stage-1 source search only; BUSINESS-FLOW OBSERVATION NOT OBTAINED
+OQ-002A: OPEN — SOURCE ABSENT in mockSellerCatalog / ADD_TO_BASKET; A1/A2 flow NOT OBTAINED; A3 NOT TESTABLE (no seller classification)
+OQ-002B: OPEN — SOURCE ABSENT of quantity-range mechanism in emulator; B1/B2/B3 flow NOT OBTAINED. CooperativeSeller accept-as-is cannot produce range evidence
+NEW CONCEPT JUSTIFIED: no — source absence does not justify Package or PriceSchedule
 NO MODEL CHANGE: yes
 NO NEW INVARIANT: yes
 SPEC version bump: no
@@ -1379,5 +1366,5 @@ when a later live active Offer is evaluated (I-037). Assistants WAIT on MISSING_
 Assistant unit-price comparisons are consistent with I-042; they are not the source of I-042.
 
 The model is still experimental. PASS does not close remaining OPEN questions.
-Recommended next step: SPEC OQ-003 (duplicate ListItems), then OQ-005/TTL, then allocation
+Recommended next step: a real business-flow observation for OQ-002A/B, or SPEC OQ-003 (duplicate ListItems)
 ```

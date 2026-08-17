@@ -80,11 +80,10 @@ npx tsx experiments/basket/tests/run.ts
 | `PACKAGE-BIZ-009-001` | catalog/spec: listed 250 g representable without contents field | `scenarios.ts` PACKAGE-BIZ-009-001 |
 | `PACKAGE-BIZ-009-002` | catalog/spec: pre-split productIds; not pack-as-Product policy | `scenarios.ts` PACKAGE-BIZ-009-002 |
 | `VOLUME-BIZ-009-001` | catalog/spec: listed unit price copied onto 3/7/12 kg items | `scenarios.ts` VOLUME-BIZ-009-001 |
-| `FLOW-010-A1` | 2 kg potatoes seller accept; pack-contents fact NOT OBSERVED | `scenarios.ts` FLOW-010-A1 |
-| `FLOW-010-A2` | 6 kg potatoes seller accept; pack oversupply NOT OBSERVED | `scenarios.ts` FLOW-010-A2 |
-| `FLOW-010-A3` | listed honey 500 g seller accept; pack-vs-product NOT OBSERVED | `scenarios.ts` FLOW-010-A3 |
-| `FLOW-010-B1` | 7 kg tomatoes seller accept; quantity-range fact NOT OBSERVED | `scenarios.ts` FLOW-010-B1 |
-| `FLOW-010-B2` | 4/5/9/10 kg listed unit price; not a range decision | `scenarios.ts` FLOW-010-B2 |
+| `SOURCE-010-CATALOG` | source search of mockSellerCatalog.ts; SOURCE ABSENT, not observation | `scenarios.ts` SOURCE-010-CATALOG |
+| `SOURCE-010-EMULATOR` | source search of sellers.ts; no quantity-range mechanism | `scenarios.ts` SOURCE-010-EMULATOR |
+| `SOURCE-010-BASKET` | source search of ADD_TO_BASKET; copies listed unit/price | `scenarios.ts` SOURCE-010-BASKET |
+| `SOURCE-010-TZ025` | source search of TZ-025; free-text discount, no range table | `scenarios.ts` SOURCE-010-TZ025 |
 | *(SPEC OQ-003)* | duplicate ListItems of same `(productId, unit)` | `run.ts` `DUPLICATE_LINE` (explicit, not silent collapse) |
 
 A PR that confirms a new domain rule MUST add or update a row here **and** the executable test.

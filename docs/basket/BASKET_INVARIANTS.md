@@ -93,4 +93,4 @@ Offer expiration is three separate things:
 
 TZ-BASKET-009 adds no new invariant. Catalog/spec reconstruction is not a business-flow observation and does **not** close OQ-002A / OQ-002B.
 
-TZ-BASKET-010 adds no new invariant. Absence of pack-contents and quantity-range seller facts in Stage-1 sources is **NOT OBSERVED**, not a decision that those facts must not exist later, and does **not** close OQ-002A / OQ-002B.
+TZ-BASKET-010 adds no new invariant. Stage-1 source search (SOURCE ABSENT in inspected files) is not a business-flow observation, is not a decision that pack-contents or quantity-range facts must not exist later, and does **not** close OQ-002A / OQ-002B.
