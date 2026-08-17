@@ -94,11 +94,11 @@
 | PACKAGE-BIZ-009-001 | listed 250 g representable | ✓ |  |  | OPEN reconstruction |
 | PACKAGE-BIZ-009-002 | pre-split productIds | ✓ |  |  | OPEN; not OQ-002A evidence |
 | VOLUME-BIZ-009-001 | listed price on 3/7/12 kg | ✓ |  |  | OPEN; not seller pricing |
-| SOURCE-010-CATALOG | read mockSellerCatalog.ts | ✓ |  |  | OPEN; kg listing; honey block has no unit 1 кг token; sack/range tokens SOURCE ABSENT |
-| SOURCE-010-EMULATOR | read sellers.ts | ✓ |  |  | OPEN; quantity-range tokens SOURCE ABSENT in this file |
+| SOURCE-010-CATALOG | read mockSellerCatalog.ts | ✓ |  |  | OPEN; source inspection, not I-047/I-050 |
+| SOURCE-010-EMULATOR | read sellers.ts | ✓ |  |  | OPEN; source inspection, not I-047/I-050 |
 | SOURCE-010-BASKET | read ADD_TO_BASKET | ✓ |  |  | OPEN; source inspection, not I-045 |
-| SOURCE-010-TZ025 | read TZ-025 | ✓ |  |  | OPEN; free-text; range tokens SOURCE ABSENT |
-| SOURCE-010-TREE | experiments/basket **/*.ts | ✓ |  |  | OPEN; executable check of two known FLOW-010 artifacts |
+| SOURCE-010-TZ025 | read TZ-025 | ✓ |  |  | OPEN; source inspection, not I-050 |
+| SOURCE-010-TREE | experiments/basket **/*.ts | ✓ |  |  | OPEN; cleanup of two historical FLOW-010 names, not all synthetic flow |
 
 TZ-004 assistant demos on `/sim` (DISCOUNT / HIKE / SELLER) are training overlays, not rows in this BS matrix.
 

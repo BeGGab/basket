@@ -148,7 +148,7 @@ SOURCE-010-EMULATOR records identifier tokens (`minQuantity`, `maxQuantity`, `ti
 
 ### H15. FLOW-010 scan covers experiments/basket TypeScript
 
-SOURCE-010-TREE walks `experiments/basket/**/*.ts` and checks the two known FLOW-010 artifacts: `run("FLOW-010-…")` and `function observeCooperativeAccept`. `walkComplete` means the recursive listing finished and every listed `.ts` file was inspected — not a floor such as `scannedFiles >= 8`. It is an **executable check** of those patterns, not a proof that no other synthetic helper exists. It does not search `docs/` (TZ-010 may mention the old ids) and does not treat PACKAGE-008 experimenter facts (`1 package = 5 kg`) as FLOW-010 leftovers. `seller-a` is not a FLOW-010 artifact.
+SOURCE-010-TREE walks `experiments/basket/**/*.ts` and checks the two historical FLOW-010 artifacts: `run("FLOW-010-…")` and `function observeCooperativeAccept`. `walkComplete` means the recursive listing finished and every listed `.ts` file was inspected — not a floor such as `scannedFiles >= 8`. This is a **cleanup check** of those two names, not a proof that synthetic business-flow is absent. It does not search `docs/` (TZ-010 may mention the old ids) and does not treat PACKAGE-008 experimenter facts (`1 package = 5 kg`) as FLOW-010 leftovers. `seller-a` is not a FLOW-010 artifact.
 
 
 
@@ -288,9 +288,9 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 | Field | Value |
 |---|---|
 | Scenario ID | SOURCE-010-TREE |
-| Kind | Scan of `experiments/basket/**/*.ts` for leftover synthetic FLOW-010 |
+| Kind | Cleanup check of two historical FLOW-010 artifacts in `experiments/basket/**/*.ts` |
 | Recorded facts | no `run("FLOW-010-…")`; no `function observeCooperativeAccept(`; recursive walk of `experiments/basket` completed and every listed `.ts` file was inspected |
-| Domain conclusion | The two known FLOW-010 artifacts are absent from **experiments/basket TypeScript**. Does not prove absence of a differently named helper, of synthetic flow without those ids, or of leftover logic in `docs/` / other packages. Not a business-flow observation. |
+| Domain conclusion | Those two historical artifacts are absent from **experiments/basket TypeScript**. Cleanup check only. Does not prove synthetic business-flow is absent, a differently named helper is absent, or leftover logic is absent in `docs/` / other packages. Not a business-flow observation. |
 | Open question | SPEC OQ-002A |
 | New concept justified? | **no** |
 
@@ -330,9 +330,9 @@ I-042…I-050 unchanged. No I-051.
 | SOURCE-010-EMULATOR | OPEN | `sellers.ts`: quantity-range identifier tokens SOURCE ABSENT in this file |
 | SOURCE-010-BASKET | OPEN | no conversion/tier lookup found in ADD_TO_BASKET itself |
 | SOURCE-010-TZ025 | OPEN | ТЗ-025: cheese-discount text; range tokens SOURCE ABSENT in this file |
-| SOURCE-010-TREE | OPEN | `experiments/basket/**/*.ts` has no FLOW-010 run / observeCooperativeAccept helper |
+| SOURCE-010-TREE | OPEN | cleanup check of two historical FLOW-010 names; not proof synthetic business-flow is absent |
 
-FLOW-010-A1/A2/A3/B1/B2 never existed on `main`; they were added in the first commit of this GitHub PR and removed after PR-25 review. SOURCE-010-TREE is an executable check of the two known FLOW-010 artifacts in `experiments/basket/**/*.ts`.
+FLOW-010-A1/A2/A3/B1/B2 never existed on `main`; they were added in the first commit of this GitHub PR and removed after PR-25 review. SOURCE-010-TREE is a **cleanup check** of those two historical artifacts in `experiments/basket/**/*.ts`. It does not prove synthetic business-flow is absent.
 
 88 TZ-009 scenarios + 5 SOURCE-010 = 93 total.
 
@@ -357,7 +357,8 @@ FLOW-010-A1/A2/A3/B1/B2 never existed on `main`; they were added in the first co
 - [x] Новая сущность не введена
 - [x] SPEC остаётся v0.6
 - [x] Production architecture не изменяется
-- [x] два известных FLOW-010 artifact patterns отсутствуют в `experiments/basket` TypeScript; SOURCE-010-TREE — executable check, не universal proof
+- [x] historical FLOW-010 artifacts (`run("FLOW-010-…")`, `function observeCooperativeAccept`) removed from `experiments/basket` TypeScript; SOURCE-010-TREE is this cleanup check
+- [ ] synthetic business-flow patterns absent — **не доказуемо** этим scanner; не выдавать TREE PASS за это утверждение
 - [x] `addToBasket` extractor устойчив к `function` / `const` и падает, если declaration не найдена
 - [x] SOURCE-010-CATALOG не использует snapshot цен/имён как OQ-002 evidence
 - [x] Quantity-range detector помечен как token heuristic: miss = SOURCE ABSENT of tokens

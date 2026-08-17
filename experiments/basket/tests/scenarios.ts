@@ -3875,7 +3875,7 @@ export function runAllScenarios(): ScenarioResult[] {
       const honeyKg = honeyCategorySearch(source);
       return prove(
         "SOURCE-010-CATALOG",
-        "I-047 I-050",
+        "source inspection — not a domain invariant",
         {
           hasKgListedSeed: true,
           honeyCategoryFound: true,
@@ -3905,7 +3905,7 @@ export function runAllScenarios(): ScenarioResult[] {
       const source = readStage1("emulator");
       return prove(
         "SOURCE-010-EMULATOR",
-        "I-047 I-050",
+        "source inspection — not a domain invariant",
         {
           hasMinQuantity: false,
           hasMaxQuantity: false,
@@ -3961,7 +3961,7 @@ export function runAllScenarios(): ScenarioResult[] {
       const source = readStage1("tz025");
       return prove(
         "SOURCE-010-TZ025",
-        "I-050",
+        "source inspection — not a domain invariant",
         {
           cheeseDiscountText: true,
           quantityRangeTokens: false,
@@ -3983,7 +3983,7 @@ export function runAllScenarios(): ScenarioResult[] {
       const scan = scanBasketExperimentForFlow010();
       return prove(
         "SOURCE-010-TREE",
-        "I-047 I-050",
+        "source inspection — not a domain invariant",
         {
           walkComplete: true,
           flow010Run: false,
@@ -3994,10 +3994,10 @@ export function runAllScenarios(): ScenarioResult[] {
           flow010Run: scan.flow010Run,
           observeCooperativeAcceptHelper: scan.observeCooperativeAccept,
         },
-        "experiments/basket **/*.ts has no FLOW-010 run() and no observeCooperativeAccept helper. Executable check of those two artifacts only. Does not search docs or PACKAGE-008 experimenter facts. Not a business-flow observation",
+        "experiments/basket **/*.ts has no FLOW-010 run() and no observeCooperativeAccept helper. Cleanup check of those two historical artifacts only. Does not prove synthetic business-flow is absent. Does not search docs or PACKAGE-008 experimenter facts. Not a business-flow observation",
         "OPEN",
         "SPEC-OQ-002A",
-        { newConcept: "two known FLOW-010 artifacts absent from experiments/basket TypeScript — not a business-flow observation" }
+        { newConcept: "cleanup of two historical FLOW-010 artifacts — not proof that synthetic business-flow is absent" }
       );
     })
   );
@@ -4171,7 +4171,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("");
   lines.push("TZ-BASKET-010");
   lines.push("Status: primary goal NOT MET — Stage-1 source search only; BUSINESS-FLOW OBSERVATION NOT OBTAINED");
-  lines.push("OQ-002A: OPEN — SOURCE ABSENT in mockSellerCatalog; no conversion/tier lookup found in ADD_TO_BASKET itself; A1/A2 flow NOT OBTAINED; A3 NOT TESTABLE (no seller classification); SOURCE-010-TREE is an executable check of the two known FLOW-010 artifacts in experiments/basket TypeScript");
+  lines.push("OQ-002A: OPEN — SOURCE ABSENT in mockSellerCatalog; no conversion/tier lookup found in ADD_TO_BASKET itself; A1/A2 flow NOT OBTAINED; A3 NOT TESTABLE (no seller classification); SOURCE-010-TREE is a cleanup check of two historical FLOW-010 artifacts, not proof synthetic business-flow is absent");
   lines.push("OQ-002B: OPEN — quantity-range tokens SOURCE ABSENT in sellers.ts / TZ-025; B1/B2/B3 flow NOT OBTAINED. Token miss is not a CooperativeSeller call-shape test and not a market finding");
   lines.push("NEW CONCEPT JUSTIFIED: no — source absence does not justify Package or PriceSchedule");
   lines.push("NO MODEL CHANGE: yes");

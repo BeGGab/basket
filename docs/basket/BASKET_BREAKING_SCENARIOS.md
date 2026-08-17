@@ -408,6 +408,6 @@ Reads `BasketActionHandlers.ts`. Copies listed `unit` and `price`. **No conversi
 
 Free-text «Сегодня скидка на сыр». Quantity-range tokens SOURCE ABSENT in this file. Not B3 observation (**OPEN — SPEC OQ-002B**).
 
-## SOURCE-010-TREE — two known FLOW-010 artifacts absent from experiments/basket TypeScript
+## SOURCE-010-TREE — cleanup of two historical FLOW-010 artifacts
 
-`experiments/basket/**/*.ts` has no `run("FLOW-010-…")` and no `function observeCooperativeAccept`. Executable check of those two artifacts, not a universal search. Does not search `docs/` (**OPEN — SPEC OQ-002A**).
+`experiments/basket/**/*.ts` has no `run("FLOW-010-…")` and no `function observeCooperativeAccept`. Cleanup check of those two names, not a proof that synthetic business-flow is absent. Does not search `docs/` (**OPEN — SPEC OQ-002A**).

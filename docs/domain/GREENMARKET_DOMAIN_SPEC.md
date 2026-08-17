@@ -676,7 +676,7 @@ SOURCE-010-CATALOG       Stage-1 source search of mockSellerCatalog.ts — SOURC
 SOURCE-010-EMULATOR      Stage-1 source search of sellers.ts — quantity-range tokens SOURCE ABSENT
 SOURCE-010-BASKET        no conversion/tier lookup found in ADD_TO_BASKET itself
 SOURCE-010-TZ025         Stage-1 source search of TZ-025 — free-text discount, range tokens SOURCE ABSENT
-SOURCE-010-TREE          executable check of two known FLOW-010 artifacts — not observation
+SOURCE-010-TREE          cleanup check of two historical FLOW-010 names — not observation
 ALT-PRICE-001            primary cheaper than alternative — representation only
 ALT-PRICE-002            FIRST_AVAILABLE / PRIMARY_ONLY are not BEST_PRICE; policy OPEN (OQ-008)
 PRICE-SNAPSHOT-001       agreed / current / alternative visible together
@@ -725,7 +725,7 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
   is an Offer (I-048). A standing quantity-range announcement is not an Offer (I-050 /
   VOLUME-008-002). Schedule lookup before an Offer is a MODEL GAP (VOLUME-008-001).
   TZ-BASKET-008 conclusion **B**: no evidence yet justifies a `PriceSchedule` entity.
-  `VolumePrice` is not introduced.   TZ-BASKET-009 reconstructed listed unit-price copying onto
+  `VolumePrice` is not introduced. TZ-BASKET-009 reconstructed listed unit-price copying onto
   3/7/12 kg PurchaseItems. That is catalog/spec observation, not observed seller pricing behavior.
   TZ-BASKET-010 read `sellers.ts` and TZ-025: quantity-range identifier tokens and a schedule
   change (`5–9 kg → 17` then `16`) are **SOURCE ABSENT** in those files. That is not a
