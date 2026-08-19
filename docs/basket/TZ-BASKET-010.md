@@ -160,7 +160,7 @@ Deleting comments/strings without a separator would turn `min/*x*/Quantity` into
 
 ### H18. Category blocks are found in lexical code
 
-`extractCategoryBlock` looks for identifier `category`, then `:`, then `[` in the lexical walk, then `extractBalanced` from that `[`. A raw-text regex over comments/strings does not choose the match.
+`extractCategoryBlock` looks for identifier `category`, then `:`, then `[` in the lexical walk at brace depth 0 or 1 (module-level key or one object wrapper). Nested `metadata.honey` is not the catalog category. Then `extractBalanced` from that `[`.
 
 ### H19. Scanner contract covers glue and in-string seeds
 
@@ -176,7 +176,7 @@ KG / HONEY / TOKENS are separate `prove()` rows. One PASS is not a bundle of unr
 
 ### H22. Token detectors use identifier boundaries
 
-`hasIdent` / `mentionsQuantityRangeTokens` match whole identifier tokens. `minQuantityFactory` is not a hit. `mentionsSackContents` is the ident `мешок` **or** the pack-contents sequence `1 мешок = 5 kg` / `1 package = 5 kg`. `1 package = 5 apples` is not a hit. `мешокMetadata` is not `мешок`.
+`hasIdent` / `mentionsQuantityRangeTokens` match whole identifier tokens, including `_` as an identifier character. `minQuantityFactory`, `foo_minQuantity`, and `_minQuantity` are not hits. `mentionsSackContents` is the ident `мешок` **or** the pack-contents sequence `1 мешок = 5 kg` / `1 package = 5 kg`. `1 package = 5 apples` is not a hit. `мешокMetadata` and `_мешок` are not `мешок`.
 
 ### H23. Declaration search is token-level
 
@@ -188,7 +188,7 @@ SOURCE-010-TZ025 uses `mentionsQuantityRangeInProse` (whole-word names in markdo
 
 ### H25. Scanner contract covers regex, boundaries, and extraction
 
-`assertStage1ScannerContract()` includes regex interiors, identifier boundaries, `}` in regex, `addToBasketFactory`, listTsFiles walk, TREE scan of the live tree, `return /minQuantity/`, and template `${minQuantity}`.
+`assertStage1ScannerContract()` includes regex interiors, identifier boundaries (including `_minQuantity` / `foo_minQuantity`), `}` in regex, `addToBasketFactory`, nested `metadata.honey`, listTsFiles walk, TREE scan of the live tree, `return /minQuantity/`, and template `${minQuantity}`.
 
 ### H26. Template interpolations are nested code
 
@@ -432,4 +432,4 @@ FLOW-010-A1/A2/A3/B1/B2 never existed on `main`; they were added in the first co
 - [x] `addToBasket` extractor matches lexical tokens (`function` / `const` / `Extract<…,{…}>`), skips regex interiors, and fails closed if the declaration is not found
 - [x] SOURCE-010-CATALOG-KG не использует snapshot цен/имён как OQ-002 evidence; seeds inside string or regex literals do not count
 - [x] Quantity-range detector is whole-identifier tokens; miss = SOURCE ABSENT of those tokens, not of any range mechanism
-- [x] scanner contract covers regex after return/throw/case, template interpolations, identifier boundaries, pack-contents `1 package = 5 kg`, listTsFiles, and TREE walk
+- [x] scanner contract covers regex after return/throw/case, template interpolations, identifier boundaries including `_`, pack-contents `1 package = 5 kg`, nested honey keys, listTsFiles, and TREE walk

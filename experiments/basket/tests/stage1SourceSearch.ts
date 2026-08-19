@@ -304,11 +304,11 @@ function scanCode<T>(
 }
 
 function isIdentChar(ch: string): boolean {
-  return ch === "$" || /[\p{ID_Continue}]/u.test(ch);
+  return ch === "_" || ch === "$" || /[\p{ID_Continue}]/u.test(ch);
 }
 
 function isIdentStart(ch: string): boolean {
-  return ch === "$" || /[\p{ID_Start}]/u.test(ch);
+  return ch === "_" || ch === "$" || /[\p{ID_Start}]/u.test(ch);
 }
 
 /**
@@ -471,8 +471,16 @@ export function parseListedSeeds(source: string): ListedSeed[] {
 
 export function extractCategoryBlock(source: string, category: string): string {
   const tokens = tokenize(source);
+  let brace = 0;
   for (let i = 0; i + 2 < tokens.length; i++) {
-    if (ident(tokens[i], category) && punct(tokens[i + 1], ":") && punct(tokens[i + 2], "[")) {
+    if (punct(tokens[i], "{")) brace += 1;
+    if (punct(tokens[i], "}")) brace -= 1;
+    if (
+      brace <= 1 &&
+      ident(tokens[i], category) &&
+      punct(tokens[i + 1], ":") &&
+      punct(tokens[i + 2], "[")
+    ) {
       return extractBalanced(source, tokens[i + 2].index, "[", "]");
     }
   }
@@ -779,6 +787,12 @@ export function assertStage1ScannerContract(): void {
   assert.equal(hasIdent("const PriceScheduleFactory = 1;", ["PriceSchedule"]), false);
   assert.equal(hasIdent("some.minQuantityFactory", ["minQuantity"]), false);
   assert.equal(hasIdent("obj.minQuantity", ["minQuantity"]), true);
+  assert.equal(hasIdent("const _minQuantity = 1;", ["minQuantity"]), false);
+  assert.equal(hasIdent("const foo_minQuantity = 1;", ["minQuantity"]), false);
+  assert.equal(hasIdent("const PriceSchedule_Factory = 1;", ["PriceSchedule"]), false);
+  assert.equal(hasIdent("const _мешок = 1;", ["мешок"]), false);
+  assert.equal(hasIdent("const foo__maxQuantity = 1;", ["maxQuantity"]), false);
+  assert.equal(hasIdent("const minQuantity_ = 1;", ["minQuantity"]), false);
   assert.equal(hasIdent(`const r = ${slash("\\bminQuantity\\b")};`, ["minQuantity"]), false);
   assert.equal(hasIdent("a / minQuantity / b", ["minQuantity"]), true);
   assert.equal(hasIdent("this / minQuantity", ["minQuantity"]), true);
@@ -810,6 +824,8 @@ export function assertStage1ScannerContract(): void {
   assert.equal(mentionsQuantityRangeTokens("const myminQuantityBackup = 1;"), false);
   assert.equal(mentionsQuantityRangeTokens("const PriceScheduleFactory = 1;"), false);
   assert.equal(mentionsQuantityRangeTokens("some.minQuantityFactory"), false);
+  assert.equal(mentionsQuantityRangeTokens("const foo_minQuantity = 1;"), false);
+  assert.equal(mentionsQuantityRangeTokens("const seller_minQuantityAdapter = 1;"), false);
   assert.equal(mentionsQuantityRangeTokens("// minQuantity\nconst x = 1;"), false);
   assert.equal(mentionsQuantityRangeTokens("min/*x*/Quantity"), false);
   assert.equal(mentionsQuantityRangeTokens(`const r = ${slash("minQuantity")};`), false);
@@ -818,6 +834,8 @@ export function assertStage1ScannerContract(): void {
 
   assert.equal(mentionsSackContents("const мешок = 1;"), true);
   assert.equal(mentionsSackContents("const мешокMetadata = 1;"), false);
+  assert.equal(mentionsSackContents("const _мешок = 1;"), false);
+  assert.equal(mentionsSackContents("const foo_мешок = 1;"), false);
   assert.equal(mentionsSackContents("ме/*x*/шок"), false);
   assert.equal(mentionsSackContents("1 package = 5;"), false);
   assert.equal(mentionsSackContents("1 package = 5 apples;"), false);
@@ -855,6 +873,17 @@ export function assertStage1ScannerContract(): void {
 ]`);
   assert.equal(afterCommentBracket.blockFound, true);
   assert.equal(afterCommentBracket.kgUnitInBlock, true);
+  const nestedHoney = honeyCategorySearch(`const unrelated = {
+  metadata: {
+    honey: [${kgSeed}]
+  }
+};
+const catalog = {
+  honey: [${seed}]
+};`);
+  assert.equal(nestedHoney.blockFound, true);
+  assert.equal(nestedHoney.kgUnitInBlock, false);
+  assert.equal(nestedHoney.listedCount, 1);
 
   const commented = `function addToBasket(payload) {
   // unit: payload.unit
