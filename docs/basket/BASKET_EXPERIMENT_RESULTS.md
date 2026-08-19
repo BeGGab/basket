@@ -93,7 +93,7 @@ Record evidence from the mock domain and seller emulator.
 | PRICE-ZERO-001 | PASS | CONFIRMED | none | price 0 is a real unit price; derived total 0 is not a missing price |
 | SNAPSHOT-VOL-001 | PASS | OPEN (SPEC-OQ-002A) | none | canonical snapshot distinguishes requested/agreed/current/alt/derived; package contents remain absent |
 | SOURCE-010-BASKET | PASS | OPEN (SPEC-OQ-002A) | none | No conversion/tier lookup found in ADD_TO_BASKET itself. The function copies payload.unit and payload.price. Conversion or pricing could occur before this call; this row does not claim the whole basket path |
-| SOURCE-010-CATALOG-HONEY | PASS | OPEN (SPEC-OQ-002A) | none | honey category block found with at least one object seed; no unit: 1 кг string in that block. Not A3 seller classification and not a business-flow observation |
+| SOURCE-010-CATALOG-HONEY | PASS | OPEN (SPEC-OQ-002A) | none | honey category block found with at least one object seed; no ListedSeed.unit 1 кг in that block (nested metadata.unit does not count). Not A3 seller classification and not a business-flow observation |
 | SOURCE-010-CATALOG-KG | PASS | OPEN (SPEC-OQ-002A) | none | mockSellerCatalog.ts lexical object seeds include at least one unit 1 кг listing. Seeds inside string or regex literals do not count. Not a business-flow observation |
 | SOURCE-010-CATALOG-TOKENS | PASS | OPEN (SPEC-OQ-002A) | none | whole identifier мешок, pack-contents 1 мешок/package = 5 kg, and range tokens minQuantity/maxQuantity/tierPrice/PriceSchedule/VolumePrice / 1-4 / 5-9 / 10+ are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Substrings, regex interiors, and 1 package = 5 apples do not count. Token miss is not a market finding |
 | SOURCE-010-EMULATOR | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of sellers.ts: the identifier tokens minQuantity/maxQuantity/tierPrice/PriceSchedule/VolumePrice are SOURCE ABSENT in this file. This does not claim sellers.ts has no quantity-range mechanism under another name (quantityPrices, getPrice, ranges, ...). Not a CooperativeSeller call-shape test and not a market finding |
@@ -993,7 +993,7 @@ Record evidence from the mock domain and seller emulator.
 - Model violation: none
 - New concept: SOURCE ABSENT of 1 кг honey listing in mockSellerCatalog.ts honey block
 - Workaround: none
-- Decision: honey category block found with at least one object seed; no unit: 1 кг string in that block. Not A3 seller classification and not a business-flow observation
+- Decision: honey category block found with at least one object seed; no ListedSeed.unit 1 кг in that block (nested metadata.unit does not count). Not A3 seller classification and not a business-flow observation
 
 ### SOURCE-010-CATALOG-KG — Impl PASS / Domain OPEN (SPEC-OQ-002A)
 

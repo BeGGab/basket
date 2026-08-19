@@ -95,7 +95,7 @@
 | PACKAGE-BIZ-009-002 | pre-split productIds | ✓ |  |  | OPEN; not OQ-002A evidence |
 | VOLUME-BIZ-009-001 | listed price on 3/7/12 kg | ✓ |  |  | OPEN; not seller pricing |
 | SOURCE-010-CATALOG-KG | read mockSellerCatalog.ts object seeds | ✓ |  |  | OPEN; lexical kg unit seed, not I-047/I-050 |
-| SOURCE-010-CATALOG-HONEY | read honey category block | ✓ |  |  | OPEN; no 1 кг honey token; not A3 |
+| SOURCE-010-CATALOG-HONEY | read honey category block | ✓ |  |  | OPEN; no ListedSeed.unit 1 кг; not A3 |
 | SOURCE-010-CATALOG-TOKENS | read catalog sack/range tokens | ✓ |  |  | OPEN; token miss, not a market finding |
 | SOURCE-010-EMULATOR | read sellers.ts named idents | ✓ |  |  | OPEN; five tokens absent, not any-range-mechanism |
 | SOURCE-010-BASKET | read ADD_TO_BASKET | ✓ |  |  | OPEN; source inspection, not I-045 |

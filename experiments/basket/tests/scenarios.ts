@@ -3903,7 +3903,7 @@ export function runAllScenarios(): ScenarioResult[] {
           honeySeedsPresent: honeyKg.listedCount > 0,
           honeyKgUnitInBlock: honeyKg.kgUnitInBlock,
         },
-        "honey category block found with at least one object seed; no unit: 1 кг string in that block. Not A3 seller classification and not a business-flow observation",
+        "honey category block found with at least one object seed; no ListedSeed.unit 1 кг in that block (nested metadata.unit does not count). Not A3 seller classification and not a business-flow observation",
         "OPEN",
         "SPEC-OQ-002A",
         { newConcept: "SOURCE ABSENT of 1 кг honey listing in mockSellerCatalog.ts honey block" }

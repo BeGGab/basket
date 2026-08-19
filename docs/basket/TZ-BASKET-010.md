@@ -112,7 +112,7 @@ TZ допускал «documented absence» как Variant 1. После review �
 
 ### H5. A3 с одним `honey_flower` не проверяет гипотезу
 
-Один listing 500 g не различает «один товар + упаковки» vs «два товара». A3 = **NOT TESTABLE** из Stage-1 sources. SOURCE-010-CATALOG-HONEY фиксирует: honey block has no `unit: "1 кг"` token. Не seller classification.
+Один listing 500 g не различает «один товар + упаковки» vs «два товара». A3 = **NOT TESTABLE** из Stage-1 sources. SOURCE-010-CATALOG-HONEY фиксирует: в honey block нет ListedSeed с `unit` `1 кг`. Не seller classification.
 
 ### H6. B2 180/180/180/180 неизбежен без механизма range
 
@@ -132,7 +132,7 @@ Replaced by `extractNamedDeclaration` from **lexical tokens**: `function` / `exp
 
 ### H11. Exact seed names are not OQ-002 evidence
 
-Potato 55 / tomato 180 / three honey names were removed from catalog evidence. Catalog search is three rows: SOURCE-010-CATALOG-KG (`hasKgListedSeed` from lexical `{ name, price, unit }` object tokens — not from string interiors), SOURCE-010-CATALOG-HONEY (`honeyCategoryFound` / `honeySeedsPresent` / `honeyKgUnitInBlock`), SOURCE-010-CATALOG-TOKENS (sack/range identifier tokens). `honeySeedsPresent` means at least one lexical object seed in the honey block. Absence of 1 kg honey is `unit:` followed by a string literal `1 кг` in that block. Category `honey:` `[` is found in lexical code, not by raw-text regex. Comment/string gaps cannot glue `min/*x*/Quantity` into `minQuantity`. This is still SOURCE ABSENT of that token, not a business-flow observation.
+Potato 55 / tomato 180 / three honey names were removed from catalog evidence. Catalog search is three rows: SOURCE-010-CATALOG-KG (`hasKgListedSeed` from lexical object seeds with `name`/`price`/`unit` in any order — not from string interiors), SOURCE-010-CATALOG-HONEY (`honeyCategoryFound` / `honeySeedsPresent` / `honeyKgUnitInBlock`), SOURCE-010-CATALOG-TOKENS (sack/range identifier tokens). `honeySeedsPresent` means at least one lexical object seed in the honey block. Absence of 1 kg honey is a ListedSeed whose `unit` is `1 кг`, not a nested `metadata.unit`. Category `honey:` `[` is found in lexical code, not by raw-text regex. Comment/string gaps cannot glue `min/*x*/Quantity` into `minQuantity`. This is still SOURCE ABSENT of that token, not a business-flow observation.
 
 ### H12. Quantity-range detector is a token heuristic
 
@@ -156,7 +156,7 @@ Deleting comments/strings without a separator would turn `min/*x*/Quantity` into
 
 ### H17. Listed seeds are lexical object tokens, not string interiors
 
-`parseListedSeeds` walks `{ name: STRING, price: NUMBER, unit: STRING }` in code tokens. `const example = '{ name: "fake", ... }'` and `const r = /{ name: "fake", ... }/` are not ListedSeeds.
+`parseListedSeeds` collects `name`, `price`, and `unit` from a lexical object regardless of property order and extra fields. Nested `metadata` is not a seed. `const example = '{ name: "fake", ... }'` and `const r = /{ name: "fake", ... }/` are not ListedSeeds.
 
 ### H18. Category blocks are found in lexical code
 
@@ -164,7 +164,7 @@ Deleting comments/strings without a separator would turn `min/*x*/Quantity` into
 
 ### H19. Scanner contract covers glue and in-string seeds
 
-`assertStage1ScannerContract()` includes `min/*x*/Quantity`, in-string fake seeds, glued `na/*x*/me`, regex interiors, identifier boundaries, `}` in regex, and true positives with comments between real tokens.
+`assertStage1ScannerContract()` includes `min/*x*/Quantity`, in-string fake seeds, glued `na/*x*/me`, regex interiors, identifier boundaries, `}` in regex, property order/extra fields, nested `metadata.unit`, nested templates, and true positives with comments between real tokens.
 
 ### H20. Catalog detectors are separate SOURCE-010 rows
 
@@ -188,11 +188,11 @@ SOURCE-010-TZ025 uses `mentionsQuantityRangeInProse` (whole-word names in markdo
 
 ### H25. Scanner contract covers regex, boundaries, and extraction
 
-`assertStage1ScannerContract()` includes regex interiors, identifier boundaries (including `_minQuantity` / `foo_minQuantity`), `}` in regex, `addToBasketFactory`, nested `metadata.honey`, listTsFiles walk, TREE scan of the live tree, `return /minQuantity/`, and template `${minQuantity}`.
+`assertStage1ScannerContract()` includes regex interiors, identifier boundaries (including `_minQuantity` / `foo_minQuantity`), `}` in regex, `addToBasketFactory`, nested `metadata.honey`, property order/extra fields, nested `metadata.unit`, nested templates, listTsFiles walk, TREE scan of the live tree, `return /minQuantity/`, and template `${minQuantity}`.
 
 ### H26. Template interpolations are nested code
 
-`` `${minQuantity}` `` is an identifier in code. `` `minQuantity` `` is a template fragment, not an identifier. Object literals inside `${ ... }` are lexical seeds; object-like text inside a regex after `return` is not.
+`` `${minQuantity}` `` is an identifier in code. `` `minQuantity` `` is a template fragment, not an identifier. Nested `` `${`inner ${minQuantity}`}` `` is also code. Object literals inside `${ ... }` are lexical seeds; object-like text inside a regex after `return` is not. `honeyKgUnitInBlock` is ListedSeed.unit, not any `unit:` string in nested metadata.
 
 ## Search log (enumerated files are executable; live interview is human)
 
@@ -280,7 +280,7 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 | Source | `mockSellerCatalog.ts` (file read by the test) |
 | Buyer action | none |
 | Seller action | none |
-| Recorded listing facts | lexical `{ name, price, unit }` object seeds include at least one `unit` `1 кг`. Seeds inside string or regex literals do not count. |
+| Recorded listing facts | lexical object seeds with `name`/`price`/`unit` (any property order) include at least one `unit` `1 кг`. Seeds inside string or regex literals do not count. |
 | Missing fact | pack-contents relation |
 | Domain conclusion | listed kg unit is **present** as an object seed **in mockSellerCatalog.ts**. **Not** a business-flow observation. Not a snapshot of potato/tomato prices. |
 | Open question | SPEC OQ-002A / OQ-002B |
@@ -293,7 +293,7 @@ Without a seller-stated range, boundaries cannot show display vs commercial deci
 | Scenario ID | SOURCE-010-CATALOG-HONEY |
 | Kind | Stage-1 source search of the `honey` category block in `mockSellerCatalog.ts` |
 | Source | `mockSellerCatalog.ts` (file read by the test) |
-| Recorded listing facts | honey category found in lexical code; at least one object seed in that block; honey block has no `unit: "1 кг"` token |
+| Recorded listing facts | honey category found in lexical code; at least one object seed in that block; no ListedSeed.unit `1 кг` in that block (nested metadata.unit does not count) |
 | Missing fact | seller classification of honey packs |
 | Domain conclusion | SOURCE ABSENT of 1 kg honey listing **in the honey block**. Not A3 seller classification. Not a business-flow observation. |
 | Open question | SPEC OQ-002A |
@@ -395,7 +395,7 @@ I-042…I-050 unchanged. No I-051.
 | ID | Hypothesis | Что проверяет |
 |---|---|---|
 | SOURCE-010-CATALOG-KG | OPEN | `mockSellerCatalog.ts` lexical object seeds include at least one `1 кг` unit |
-| SOURCE-010-CATALOG-HONEY | OPEN | honey block found; no `unit: "1 кг"` token in that block |
+| SOURCE-010-CATALOG-HONEY | OPEN | honey block found; no ListedSeed.unit `1 кг` in that block |
 | SOURCE-010-CATALOG-TOKENS | OPEN | sack/range tokens SOURCE ABSENT in `mockSellerCatalog.ts` |
 | SOURCE-010-EMULATOR | OPEN | `sellers.ts`: five named identifier tokens SOURCE ABSENT; not a claim no range mechanism exists under another name |
 | SOURCE-010-BASKET | OPEN | no conversion/tier lookup found in ADD_TO_BASKET itself |

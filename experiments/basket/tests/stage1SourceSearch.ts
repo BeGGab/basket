@@ -71,7 +71,8 @@ function unescapeInner(raw: string): string {
 /**
  * Lexical walk over a TypeScript/JavaScript subset.
  * `onCode` sees source that is not inside a string, comment, regex, or template
- * fragment. Template `${ ... }` interpolations are nested code.
+ * fragment. Template `${ ... }` interpolations are nested code, including a
+ * nested template inside an interpolation.
  * Regex vs division uses the previous completed token: operand (identifier that
  * is not an expression-introducing keyword, number, string, regex, `]`, `)`,
  * `++`, `--`) vs regexOk (operators, punctuation, and keywords such as return /
@@ -112,7 +113,7 @@ function scanLexical<T>(
     identBuf = "";
   };
 
-  const inTemplate = () => templates.length > 0 && interps.length === 0;
+  const inTemplate = () => templates.length > interps.length;
 
   const emitString = (value: string, index: number): T | undefined => {
     if (value.length === 0) return undefined;
@@ -440,31 +441,66 @@ function extractBalanced(source: string, openIndex: number, openCh: string, clos
   return source.slice(openIndex, end + 1);
 }
 
-/** Object seeds in lexical code only. String and regex interiors are not ListedSeeds. */
+function skipBalancedTokens(tokens: Tok[], open: number, openCh: string, closeCh: string): number {
+  let depth = 0;
+  for (let i = open; i < tokens.length; i++) {
+    if (punct(tokens[i], openCh)) depth += 1;
+    if (punct(tokens[i], closeCh)) {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return tokens.length;
+}
+
+function listedSeedFromObject(tokens: Tok[], open: number): ListedSeed | undefined {
+  let name: string | undefined;
+  let price: number | undefined;
+  let unit: string | undefined;
+  let i = open + 1;
+  while (i < tokens.length) {
+    if (punct(tokens[i], "}")) break;
+    if (punct(tokens[i], "{")) {
+      i = skipBalancedTokens(tokens, i, "{", "}") + 1;
+      continue;
+    }
+    if (punct(tokens[i], "[")) {
+      i = skipBalancedTokens(tokens, i, "[", "]") + 1;
+      continue;
+    }
+    if (tokens[i]?.kind === "ident" && punct(tokens[i + 1], ":")) {
+      const key = tokens[i].value;
+      const val = tokens[i + 2];
+      if (key === "name" && val?.kind === "string") name = val.value;
+      if (key === "price" && val?.kind === "number") price = Number(val.value);
+      if (key === "unit" && val?.kind === "string") unit = val.value;
+      if (punct(val, "{")) {
+        i = skipBalancedTokens(tokens, i + 2, "{", "}") + 1;
+        continue;
+      }
+      if (punct(val, "[")) {
+        i = skipBalancedTokens(tokens, i + 2, "[", "]") + 1;
+        continue;
+      }
+      i += val ? 3 : 2;
+      continue;
+    }
+    i += 1;
+  }
+  if (name !== undefined && price !== undefined && unit !== undefined) {
+    return { name, price, unit };
+  }
+  return undefined;
+}
+
+/** Object seeds in lexical code only. Property order and extra fields do not matter. Nested metadata is not a seed. String and regex interiors are not ListedSeeds. */
 export function parseListedSeeds(source: string): ListedSeed[] {
   const tokens = tokenize(source);
   const seeds: ListedSeed[] = [];
-  for (let i = 0; i + 11 < tokens.length; i++) {
-    if (
-      punct(tokens[i], "{") &&
-      ident(tokens[i + 1], "name") &&
-      punct(tokens[i + 2], ":") &&
-      tokens[i + 3]?.kind === "string" &&
-      punct(tokens[i + 4], ",") &&
-      ident(tokens[i + 5], "price") &&
-      punct(tokens[i + 6], ":") &&
-      tokens[i + 7]?.kind === "number" &&
-      punct(tokens[i + 8], ",") &&
-      ident(tokens[i + 9], "unit") &&
-      punct(tokens[i + 10], ":") &&
-      tokens[i + 11]?.kind === "string"
-    ) {
-      seeds.push({
-        name: tokens[i + 3].value,
-        price: Number(tokens[i + 7].value),
-        unit: tokens[i + 11].value,
-      });
-    }
+  for (let i = 0; i < tokens.length; i++) {
+    if (!punct(tokens[i], "{")) continue;
+    const seed = listedSeedFromObject(tokens, i);
+    if (seed) seeds.push(seed);
   }
   return seeds;
 }
@@ -491,19 +527,9 @@ export function findSeed(seeds: readonly ListedSeed[], name: string): ListedSeed
   return seeds.find((seed) => seed.name === name);
 }
 
+/** True when a lexical ListedSeed has unit 1 кг. Nested metadata.unit does not count. */
 export function mentionsKgUnit(source: string): boolean {
-  const tokens = tokenize(source);
-  for (let i = 0; i + 2 < tokens.length; i++) {
-    if (
-      ident(tokens[i], "unit") &&
-      punct(tokens[i + 1], ":") &&
-      tokens[i + 2]?.kind === "string" &&
-      /^1\s*кг$/.test(tokens[i + 2].value)
-    ) {
-      return true;
-    }
-  }
-  return false;
+  return parseListedSeeds(source).some((seed) => /^1\s*кг$/.test(seed.unit));
 }
 
 export function honeyCategorySearch(source: string): {
@@ -774,6 +800,22 @@ export function assertStage1ScannerContract(): void {
   assert.equal(parseListedSeeds(`const r = ${slash('\\{ name: "fake", price: 55, unit: "1 кг" \\}')};`).length, 0);
   assert.equal(parseListedSeeds(`{ na/*x*/me: "a", price: 1, unit: "1 кг" }`).length, 0);
   assert.equal(parseListedSeeds(`{ name: /*c*/ "a", price: 1, unit: "1 кг" }`).length, 1);
+  assert.equal(
+    parseListedSeeds(`{ id: "potato", name: "картофель", unit: "1 кг", price: 55 }`).length,
+    1
+  );
+  assert.equal(
+    parseListedSeeds(`{ name: "картофель", category: "vegetables", price: 55, unit: "1 кг" }`)[0]?.unit,
+    "1 кг"
+  );
+  assert.equal(
+    parseListedSeeds(`{ name: "a", price: 1, unit: "1 кг", emoji: "x", tags: ["t"] }`).length,
+    1
+  );
+  assert.equal(
+    parseListedSeeds(`{ name: "a", price: 1, unit: "500 г", metadata: { unit: "1 кг" } }`)[0]?.unit,
+    "500 г"
+  );
   assert.equal(findSeed(parseListedSeeds(seed), "a")?.price, 1);
   assert.equal(findSeed(parseListedSeeds(seed), "missing"), undefined);
 
@@ -809,6 +851,8 @@ export function assertStage1ScannerContract(): void {
   assert.equal(hasIdent("if (x) /minQuantity/.test(s)", ["minQuantity"]), false);
   assert.equal(hasIdent("const x = `${minQuantity}`;", ["minQuantity"]), true);
   assert.equal(hasIdent("const x = `minQuantity`;", ["minQuantity"]), false);
+  assert.equal(hasIdent("const x = `${`inner ${minQuantity}`}`;", ["minQuantity"]), true);
+  assert.equal(hasIdent("const x = `${`minQuantity`}`;", ["minQuantity"]), false);
   assert.equal(hasIdent("", ["minQuantity"]), false);
 
   assert.equal(mentionsQuantityRangeTokens("return /minQuantity/;"), false);
@@ -852,8 +896,18 @@ export function assertStage1ScannerContract(): void {
   assert.equal(mentionsKgUnit(`honey: [${seed},\n  // unit: "1 кг"\n]`), false);
   assert.equal(mentionsKgUnit(`honey: [${kgSeed}]`), true);
   assert.equal(mentionsKgUnit(`un/*x*/it: "1 кг"`), false);
-  assert.equal(mentionsKgUnit(`unit /*c*/ : "1 кг"`), true);
+  assert.equal(mentionsKgUnit(`{ name: "a", price: 1, unit /*c*/ : "1 кг" }`), true);
   assert.equal(mentionsKgUnit(`const r = ${slash('unit: "1 кг"')};`), false);
+  assert.equal(
+    mentionsKgUnit(`honey: [{ name: "flower", price: 100, unit: "500 г", metadata: { unit: "1 кг" } }]`),
+    false
+  );
+  const honeyMeta = honeyCategorySearch(
+    `honey: [{ name: "flower", price: 100, unit: "500 г", metadata: { unit: "1 кг" } }]`
+  );
+  assert.equal(honeyMeta.blockFound, true);
+  assert.equal(honeyMeta.listedCount, 1);
+  assert.equal(honeyMeta.kgUnitInBlock, false);
 
   assert.equal(extractCategoryBlock(`hon/*x*/ey: [${kgSeed}]`, "honey").length, 0);
   assert.ok(extractCategoryBlock(`honey /*c*/ : [${kgSeed}]`, "honey").length > 0);
@@ -931,6 +985,12 @@ const catalog = {
   return { unit: payload.unit };
 }`;
   assert.equal(copiesPayloadField(extractNamedDeclaration(classSlash, "addToBasket"), "unit"), true);
+
+  const nestedTemplateBrace = `function addToBasket(payload) {
+  const x = \`\${\`}\`}\`;
+  return { unit: payload.unit };
+}`;
+  assert.equal(copiesPayloadField(extractNamedDeclaration(nestedTemplateBrace, "addToBasket"), "unit"), true);
 
   assert.equal(extractNamedDeclaration("const x = 1;", "addToBasket"), "");
   assert.equal(extractNamedDeclaration("", "addToBasket"), "");
