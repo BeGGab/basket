@@ -2,7 +2,7 @@
 
 **Status:** Experimental Baseline v0.1
 
-`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 95 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
+`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 105 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
 
 | ID | Scenario | Model | Emulator | /sim demo | Main check |
 |---|---|:---:|:---:|:---:|---|
@@ -101,6 +101,16 @@
 | SOURCE-010-BASKET | read ADD_TO_BASKET | ✓ |  |  | OPEN; source inspection, not I-045 |
 | SOURCE-010-TZ025 | read TZ-025 markdown prose | ✓ |  |  | OPEN; prose search, not TS lexer; not I-050 |
 | SOURCE-010-TREE | experiments/basket **/*.ts | ✓ |  |  | OPEN; cleanup of two historical FLOW-010 names, not all synthetic flow |
+| FLOW-011-A-CONFIG | seller-config step not executed | ✓ | ✓ |  | OPEN; INCONCLUSIVE; setCatalog ≠ seller config |
+| FLOW-011-A1 | buyer qty 1 accepted | ✓ | ✓ |  | OPEN; INCONCLUSIVE; not seller min |
+| FLOW-011-A2 | buyer qty 100 accepted | ✓ | ✓ |  | OPEN; INCONCLUSIVE; not product max |
+| FLOW-011-A3 | buyer 2/5/12 same unit price | ✓ | ✓ |  | OPEN; INCONCLUSIVE; range not seller-set |
+| FLOW-011-A4 | listing has no min/max fields | ✓ | ✓ |  | OPEN; stored state, not token scan |
+| FLOW-011-A-STOCK | stock 5 caps qty 10 | ✓ | ✓ |  | OPEN; stock ≠ maxQuantity |
+| FLOW-011-A-ZERO | qty 0 rejected | ✓ |  |  | OPEN; I-030 ≠ seller min |
+| FLOW-011-B-LEVELS | 1/5/10 kg linear unit price | ✓ | ✓ |  | OPEN; INCONCLUSIVE; seller did not set a tier |
+| FLOW-011-B-TIME | time discount at qty 2 and 10 | ✓ | ✓ |  | OPEN; time ≠ qty price |
+| FLOW-011-B-COUNTER | negotiating +1 at qty 1 and 10 | ✓ | ✓ |  | OPEN; +1 ≠ qty tier |
 
 TZ-004 assistant demos on `/sim` (DISCOUNT / HIKE / SELLER) are training overlays, not rows in this BS matrix.
 

@@ -419,3 +419,43 @@ Free-text «Сегодня скидка на сыр». Quantity-range names as w
 ## SOURCE-010-TREE — cleanup of two historical FLOW-010 artifacts
 
 `experiments/basket/**/*.ts` has no `run("FLOW-010-…")` and no `function observeCooperativeAccept`. Cleanup check of those two names, not a proof that synthetic business-flow is absent. Does not search `docs/` (**OPEN — SPEC OQ-002A**).
+
+## FLOW-011-A-CONFIG — seller product-config step
+
+Stage-1 deal reaches STABLE. Catalog is test `setCatalog`. CooperativeSeller only accepted. Seller min/max/tier configuration was not executed (**OPEN — SPEC OQ-002A**, observation INCONCLUSIVE).
+
+## FLOW-011-A1 — buyer quantity 1
+
+Buyer 1 kg accepted at listed unit price. No minimum applied. Seller never set a min (**OPEN — SPEC OQ-002A**, INCONCLUSIVE).
+
+## FLOW-011-A2 — buyer quantity 100
+
+Buyer 100 kg accepted against stock 1000. Not a product max rule and not stock capping (**OPEN — SPEC OQ-002A**, INCONCLUSIVE).
+
+## FLOW-011-A3 — unconstrained 2 / 5 / 12 kg
+
+All STABLE at the same listed unit price. Seller min/max range was not set (**OPEN — SPEC OQ-002A**, INCONCLUSIVE).
+
+## FLOW-011-A4 — unconstrained listing shape
+
+Stored catalog row and PurchaseItem have no `minQuantity` / `maxQuantity` fields. Observed state in this run, not a source token scan (**OPEN — SPEC OQ-002A**, INCONCLUSIVE).
+
+## FLOW-011-A-STOCK — stock cap is not maxQuantity
+
+PartialAvailabilitySeller caps 10 kg to stock 5 with `AVAILABILITY_CHANGE`. Not OQ-002A NOT SUPPORTED (**OPEN — SPEC OQ-002A**).
+
+## FLOW-011-A-ZERO — I-030 is not seller min
+
+Quantity 0 is rejected by I-030. Not a seller-configured minimum (**OPEN — SPEC OQ-002A**).
+
+## FLOW-011-B-LEVELS — 1 / 5 / 10 kg unit price
+
+Listed unit price stays 15; totals 15 / 75 / 150. Seller did not configure a quantity-dependent price (**OPEN — SPEC OQ-002B**, INCONCLUSIVE).
+
+## FLOW-011-B-TIME — time discount is not a qty tier
+
+TimeDiscountSeller 15→12 at both 2 kg and 10 kg (**OPEN — SPEC OQ-002B**).
+
+## FLOW-011-B-COUNTER — negotiating +1 is not a qty tier
+
+NegotiatingSeller +1 at both 1 kg and 10 kg (**OPEN — SPEC OQ-002B**).
