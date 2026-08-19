@@ -2,7 +2,7 @@
 
 **Status:** Experimental Baseline v0.1
 
-`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 88 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
+`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 95 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
 
 | ID | Scenario | Model | Emulator | /sim demo | Main check |
 |---|---|:---:|:---:|:---:|---|
@@ -94,6 +94,13 @@
 | PACKAGE-BIZ-009-001 | listed 250 g representable | ✓ |  |  | OPEN reconstruction |
 | PACKAGE-BIZ-009-002 | pre-split productIds | ✓ |  |  | OPEN; not OQ-002A evidence |
 | VOLUME-BIZ-009-001 | listed price on 3/7/12 kg | ✓ |  |  | OPEN; not seller pricing |
+| SOURCE-010-CATALOG-KG | read PRODUCT_SEEDS category-array listings | ✓ |  |  | OPEN; PRODUCT_SEEDS kg listing, not I-047/I-050 |
+| SOURCE-010-CATALOG-HONEY | read honey category array | ✓ |  |  | OPEN; no ListedSeed.unit 1 кг; not A3 |
+| SOURCE-010-CATALOG-TOKENS | read catalog sack/range tokens | ✓ |  |  | OPEN; token miss, not a market finding |
+| SOURCE-010-EMULATOR | read sellers.ts named idents | ✓ |  |  | OPEN; five tokens absent, not any-range-mechanism |
+| SOURCE-010-BASKET | read ADD_TO_BASKET | ✓ |  |  | OPEN; source inspection, not I-045 |
+| SOURCE-010-TZ025 | read TZ-025 markdown prose | ✓ |  |  | OPEN; prose search, not TS lexer; not I-050 |
+| SOURCE-010-TREE | experiments/basket **/*.ts | ✓ |  |  | OPEN; cleanup of two historical FLOW-010 names, not all synthetic flow |
 
 TZ-004 assistant demos on `/sim` (DISCOUNT / HIKE / SELLER) are training overlays, not rows in this BS matrix.
 

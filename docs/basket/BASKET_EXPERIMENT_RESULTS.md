@@ -1,17 +1,17 @@
 # GreenMarket — Basket Experiment Results
 
-**Status:** Evidence from TZ-BASKET-001…009 mock run  
+**Status:** Evidence from TZ-BASKET-001…010 mock run  
 **Experiment version:** v0.1  
-**Model version:** v0.1.17 / SPEC v0.6 (TZ-009 is catalog/spec reconstruction, not a business-flow observation; OQ-002A/B remain OPEN)
+**Model version:** v0.1.17 / SPEC v0.6 (TZ-010 is Stage-1 source search; business-flow observation not obtained; OQ-002A/B remain OPEN)
 
 ## How to read results
 
 - **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).
 - **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).
-- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation or catalog/spec reconstruction, not a policy.
+- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG-KG/HONEY/TOKENS/BASKET/TREE, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, catalog/spec reconstruction, or Stage-1 source absence — not a business-flow observation and not a policy.
 - Do not treat Impl PASS as confirmation of an unresolved OQ.
 - Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.
-- All 88 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
+- All 95 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
 
 ## Purpose
 
@@ -92,6 +92,13 @@ Record evidence from the mock domain and seller emulator.
 | PRICE-UNIT-002 | PASS | CONFIRMED | none | 2kg@15 vs 1kg@30 are different Offers; equal derived totals are arithmetic, not commercial equivalence |
 | PRICE-ZERO-001 | PASS | CONFIRMED | none | price 0 is a real unit price; derived total 0 is not a missing price |
 | SNAPSHOT-VOL-001 | PASS | OPEN (SPEC-OQ-002A) | none | canonical snapshot distinguishes requested/agreed/current/alt/derived; package contents remain absent |
+| SOURCE-010-BASKET | PASS | OPEN (SPEC-OQ-002A) | none | No conversion/tier lookup found in ADD_TO_BASKET itself. The function copies payload.unit and payload.price. Conversion or pricing could occur before this call; this row does not claim the whole basket path |
+| SOURCE-010-CATALOG-HONEY | PASS | OPEN (SPEC-OQ-002A) | none | honey category block found with at least one array-element seed; no ListedSeed.unit 1 кг in that block (nested metadata, even with name/price/unit, does not count). Not A3 seller classification and not a business-flow observation |
+| SOURCE-010-CATALOG-KG | PASS | OPEN (SPEC-OQ-002A) | none | PRODUCT_SEEDS category-array listings include at least one unit 1 кг. Nested metadata and assignment example objects are not listings. Not a business-flow observation |
+| SOURCE-010-CATALOG-TOKENS | PASS | OPEN (SPEC-OQ-002A) | none | whole identifier мешок, pack-contents 1 мешок/package = 5 kg, and range tokens minQuantity/maxQuantity/tierPrice/PriceSchedule/VolumePrice / 1-4 / 5-9 / 10+ are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Substrings, regex interiors, and 1 package = 5 apples do not count. Token miss is not a market finding |
+| SOURCE-010-EMULATOR | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 source search of sellers.ts: the identifier tokens minQuantity/maxQuantity/tierPrice/PriceSchedule/VolumePrice are SOURCE ABSENT in this file. This does not claim sellers.ts has no quantity-range mechanism under another name (quantityPrices, getPrice, ranges, ...). Not a CooperativeSeller call-shape test and not a market finding |
+| SOURCE-010-TREE | PASS | OPEN (SPEC-OQ-002A) | none | experiments/basket **/*.ts has no FLOW-010 run() and no observeCooperativeAccept helper. Cleanup check of those two historical artifacts only. Does not prove synthetic business-flow is absent. Does not search docs or PACKAGE-008 experimenter facts. Not a business-flow observation |
+| SOURCE-010-TZ025 | PASS | OPEN (SPEC-OQ-002B) | none | Stage-1 markdown prose search of TZ-025: free-text cheese discount is present; quantity-range names as whole words are SOURCE ABSENT in this file. This is not a TypeScript lexical scan. Token miss is not a business fact and not B3 observation |
 | VOLUME-008-001 | PASS | OPEN (SPEC-OQ-002B) | none | Buyer 3/7/12 kg does not read an external tier schedule from the domain |
 | VOLUME-008-002 | PASS | CONFIRMED | none | a pre-negotiation tier announcement is not an Offer, has no id, and cannot be accepted |
 | VOLUME-008-003 | PASS | CONFIRMED | none | 7 kg @ 17 is a concrete Offer; schedule is not stored as provenance |
@@ -964,6 +971,90 @@ Record evidence from the mock domain and seller emulator.
 - Workaround: none
 - Decision: canonical snapshot distinguishes requested/agreed/current/alt/derived; package contents remain absent
 
+### SOURCE-010-BASKET — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: declarationFound=true; copiesUnit=true; copiesPrice=true; hasConversion=false; hasTierPrice=false
+- Actual: declarationFound=true; copiesUnit=true; copiesPrice=true; hasConversion=false; hasTierPrice=false
+- Invariant: source inspection — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: SOURCE ABSENT in ADD_TO_BASKET itself — not a business-flow observation
+- Workaround: none
+- Decision: No conversion/tier lookup found in ADD_TO_BASKET itself. The function copies payload.unit and payload.price. Conversion or pricing could occur before this call; this row does not claim the whole basket path
+
+### SOURCE-010-CATALOG-HONEY — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: honeyCategoryFound=true; honeySeedsPresent=true; honeyKgUnitInBlock=false
+- Actual: honeyCategoryFound=true; honeySeedsPresent=true; honeyKgUnitInBlock=false
+- Invariant: source inspection — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: SOURCE ABSENT of 1 кг honey listing in mockSellerCatalog.ts honey block
+- Workaround: none
+- Decision: honey category block found with at least one array-element seed; no ListedSeed.unit 1 кг in that block (nested metadata, even with name/price/unit, does not count). Not A3 seller classification and not a business-flow observation
+
+### SOURCE-010-CATALOG-KG — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: hasKgListedSeed=true
+- Actual: hasKgListedSeed=true
+- Invariant: source inspection — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: SOURCE ABSENT/present of listed kg unit in PRODUCT_SEEDS category-array listings
+- Workaround: none
+- Decision: PRODUCT_SEEDS category-array listings include at least one unit 1 кг. Nested metadata and assignment example objects are not listings. Not a business-flow observation
+
+### SOURCE-010-CATALOG-TOKENS — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: sackContentsTokens=false; quantityRangeTokens=false
+- Actual: sackContentsTokens=false; quantityRangeTokens=false
+- Invariant: source inspection — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: SOURCE ABSENT of sack/range tokens in mockSellerCatalog.ts
+- Workaround: none
+- Decision: whole identifier мешок, pack-contents 1 мешок/package = 5 kg, and range tokens minQuantity/maxQuantity/tierPrice/PriceSchedule/VolumePrice / 1-4 / 5-9 / 10+ are SOURCE ABSENT in mockSellerCatalog.ts lexical code. Substrings, regex interiors, and 1 package = 5 apples do not count. Token miss is not a market finding
+
+### SOURCE-010-EMULATOR — Impl PASS / Domain OPEN (SPEC-OQ-002B)
+
+- Expected: hasMinQuantity=false; hasMaxQuantity=false; hasTierPrice=false; hasPriceSchedule=false; quantityRangeTokens=false
+- Actual: hasMinQuantity=false; hasMaxQuantity=false; hasTierPrice=false; hasPriceSchedule=false; quantityRangeTokens=false
+- Invariant: source inspection — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002B
+- Model violation: none
+- New concept: SOURCE ABSENT of quantity-range tokens in sellers.ts
+- Workaround: none
+- Decision: Stage-1 source search of sellers.ts: the identifier tokens minQuantity/maxQuantity/tierPrice/PriceSchedule/VolumePrice are SOURCE ABSENT in this file. This does not claim sellers.ts has no quantity-range mechanism under another name (quantityPrices, getPrice, ranges, ...). Not a CooperativeSeller call-shape test and not a market finding
+
+### SOURCE-010-TREE — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: walkComplete=true; flow010Run=false; observeCooperativeAcceptHelper=false
+- Actual: walkComplete=true; flow010Run=false; observeCooperativeAcceptHelper=false
+- Invariant: source inspection — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: cleanup of two historical FLOW-010 artifacts — not proof that synthetic business-flow is absent
+- Workaround: none
+- Decision: experiments/basket **/*.ts has no FLOW-010 run() and no observeCooperativeAccept helper. Cleanup check of those two historical artifacts only. Does not prove synthetic business-flow is absent. Does not search docs or PACKAGE-008 experimenter facts. Not a business-flow observation
+
+### SOURCE-010-TZ025 — Impl PASS / Domain OPEN (SPEC-OQ-002B)
+
+- Expected: cheeseDiscountText=true; quantityRangeTokens=false
+- Actual: cheeseDiscountText=true; quantityRangeTokens=false
+- Invariant: source inspection — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002B
+- Model violation: none
+- New concept: SOURCE ABSENT in TZ-025 — not a business-flow observation
+- Workaround: none
+- Decision: Stage-1 markdown prose search of TZ-025: free-text cheese discount is present; quantity-range names as whole words are SOURCE ABSENT in this file. This is not a TypeScript lexical scan. Token miss is not a business fact and not B3 observation
+
 ### VOLUME-008-001 — Impl PASS / Domain OPEN (SPEC-OQ-002B)
 
 - Expected: externalTier3=20; externalTier7=17; externalTier12=14; domainPrice=15; scheduleApplied3=false; scheduleApplied7=false; scheduleApplied12=false
@@ -1224,7 +1315,7 @@ Changes in this PR (already implemented and tested):
 - OQ-006 / OQ-008 closed
 - PartialAvailabilitySeller offers min(requested, stock) of the SAME CatalogLine (sellerId, productId, unit) — a pcs pool is not kg stock
 - cheapestAvailable() removed from domain catalog semantics (ambiguous ≠ cheapest); catalogUnitPrice returns null on disagreement
-- GREENMARKET_DOMAIN_SPEC v0.6 is the canonical domain contract; TZ-BASKET-009 records catalog/spec reconstruction, not a business-flow observation, and does not introduce Package or PriceSchedule
+- GREENMARKET_DOMAIN_SPEC v0.6 is the canonical domain contract; TZ-BASKET-009 records catalog/spec reconstruction; TZ-BASKET-010 records Stage-1 source search (SOURCE ABSENT in inspected files) and does not obtain a business-flow observation; neither introduces Package or PriceSchedule
 - I-042: price is the price of one unit; derived total = quantity * price; no stored linePrice
 - I-043: changing quantity does not reread price as a line total
 - I-044: Offer stores (product, quantity, unit, price); a change is a new Offer
@@ -1289,6 +1380,17 @@ SPEC version bump: no
 Production architecture changed: NO
 Further closing OQ-002A/B still requires a business-flow observation, not another synthetic model test
 
+TZ-BASKET-010
+Status: primary goal NOT MET — Stage-1 source search only; BUSINESS-FLOW OBSERVATION NOT OBTAINED
+OQ-002A: OPEN — SOURCE ABSENT in mockSellerCatalog; no conversion/tier lookup found in ADD_TO_BASKET itself; A1/A2 flow NOT OBTAINED; A3 NOT TESTABLE (no seller classification); SOURCE-010-TREE is a cleanup check of two historical FLOW-010 artifacts, not proof synthetic business-flow is absent
+OQ-002B: OPEN — named identifier tokens SOURCE ABSENT in sellers.ts; range names as whole words SOURCE ABSENT in TZ-025 markdown; B1/B2/B3 flow NOT OBTAINED. Not a claim that no quantity-range mechanism exists under another name. Token miss is not a CooperativeSeller call-shape test and not a market finding
+NEW CONCEPT JUSTIFIED: no — source absence does not justify Package or PriceSchedule
+NO MODEL CHANGE: yes
+NO NEW INVARIANT: yes
+SPEC version bump: no
+Production architecture changed: NO
+Further closing OQ-002A/B still requires a business-flow observation where a deal cannot complete without the extra fact
+
 Still open:
 - SPEC OQ-002A — conversion / partial-whole package / distinct package bases
 - SPEC OQ-002B — standing quantity-range price schedule as a domain object
@@ -1303,5 +1405,5 @@ when a later live active Offer is evaluated (I-037). Assistants WAIT on MISSING_
 Assistant unit-price comparisons are consistent with I-042; they are not the source of I-042.
 
 The model is still experimental. PASS does not close remaining OPEN questions.
-Recommended next step: SPEC OQ-003 (duplicate ListItems), then OQ-005/TTL, then allocation
+Recommended next step: obtain a real business-flow observation for OQ-002A/B. OQ-003 may proceed independently, but does not replace this observation
 ```

@@ -391,3 +391,31 @@ Two pre-split `productId`s yield two identity keys. This does not prove pack siz
 ## VOLUME-BIZ-009-001 — Quantity-agnostic listed unit price
 
 `createPurchaseFromList` copies listed kg unit price onto 3 / 7 / 12 kg PurchaseItems. This is not observed seller pricing behavior (**OPEN — SPEC OQ-002B**).
+
+## SOURCE-010-CATALOG-KG — listed kg unit in catalog object seeds
+
+Reads `mockSellerCatalog.ts`. `PRODUCT_SEEDS` category-array listings with `name`/`price`/`unit` in any order include at least one `1 кг` listing. Nested metadata and assignment example objects are not listings. Not a potato/tomato price snapshot. Not a business-flow observation (**OPEN — SPEC OQ-002A / OQ-002B**).
+
+## SOURCE-010-CATALOG-HONEY — honey category block
+
+Reads the `honey:` `[` category array in `PRODUCT_SEEDS` (`mockSellerCatalog.ts`). Category found at bracket depth 0; at least one array-element seed; no ListedSeed.unit `1 кг` (nested metadata, even with name/price/unit, does not count). Not A3 seller classification (**OPEN — SPEC OQ-002A**).
+
+## SOURCE-010-CATALOG-TOKENS — sack/range tokens in catalog
+
+Reads `mockSellerCatalog.ts` lexical code. Sack/range identifier tokens SOURCE ABSENT in this file. Token miss is not a market finding (**OPEN — SPEC OQ-002A**).
+
+## SOURCE-010-EMULATOR — Stage-1 emulator source search
+
+Reads `sellers.ts`. Whole identifier tokens `minQuantity` / `maxQuantity` / `tierPrice` / `PriceSchedule` / `VolumePrice` are SOURCE ABSENT in this file. This does not claim that no quantity-range mechanism exists under another name. Not a CooperativeSeller call-shape test. Token miss is not a market finding (**OPEN — SPEC OQ-002B**).
+
+## SOURCE-010-BASKET — ADD_TO_BASKET source search
+
+Reads `BasketActionHandlers.ts`. Copies listed `unit` and `price`. **No conversion/tier lookup found in ADD_TO_BASKET itself.** Conversion or pricing could occur before this call. Source inspection, not confirmation of I-045 (**OPEN — SPEC OQ-002A**).
+
+## SOURCE-010-TZ025 — TZ-025 source search
+
+Free-text «Сегодня скидка на сыр». Quantity-range names as whole words SOURCE ABSENT in this markdown file. Not a TypeScript lexical scan. Not B3 observation (**OPEN — SPEC OQ-002B**).
+
+## SOURCE-010-TREE — cleanup of two historical FLOW-010 artifacts
+
+`experiments/basket/**/*.ts` has no `run("FLOW-010-…")` and no `function observeCooperativeAccept`. Cleanup check of those two names, not a proof that synthetic business-flow is absent. Does not search `docs/` (**OPEN — SPEC OQ-002A**).
