@@ -394,11 +394,11 @@ Two pre-split `productId`s yield two identity keys. This does not prove pack siz
 
 ## SOURCE-010-CATALOG-KG — listed kg unit in catalog object seeds
 
-Reads `mockSellerCatalog.ts`. Lexical object seeds with `name`/`price`/`unit` in any order include at least one `1 кг` listing. String interiors are not seeds. Not a potato/tomato price snapshot. Not a business-flow observation (**OPEN — SPEC OQ-002A / OQ-002B**).
+Reads `mockSellerCatalog.ts`. `PRODUCT_SEEDS` category-array listings with `name`/`price`/`unit` in any order include at least one `1 кг` listing. Nested metadata and assignment example objects are not listings. Not a potato/tomato price snapshot. Not a business-flow observation (**OPEN — SPEC OQ-002A / OQ-002B**).
 
 ## SOURCE-010-CATALOG-HONEY — honey category block
 
-Reads the lexical `honey:` `[` block in `mockSellerCatalog.ts`. Category found; at least one object seed; no ListedSeed.unit `1 кг` in that block (nested metadata.unit does not count). Not A3 seller classification (**OPEN — SPEC OQ-002A**).
+Reads the `honey:` `[` category array in `PRODUCT_SEEDS` (`mockSellerCatalog.ts`). Category found at bracket depth 0; at least one array-element seed; no ListedSeed.unit `1 кг` (nested metadata, even with name/price/unit, does not count). Not A3 seller classification (**OPEN — SPEC OQ-002A**).
 
 ## SOURCE-010-CATALOG-TOKENS — sack/range tokens in catalog
 

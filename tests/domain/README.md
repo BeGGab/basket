@@ -80,8 +80,8 @@ npx tsx experiments/basket/tests/run.ts
 | `PACKAGE-BIZ-009-001` | catalog/spec: listed 250 g representable without contents field | `scenarios.ts` PACKAGE-BIZ-009-001 |
 | `PACKAGE-BIZ-009-002` | catalog/spec: pre-split productIds; not pack-as-Product policy | `scenarios.ts` PACKAGE-BIZ-009-002 |
 | `VOLUME-BIZ-009-001` | catalog/spec: listed unit price copied onto 3/7/12 kg items | `scenarios.ts` VOLUME-BIZ-009-001 |
-| `SOURCE-010-CATALOG-KG` | lexical object seeds in mockSellerCatalog.ts include a `1 кг` unit | `scenarios.ts` SOURCE-010-CATALOG-KG |
-| `SOURCE-010-CATALOG-HONEY` | honey block found; no ListedSeed.unit `1 кг` in that block | `scenarios.ts` SOURCE-010-CATALOG-HONEY |
+| `SOURCE-010-CATALOG-KG` | `PRODUCT_SEEDS` category-array listings include a `1 кг` unit | `scenarios.ts` SOURCE-010-CATALOG-KG |
+| `SOURCE-010-CATALOG-HONEY` | honey category array found; no ListedSeed.unit `1 кг` | `scenarios.ts` SOURCE-010-CATALOG-HONEY |
 | `SOURCE-010-CATALOG-TOKENS` | sack/range tokens SOURCE ABSENT in mockSellerCatalog.ts | `scenarios.ts` SOURCE-010-CATALOG-TOKENS |
 | `SOURCE-010-EMULATOR` | five named identifier tokens SOURCE ABSENT in sellers.ts; not any-range-mechanism | `scenarios.ts` SOURCE-010-EMULATOR |
 | `SOURCE-010-BASKET` | no conversion/tier lookup found in ADD_TO_BASKET itself; source inspection, not I-045 | `scenarios.ts` SOURCE-010-BASKET |

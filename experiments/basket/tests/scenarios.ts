@@ -14,7 +14,7 @@ import {
   mentionsQuantityRangeTokens,
   mentionsQuantityRangeInProse,
   mentionsSackContents,
-  parseListedSeeds,
+  parseProductSeedListings,
   readStage1,
   scanBasketExperimentForFlow010,
   copiesPayloadField,
@@ -3873,16 +3873,16 @@ export function runAllScenarios(): ScenarioResult[] {
 
   results.push(
     run("SOURCE-010-CATALOG-KG", () => {
-      const seeds = parseListedSeeds(readStage1("catalog"));
+      const seeds = parseProductSeedListings(readStage1("catalog"));
       return prove(
         "SOURCE-010-CATALOG-KG",
         "source inspection — not a domain invariant",
         { hasKgListedSeed: true },
         { hasKgListedSeed: seeds.some((seed) => seed.unit === "1 кг") },
-        "mockSellerCatalog.ts lexical object seeds include at least one unit 1 кг listing. Seeds inside string or regex literals do not count. Not a business-flow observation",
+        "PRODUCT_SEEDS category-array listings include at least one unit 1 кг. Nested metadata and assignment example objects are not listings. Not a business-flow observation",
         "OPEN",
         "SPEC-OQ-002A",
-        { newConcept: "SOURCE ABSENT/present of listed kg unit in mockSellerCatalog.ts object literals" }
+        { newConcept: "SOURCE ABSENT/present of listed kg unit in PRODUCT_SEEDS category-array listings" }
       );
     })
   );
@@ -3903,7 +3903,7 @@ export function runAllScenarios(): ScenarioResult[] {
           honeySeedsPresent: honeyKg.listedCount > 0,
           honeyKgUnitInBlock: honeyKg.kgUnitInBlock,
         },
-        "honey category block found with at least one object seed; no ListedSeed.unit 1 кг in that block (nested metadata.unit does not count). Not A3 seller classification and not a business-flow observation",
+        "honey category block found with at least one array-element seed; no ListedSeed.unit 1 кг in that block (nested metadata, even with name/price/unit, does not count). Not A3 seller classification and not a business-flow observation",
         "OPEN",
         "SPEC-OQ-002A",
         { newConcept: "SOURCE ABSENT of 1 кг honey listing in mockSellerCatalog.ts honey block" }
