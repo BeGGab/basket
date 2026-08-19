@@ -156,15 +156,15 @@ Deleting comments/strings without a separator would turn `min/*x*/Quantity` into
 
 ### H17. Listed seeds are lexical object tokens, not string interiors
 
-`parseListedSeeds` collects `name`, `price`, and `unit` from **direct elements of a category array** (`ident: [` at bracket depth 0) or of an extracted `[...]` block. Property order and extra fields do not matter. Nested property-value objects (`metadata`) are not seeds, even when they contain `name`/`price`/`unit`. `const example = { name, price, unit }` is not a listing. String and regex interiors are not ListedSeeds. SOURCE-010-CATALOG-KG uses `parseProductSeedListings`: seeds inside `const PRODUCT_SEEDS = { ... }` only.
+`parseListedSeeds` collects `name`, `price`, and `unit` from **direct elements of a category array** (`ident: [` at bracket depth 0) or of an extracted `[...]` block. Property order and extra fields do not matter. Nested property-value objects (`metadata`) are not seeds, even when they contain `name`/`price`/`unit`. `const example = { name, price, unit }` is not a listing. String and regex interiors are not ListedSeeds. SOURCE-010-CATALOG-KG uses `parseProductSeedListings`: seeds inside **module-level** `const PRODUCT_SEEDS = { ... }` only. A local `const PRODUCT_SEEDS` inside a function is not the catalog. If the module-level declaration exists but cannot be extracted, the result is empty (fail-closed).
 
 ### H18. Category blocks are found in lexical code
 
-`extractCategoryBlock` looks for identifier `category`, then `:`, then `[` at **brace depth 0 or 1 and bracket depth 0** (module-level key or one object wrapper, not inside an array). If `const PRODUCT_SEEDS` exists, the search is scoped to that object, so a preceding `helper.honey` is not the catalog category. Nested `metadata.honey` is not the catalog category. Then `extractBalanced` from that `[`.
+`extractCategoryBlock` looks for identifier `category`, then `:`, then `[` at **brace depth 0 or 1 and bracket depth 0** (module-level key or one object wrapper, not inside an array). Module-level `const PRODUCT_SEEDS` is distinguished from absence: if that declaration exists but cannot be extracted as `{ ... }`, the search **fail-closes** (does not fall back to the whole file). Nested/function-local `const PRODUCT_SEEDS` is ignored. If no module-level declaration exists, snippets such as `honey: [ ... ]` are still searched. Nested `metadata.honey` is not the catalog category. Then `extractBalanced` from that `[`.
 
 ### H19. Scanner contract covers glue and in-string seeds
 
-`assertStage1ScannerContract()` includes `min/*x*/Quantity`, in-string fake seeds, glued `na/*x*/me`, regex interiors, identifier boundaries, `}` in regex, property order/extra fields, nested `metadata` (including a complete fake ListedSeed), nested templates, `PRODUCT_SEEDS` vs assignment examples, honey inside an array item, and true positives with comments between real tokens.
+`assertStage1ScannerContract()` includes `min/*x*/Quantity`, in-string fake seeds, glued `na/*x*/me`, regex interiors, identifier boundaries, `}` in regex, property order/extra fields, nested `metadata` (including a complete fake ListedSeed), nested templates, `PRODUCT_SEEDS` vs assignment examples, unparseable `PRODUCT_SEEDS` fail-closed, local vs module-level `PRODUCT_SEEDS`, honey inside an array item, and true positives with comments between real tokens.
 
 ### H20. Catalog detectors are separate SOURCE-010 rows
 
@@ -188,7 +188,7 @@ SOURCE-010-TZ025 uses `mentionsQuantityRangeInProse` (whole-word names in markdo
 
 ### H25. Scanner contract covers regex, boundaries, and extraction
 
-`assertStage1ScannerContract()` includes regex interiors, identifier boundaries (including `_minQuantity` / `foo_minQuantity`), `}` in regex, `addToBasketFactory`, nested `metadata.honey`, property order/extra fields, nested complete `metadata` seed, nested templates, `PRODUCT_SEEDS` scope, honey inside `[ { honey: [] } ]`, listTsFiles walk, TREE scan of the live tree, `return /minQuantity/`, and template `${minQuantity}`.
+`assertStage1ScannerContract()` includes regex interiors, identifier boundaries (including `_minQuantity` / `foo_minQuantity`), `}` in regex, `addToBasketFactory`, nested `metadata.honey`, property order/extra fields, nested complete `metadata` seed, nested templates, `PRODUCT_SEEDS` scope (module-level only; parse failure does not fall back to the whole file), honey inside `[ { honey: [] } ]`, listTsFiles walk, TREE scan of the live tree, `return /minQuantity/`, and template `${minQuantity}`.
 
 ### H26. Template interpolations are nested code
 

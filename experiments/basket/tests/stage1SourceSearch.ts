@@ -516,19 +516,56 @@ function skipToInitializerEquals(tokens: Tok[], afterName: number): number {
   return -1;
 }
 
-/** `const NAME = { ... }` / `const NAME: Type = { ... }`. Empty = not found. */
-export function extractAssignmentObject(source: string, name: string): string {
+function isBindingKeyword(token: Tok | undefined): boolean {
+  return ident(token, "const") || ident(token, "let") || ident(token, "var");
+}
+
+function objectInitializerBody(source: string, tokens: Tok[], afterName: number): string {
+  const eq = skipToInitializerEquals(tokens, afterName);
+  if (eq < 0 || !punct(tokens[eq + 1], "{")) return "";
+  return extractBalanced(source, tokens[eq + 1].index, "{", "}");
+}
+
+export type ModuleObjectExtract =
+  | { status: "absent" }
+  | { status: "failed" }
+  | { status: "ok"; body: string };
+
+/**
+ * Module-level `const|let|var NAME = { ... }` / `export const NAME: Type = { ... }`.
+ * Nested or function-local declarations are ignored.
+ * `failed` means a module-level declaration exists but its initializer is not a
+ * extractable `{ ... }` object — callers must fail closed, not search the whole file.
+ */
+export function extractModuleAssignmentObject(source: string, name: string): ModuleObjectExtract {
   const tokens = tokenize(source);
+  let brace = 0;
+  let bracket = 0;
+  let paren = 0;
   for (let i = 0; i < tokens.length; i++) {
-    let j = i;
-    if (ident(tokens[j], "export")) j += 1;
-    if (!(ident(tokens[j], "const") || ident(tokens[j], "let") || ident(tokens[j], "var"))) continue;
-    if (!ident(tokens[j + 1], name)) continue;
-    const eq = skipToInitializerEquals(tokens, j + 2);
-    if (eq < 0 || !punct(tokens[eq + 1], "{")) continue;
-    return extractBalanced(source, tokens[eq + 1].index, "{", "}");
+    if (brace === 0 && bracket === 0 && paren === 0) {
+      let j = i;
+      if (ident(tokens[j], "export")) j += 1;
+      if (isBindingKeyword(tokens[j]) && ident(tokens[j + 1], name)) {
+        const body = objectInitializerBody(source, tokens, j + 2);
+        if (!body) return { status: "failed" };
+        return { status: "ok", body };
+      }
+    }
+    if (punct(tokens[i], "{")) brace += 1;
+    else if (punct(tokens[i], "}")) brace -= 1;
+    else if (punct(tokens[i], "[")) bracket += 1;
+    else if (punct(tokens[i], "]")) bracket -= 1;
+    else if (punct(tokens[i], "(")) paren += 1;
+    else if (punct(tokens[i], ")")) paren -= 1;
   }
-  return "";
+  return { status: "absent" };
+}
+
+/** Object body of a module-level assignment, or empty when absent/failed. */
+export function extractAssignmentObject(source: string, name: string): string {
+  const extracted = extractModuleAssignmentObject(source, name);
+  return extracted.status === "ok" ? extracted.body : "";
 }
 
 function collectDirectArrayElementSeeds(tokens: Tok[], open: number, seeds: ListedSeed[]): number {
@@ -582,15 +619,17 @@ export function parseListedSeeds(source: string): ListedSeed[] {
   return seeds;
 }
 
-/** Array-element seeds inside `const PRODUCT_SEEDS = { ... }` only. */
+/** Array-element seeds inside module-level `const PRODUCT_SEEDS = { ... }` only. */
 export function parseProductSeedListings(source: string): ListedSeed[] {
-  const block = extractAssignmentObject(source, "PRODUCT_SEEDS");
-  if (!block) return [];
-  return parseListedSeeds(block);
+  const extracted = extractModuleAssignmentObject(source, "PRODUCT_SEEDS");
+  if (extracted.status !== "ok") return [];
+  return parseListedSeeds(extracted.body);
 }
 
 export function extractCategoryBlock(source: string, category: string): string {
-  const scoped = extractAssignmentObject(source, "PRODUCT_SEEDS") || source;
+  const extracted = extractModuleAssignmentObject(source, "PRODUCT_SEEDS");
+  if (extracted.status === "failed") return "";
+  const scoped = extracted.status === "ok" ? extracted.body : source;
   const tokens = tokenize(scoped);
   let brace = 0;
   let bracket = 0;
@@ -1082,8 +1121,47 @@ const PRODUCT_SEEDS: Record<string, ProductSeed[]> = {
   assert.equal(productSeedsVsHelper.kgUnitInBlock, false);
   assert.equal(productSeedsVsHelper.listedCount, 1);
 
-  assert.equal(extractAssignmentObject("", "PRODUCT_SEEDS"), "");
-  assert.equal(extractAssignmentObject("const other = { honey: [] };", "PRODUCT_SEEDS"), "");
+  assert.equal(extractModuleAssignmentObject("", "PRODUCT_SEEDS").status, "absent");
+  assert.equal(extractModuleAssignmentObject("const other = { honey: [] };", "PRODUCT_SEEDS").status, "absent");
+  assert.equal(
+    extractModuleAssignmentObject("const PRODUCT_SEEDS = honeyFixture();", "PRODUCT_SEEDS").status,
+    "failed"
+  );
+  assert.equal(
+    extractModuleAssignmentObject(
+      `const helper = { honey: [${kgSeed}] };
+const PRODUCT_SEEDS: UnsupportedType<X> = honeyFixture();`,
+      "PRODUCT_SEEDS"
+    ).status,
+    "failed"
+  );
+  const failedProductSeeds = honeyCategorySearch(`const helper = { honey: [${kgSeed}] };
+const PRODUCT_SEEDS: UnsupportedType<X> = honeyFixture();`);
+  assert.equal(failedProductSeeds.blockFound, false);
+  assert.equal(failedProductSeeds.listedCount, 0);
+  assert.equal(failedProductSeeds.kgUnitInBlock, false);
+  assert.equal(
+    parseProductSeedListings(`const helper = { honey: [${kgSeed}] };
+const PRODUCT_SEEDS: UnsupportedType<X> = honeyFixture();`).length,
+    0
+  );
+
+  const localThenModule = `function fixture() {
+  const PRODUCT_SEEDS = { honey: [${kgSeed}] };
+}
+const PRODUCT_SEEDS = { honey: [${seed}] };`;
+  assert.equal(extractModuleAssignmentObject(localThenModule, "PRODUCT_SEEDS").status, "ok");
+  assert.equal(honeyCategorySearch(localThenModule).blockFound, true);
+  assert.equal(honeyCategorySearch(localThenModule).kgUnitInBlock, false);
+  assert.equal(honeyCategorySearch(localThenModule).listedCount, 1);
+  assert.equal(parseProductSeedListings(localThenModule).some((item) => item.unit === "1 кг"), false);
+  assert.equal(parseProductSeedListings(localThenModule)[0]?.unit, "500 г");
+
+  const blockThenModule = `{
+  const PRODUCT_SEEDS = { vegetables: [${kgSeed}] };
+}
+const PRODUCT_SEEDS = { vegetables: [${seed}] };`;
+  assert.equal(parseProductSeedListings(blockThenModule)[0]?.unit, "500 г");
   assert.ok(
     extractAssignmentObject(
       `const PRODUCT_SEEDS: Record<string, ProductSeed[]> = { honey: [${seed}] };`,
