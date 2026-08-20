@@ -459,3 +459,31 @@ TimeDiscountSeller 15→12 at both 2 kg and 10 kg (**OPEN — SPEC OQ-002B**).
 ## FLOW-011-B-COUNTER — negotiating +1 is not a qty tier
 
 NegotiatingSeller +1 at both 1 kg and 10 kg (**OPEN — SPEC OQ-002B**).
+
+## FLOW-012-A-CONFIG — seller set min is NOT EXECUTABLE
+
+Seller action set minimum N was not executed on inspected surfaces. `setCatalog`/`setStock` were not used as seller config. Impl **NOT EXECUTABLE**. Not NOT SUPPORTED (**OPEN — SPEC OQ-002A**, INCONCLUSIVE).
+
+## FLOW-012-A-BELOW-MIN / AT-MIN
+
+Buyer N-1 / N against a seller-configured min was not run. Not I-030 qty 0. Not FLOW-011 unconstrained qty (**OPEN — SPEC OQ-002A**).
+
+## FLOW-012-A-MAX-CONFIG / ABOVE-MAX / AT-MAX
+
+Seller set max M not executed. `setStock` is inventory, not this rule. Buyer M+1 / M against configured max not run. Not stock cap (**OPEN — SPEC OQ-002A**).
+
+## FLOW-012-A-RANGE — min+max config NOT EXECUTABLE
+
+Combined min and max configuration is not executable. Not unconstrained 2/5/12 labeled as range (**OPEN — SPEC OQ-002A**).
+
+## FLOW-012-B-CONFIG — seller quantity-price table NOT EXECUTABLE
+
+Seller set 1/5/10 kg prices not executed. Not listed unit price fixture (**OPEN — SPEC OQ-002B**, INCONCLUSIVE).
+
+## FLOW-012-B-Q1 / Q5 / Q10
+
+Buyer those quantities against a seller-configured table were not run. Not FLOW-011-B-LEVELS linear 15 (**OPEN — SPEC OQ-002B**).
+
+## FLOW-012-B-CROSS-CHECK
+
+Cannot separate a seller-configured quantity table from time/profile/counter because no table was configured. TimeDiscount and +1 were not reused (**OPEN — SPEC OQ-002B**).

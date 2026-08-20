@@ -1,17 +1,18 @@
 # GreenMarket — Basket Experiment Results
 
-**Status:** Evidence from TZ-BASKET-001…011 mock run  
+**Status:** Evidence from TZ-BASKET-001…012 mock run  
 **Experiment version:** v0.1  
-**Model version:** v0.1.17 / SPEC v0.6 (TZ-011: buyer/seller flow exercised; seller-config step not executable; OQ-002A/B INCONCLUSIVE; SPEC unchanged)
+**Model version:** v0.1.17 / SPEC v0.6 (TZ-012: seller-facing config attempted; NOT EXECUTABLE on inspected surfaces; OQ-002A/B INCONCLUSIVE; SPEC unchanged)
 
 ## How to read results
 
 - **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).
+- **Impl `NOT EXECUTABLE`** — the required seller-facing configuration step cannot be performed on inspected surfaces. The row still ran. It is not FAIL, not Domain CONFIRMED, and not NOT SUPPORTED of a business function under another name.
 - **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).
-- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG-KG/HONEY/TOKENS/BASKET/TREE, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, ALT-PRICE-002, and FLOW-011-* are in this bucket. FLOW-011-A-CONFIG-CAPABILITY is an executability/coverage check, not a seller-config observation. Other FLOW-011 rows are buyer/seller deals without a seller-configured constraint. OQ status is INCONCLUSIVE — not CONFIRMED commerce, not SOURCE search, and not a policy.
-- Do not treat Impl PASS as confirmation of an unresolved OQ.
+- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG-KG/HONEY/TOKENS/BASKET/TREE, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, ALT-PRICE-002, FLOW-011-*, and FLOW-012-* are in this bucket. FLOW-012 rows are seller-facing configuration attempts whose Impl is NOT EXECUTABLE. FLOW-011-A-CONFIG-CAPABILITY is an executability/coverage check, not a seller-config observation. Other FLOW-011 rows are buyer/seller deals without a seller-configured constraint. OQ status is INCONCLUSIVE — not CONFIRMED commerce, not SOURCE search, and not a policy.
+- Do not treat Impl PASS or Impl NOT EXECUTABLE as confirmation of an unresolved OQ.
 - Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.
-- All 105 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
+- All 117 scenarios are programmatically exercised (count from this runner, not a hand-edited total); Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
 
 ## Purpose
 
@@ -72,6 +73,18 @@ Record evidence from the mock domain and seller emulator.
 | FLOW-011-B-COUNTER | PASS | OPEN (SPEC-OQ-002B) | none | NegotiatingSeller added +1 unit price for both 1 kg and 10 kg. Same offset, not a quantity-tier table. Programmed profile, not a seller-defined schedule |
 | FLOW-011-B-LEVELS | PASS | OPEN (SPEC-OQ-002B) | none | Buyer 1 / 5 / 10 kg: listed unit price stayed 15; totals 15 / 75 / 150. Programmed CooperativeSeller accepted each. This flow applied linear unit price. Seller never defined a quantity-dependent price. Not VOLUME-BIZ-009 reconstruction labeled as seller pricing |
 | FLOW-011-B-TIME | PASS | OPEN (SPEC-OQ-002B) | none | TimeDiscountSeller lowered unit price 15→12 for both 2 kg and 10 kg. Same unit-price drop regardless of quantity. This is a time profile, not a quantity-dependent price rule. Not OQ-002B CONFIRMED or NOT SUPPORTED |
+| FLOW-012-A-ABOVE-MAX | NOT EXECUTABLE | OPEN (SPEC-OQ-002A) | none | Required chain: seller set max=M, then buyer quantity M+1. Configuration did not execute. Buyer-above-max was not run against configured state. System result: NOT EXECUTABLE. Not PartialAvailabilitySeller stock cap. Not FLOW-011 qty 100 |
+| FLOW-012-A-AT-MAX | NOT EXECUTABLE | OPEN (SPEC-OQ-002A) | none | Required chain: seller set max=M, then buyer quantity M. Configuration did not execute. Buyer-at-max was not run against configured state. System result: NOT EXECUTABLE |
+| FLOW-012-A-AT-MIN | NOT EXECUTABLE | OPEN (SPEC-OQ-002A) | none | Required chain: seller set min=N, then buyer quantity N. Configuration did not execute. Buyer-at-min was not run against configured state. System result: NOT EXECUTABLE. Not FLOW-011 qty 1 accepted |
+| FLOW-012-A-BELOW-MIN | NOT EXECUTABLE | OPEN (SPEC-OQ-002A) | none | Required chain: seller set min=N, then buyer quantity N-1. Seller configuration did not execute, so buyer-below-min was not run against configured state. System result: NOT EXECUTABLE. Not I-030 qty 0. Not FLOW-011 unconstrained qty 1 |
+| FLOW-012-A-CONFIG | NOT EXECUTABLE | OPEN (SPEC-OQ-002A) | none | Seller action: set minimum N — not executed. Seller configured state: none. Buyer action: not run. System result: NOT EXECUTABLE. Evidence kind: DIRECT runtime (SellerEmulator/BasketWorld/SimulationRuntime/DEMO_SCENARIOS). setCatalog and setStock exist and were not used as seller config. CODE INSPECTION of SellerRepository (get*/search* only), SellerCatalogScreen actions, seller-card, /sim view, buyer catalog API is in the TZ-012 report, not this row. Not SOURCE search. Not NOT SUPPORTED of a business function under another name |
+| FLOW-012-A-MAX-CONFIG | NOT EXECUTABLE | OPEN (SPEC-OQ-002A) | none | Seller action: set maximum M — not executed. Seller configured state: none. Buyer action: not run. System result: NOT EXECUTABLE. setStock is inventory, not a product max rule, and was not used as this configuration |
+| FLOW-012-A-RANGE | NOT EXECUTABLE | OPEN (SPEC-OQ-002A) | none | Required chain: seller set min=N and max=M, then buyer below/inside/above. Combined min+max configuration is NOT EXECUTABLE on inspected surfaces. Not an artificial PASS of unconstrained 2/5/12. Not NOT SUPPORTED of range as a business function |
+| FLOW-012-B-CONFIG | NOT EXECUTABLE | OPEN (SPEC-OQ-002B) | none | Seller action: set quantity-dependent prices 1kg→15 / 5kg→13 / 10kg→11 — not executed. Seller configured state: none. Buyer action: not run. System result: NOT EXECUTABLE. setCatalog listed unit price is not seller-defined tiers |
+| FLOW-012-B-CROSS-CHECK | NOT EXECUTABLE | OPEN (SPEC-OQ-002B) | none | Required: prove applied price tracks seller-configured quantity table, not time/profile/counter/fixture. No seller-configured table exists on inspected surfaces, so the cross-check cannot run. System result: NOT EXECUTABLE. TimeDiscount and NegotiatingSeller +1 were not reused as this evidence |
+| FLOW-012-B-Q1 | NOT EXECUTABLE | OPEN (SPEC-OQ-002B) | none | Required chain: seller-configured 1kg→15, then buyer 1 kg. Configuration did not execute. Applied price against that configured state was not observed. System result: NOT EXECUTABLE. Not FLOW-011-B-LEVELS linear 15 |
+| FLOW-012-B-Q5 | NOT EXECUTABLE | OPEN (SPEC-OQ-002B) | none | Required chain: seller-configured 5kg→13, then buyer 5 kg. Configuration did not execute. Applied price against that configured state was not observed. System result: NOT EXECUTABLE |
+| FLOW-012-B-Q10 | NOT EXECUTABLE | OPEN (SPEC-OQ-002B) | none | Required chain: seller-configured 10kg→11, then buyer 10 kg. Configuration did not execute. Applied price against that configured state was not observed. System result: NOT EXECUTABLE |
 | PACKAGE-001 | PASS | CONFIRMED | none | package is representable as a unit |
 | PACKAGE-002 | PASS | OPEN (SPEC-OQ-002) | none | Stage-1: different catalog qty + different unit price is AMBIGUOUS. Volume-pricing policy is not decided |
 | PACKAGE-003 | PASS | OPEN (SPEC-OQ-002) | none | MODEL GAP: current identity cannot represent distinct package bases |
@@ -740,6 +753,150 @@ Record evidence from the mock domain and seller emulator.
 - New concept: time discount is not quantity-tier pricing
 - Workaround: none
 - Decision: TimeDiscountSeller lowered unit price 15→12 for both 2 kg and 10 kg. Same unit-price drop regardless of quantity. This is a time profile, not a quantity-dependent price rule. Not OQ-002B CONFIRMED or NOT SUPPORTED
+
+### FLOW-012-A-ABOVE-MAX — Impl NOT EXECUTABLE / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Actual: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Invariant: seller-facing configuration observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: INCONCLUSIVE — required seller-facing config is NOT EXECUTABLE on inspected surfaces; does not justify Package/PriceSchedule
+- Workaround: none
+- Decision: Required chain: seller set max=M, then buyer quantity M+1. Configuration did not execute. Buyer-above-max was not run against configured state. System result: NOT EXECUTABLE. Not PartialAvailabilitySeller stock cap. Not FLOW-011 qty 100
+
+### FLOW-012-A-AT-MAX — Impl NOT EXECUTABLE / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Actual: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Invariant: seller-facing configuration observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: INCONCLUSIVE — required seller-facing config is NOT EXECUTABLE on inspected surfaces; does not justify Package/PriceSchedule
+- Workaround: none
+- Decision: Required chain: seller set max=M, then buyer quantity M. Configuration did not execute. Buyer-at-max was not run against configured state. System result: NOT EXECUTABLE
+
+### FLOW-012-A-AT-MIN — Impl NOT EXECUTABLE / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Actual: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Invariant: seller-facing configuration observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: INCONCLUSIVE — required seller-facing config is NOT EXECUTABLE on inspected surfaces; does not justify Package/PriceSchedule
+- Workaround: none
+- Decision: Required chain: seller set min=N, then buyer quantity N. Configuration did not execute. Buyer-at-min was not run against configured state. System result: NOT EXECUTABLE. Not FLOW-011 qty 1 accepted
+
+### FLOW-012-A-BELOW-MIN — Impl NOT EXECUTABLE / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Actual: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Invariant: seller-facing configuration observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: INCONCLUSIVE — required seller-facing config is NOT EXECUTABLE on inspected surfaces; does not justify Package/PriceSchedule
+- Workaround: none
+- Decision: Required chain: seller set min=N, then buyer quantity N-1. Seller configuration did not execute, so buyer-below-min was not run against configured state. System result: NOT EXECUTABLE. Not I-030 qty 0. Not FLOW-011 unconstrained qty 1
+
+### FLOW-012-A-CONFIG — Impl NOT EXECUTABLE / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Actual: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Invariant: seller-facing configuration observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: INCONCLUSIVE — required seller-facing config is NOT EXECUTABLE on inspected surfaces; does not justify Package/PriceSchedule
+- Workaround: none
+- Decision: Seller action: set minimum N — not executed. Seller configured state: none. Buyer action: not run. System result: NOT EXECUTABLE. Evidence kind: DIRECT runtime (SellerEmulator/BasketWorld/SimulationRuntime/DEMO_SCENARIOS). setCatalog and setStock exist and were not used as seller config. CODE INSPECTION of SellerRepository (get*/search* only), SellerCatalogScreen actions, seller-card, /sim view, buyer catalog API is in the TZ-012 report, not this row. Not SOURCE search. Not NOT SUPPORTED of a business function under another name
+
+### FLOW-012-A-MAX-CONFIG — Impl NOT EXECUTABLE / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Actual: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Invariant: seller-facing configuration observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: INCONCLUSIVE — required seller-facing config is NOT EXECUTABLE on inspected surfaces; does not justify Package/PriceSchedule
+- Workaround: none
+- Decision: Seller action: set maximum M — not executed. Seller configured state: none. Buyer action: not run. System result: NOT EXECUTABLE. setStock is inventory, not a product max rule, and was not used as this configuration
+
+### FLOW-012-A-RANGE — Impl NOT EXECUTABLE / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Actual: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Invariant: seller-facing configuration observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: INCONCLUSIVE — required seller-facing config is NOT EXECUTABLE on inspected surfaces; does not justify Package/PriceSchedule
+- Workaround: none
+- Decision: Required chain: seller set min=N and max=M, then buyer below/inside/above. Combined min+max configuration is NOT EXECUTABLE on inspected surfaces. Not an artificial PASS of unconstrained 2/5/12. Not NOT SUPPORTED of range as a business function
+
+### FLOW-012-B-CONFIG — Impl NOT EXECUTABLE / Domain OPEN (SPEC-OQ-002B)
+
+- Expected: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Actual: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Invariant: seller-facing configuration observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002B
+- Model violation: none
+- New concept: INCONCLUSIVE — required seller-facing config is NOT EXECUTABLE on inspected surfaces; does not justify Package/PriceSchedule
+- Workaround: none
+- Decision: Seller action: set quantity-dependent prices 1kg→15 / 5kg→13 / 10kg→11 — not executed. Seller configured state: none. Buyer action: not run. System result: NOT EXECUTABLE. setCatalog listed unit price is not seller-defined tiers
+
+### FLOW-012-B-CROSS-CHECK — Impl NOT EXECUTABLE / Domain OPEN (SPEC-OQ-002B)
+
+- Expected: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Actual: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Invariant: seller-facing configuration observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002B
+- Model violation: none
+- New concept: INCONCLUSIVE — required seller-facing config is NOT EXECUTABLE on inspected surfaces; does not justify Package/PriceSchedule
+- Workaround: none
+- Decision: Required: prove applied price tracks seller-configured quantity table, not time/profile/counter/fixture. No seller-configured table exists on inspected surfaces, so the cross-check cannot run. System result: NOT EXECUTABLE. TimeDiscount and NegotiatingSeller +1 were not reused as this evidence
+
+### FLOW-012-B-Q1 — Impl NOT EXECUTABLE / Domain OPEN (SPEC-OQ-002B)
+
+- Expected: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Actual: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Invariant: seller-facing configuration observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002B
+- Model violation: none
+- New concept: INCONCLUSIVE — required seller-facing config is NOT EXECUTABLE on inspected surfaces; does not justify Package/PriceSchedule
+- Workaround: none
+- Decision: Required chain: seller-configured 1kg→15, then buyer 1 kg. Configuration did not execute. Applied price against that configured state was not observed. System result: NOT EXECUTABLE. Not FLOW-011-B-LEVELS linear 15
+
+### FLOW-012-B-Q5 — Impl NOT EXECUTABLE / Domain OPEN (SPEC-OQ-002B)
+
+- Expected: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Actual: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Invariant: seller-facing configuration observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002B
+- Model violation: none
+- New concept: INCONCLUSIVE — required seller-facing config is NOT EXECUTABLE on inspected surfaces; does not justify Package/PriceSchedule
+- Workaround: none
+- Decision: Required chain: seller-configured 5kg→13, then buyer 5 kg. Configuration did not execute. Applied price against that configured state was not observed. System result: NOT EXECUTABLE
+
+### FLOW-012-B-Q10 — Impl NOT EXECUTABLE / Domain OPEN (SPEC-OQ-002B)
+
+- Expected: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Actual: sellerActionExecuted=false; configuredStatePresent=false; buyerFlowAgainstConfiguredState=false; emulatorHasConfigureProduct=false; worldHasSetMinQuantity=false; worldHasSetMaxQuantity=false; worldHasSetPriceSchedule=false; worldHasSetCatalog=true; worldHasSetStock=true; runtimeHasConfigureProduct=false; demoHasConfigureProduct=false
+- Invariant: seller-facing configuration observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002B
+- Model violation: none
+- New concept: INCONCLUSIVE — required seller-facing config is NOT EXECUTABLE on inspected surfaces; does not justify Package/PriceSchedule
+- Workaround: none
+- Decision: Required chain: seller-configured 10kg→11, then buyer 10 kg. Configuration did not execute. Applied price against that configured state was not observed. System result: NOT EXECUTABLE
 
 ### PACKAGE-001 — Impl PASS / Domain CONFIRMED
 
@@ -1445,7 +1602,7 @@ Changes in this PR (already implemented and tested):
 - OQ-006 / OQ-008 closed
 - PartialAvailabilitySeller offers min(requested, stock) of the SAME CatalogLine (sellerId, productId, unit) — a pcs pool is not kg stock
 - cheapestAvailable() removed from domain catalog semantics (ambiguous ≠ cheapest); catalogUnitPrice returns null on disagreement
-- GREENMARKET_DOMAIN_SPEC v0.6 is the canonical domain contract; TZ-BASKET-009 records catalog/spec reconstruction; TZ-BASKET-010 records Stage-1 source search (SOURCE ABSENT in inspected files); TZ-BASKET-011 records Stage-1 buyer/seller flow observation (INCONCLUSIVE for OQ-002A/B). None introduces Package or PriceSchedule
+- GREENMARKET_DOMAIN_SPEC v0.6 is the canonical domain contract; TZ-BASKET-009 records catalog/spec reconstruction; TZ-BASKET-010 records Stage-1 source search (SOURCE ABSENT in inspected files); TZ-BASKET-011 records Stage-1 buyer/seller flow observation (INCONCLUSIVE for OQ-002A/B); TZ-BASKET-012 attempts seller-facing configuration (NOT EXECUTABLE on inspected surfaces). None introduces Package or PriceSchedule
 - I-042: price is the price of one unit; derived total = quantity * price; no stored linePrice
 - I-043: changing quantity does not reread price as a line total
 - I-044: Offer stores (product, quantity, unit, price); a change is a new Offer
@@ -1532,6 +1689,18 @@ SPEC version bump: no
 Production architecture changed: NO
 SOURCE token absence was not used as business evidence
 
+TZ-BASKET-012
+Status: seller-facing configuration attempted on inspected surfaces; Impl NOT EXECUTABLE; seller-configured-constraint and seller-configured-tier observations NOT OBTAINED; OQ-002A/B INCONCLUSIVE; SPEC remains v0.6
+OQ-002A: INCONCLUSIVE — FLOW-012-A-* required seller set min/max/range then buyer cross/at bound; that seller action is NOT EXECUTABLE here. Not I-030, not stock, not FLOW-011 unconstrained qtys, not SOURCE tokens, not NOT SUPPORTED
+OQ-002B: INCONCLUSIVE — FLOW-012-B-* required seller set 1/5/10 kg prices then buyer those quantities; that seller action is NOT EXECUTABLE here. Not linear listed unit price, not TimeDiscount, not NegotiatingSeller +1
+NEW CONCEPT JUSTIFIED: no — NOT EXECUTABLE on Stage-1 surfaces does not justify Package or PriceSchedule
+NO MODEL CHANGE: yes
+NO NEW INVARIANT: yes
+SPEC version bump: no
+Production architecture changed: NO
+setCatalog/setStock were not used as seller configuration
+SOURCE token absence was not used as business evidence
+
 Still open:
 - SPEC OQ-002A — conversion / partial-whole package / distinct package bases
 - SPEC OQ-002B — standing quantity-range price schedule as a domain object
@@ -1546,5 +1715,5 @@ when a later live active Offer is evaluated (I-037). Assistants WAIT on MISSING_
 Assistant unit-price comparisons are consistent with I-042; they are not the source of I-042.
 
 The model is still experimental. PASS does not close remaining OPEN questions.
-Recommended next step: a seller-facing product-configuration flow (outside inspected Stage-1 surfaces) is required before OQ-002A/B can leave INCONCLUSIVE. OQ-003 may proceed independently
+Recommended next step: inspected Stage-1 surfaces cannot execute seller product-configuration. Closing OQ-002A/B needs a seller-facing surface that this TZ did not invent. OQ-003 may proceed independently
 ```

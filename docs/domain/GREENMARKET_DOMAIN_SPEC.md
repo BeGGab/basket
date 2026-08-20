@@ -2,7 +2,7 @@
 
 Version: 0.6
 Status: EXPERIMENTAL
-Update basis: TZ-BASKET-008 (package contents vs standing volume schedule); TZ-BASKET-009/010/011 do not bump the contract (OQ-002A/B remain OPEN; TZ-011 seller-configured-constraint observation NOT OBTAINED, status INCONCLUSIVE)
+Update basis: TZ-BASKET-008 (package contents vs standing volume schedule); TZ-BASKET-009/010/011/012 do not bump the contract (OQ-002A/B remain OPEN; TZ-012 seller-facing config is NOT EXECUTABLE on inspected surfaces; status INCONCLUSIVE)
 Scope: Stage 1 Basket Experiment
 Purpose: a single domain contract for the core code, emulators, scenarios, tests, and the later AI layer.
 
@@ -691,6 +691,18 @@ FLOW-011-A-ZERO          I-030 qty 0 is not seller min
 FLOW-011-B-LEVELS        1/5/10 kg linear unit price — INCONCLUSIVE
 FLOW-011-B-TIME          time discount is not quantity-tier pricing
 FLOW-011-B-COUNTER       negotiating +1 is not quantity-tier pricing
+FLOW-012-A-CONFIG        seller set min — NOT EXECUTABLE on inspected surfaces
+FLOW-012-A-BELOW-MIN     buyer N-1 vs configured min — not run
+FLOW-012-A-AT-MIN        buyer N vs configured min — not run
+FLOW-012-A-MAX-CONFIG    seller set max — NOT EXECUTABLE; not setStock
+FLOW-012-A-ABOVE-MAX     buyer M+1 vs configured max — not run
+FLOW-012-A-AT-MAX        buyer M vs configured max — not run
+FLOW-012-A-RANGE         seller set min+max — NOT EXECUTABLE
+FLOW-012-B-CONFIG        seller quantity-price table — NOT EXECUTABLE
+FLOW-012-B-Q1            buyer 1 kg vs configured table — not run
+FLOW-012-B-Q5            buyer 5 kg vs configured table — not run
+FLOW-012-B-Q10           buyer 10 kg vs configured table — not run
+FLOW-012-B-CROSS-CHECK   qty table vs time/profile/counter — not run
 ALT-PRICE-001            primary cheaper than alternative — representation only
 ALT-PRICE-002            FIRST_AVAILABLE / PRIMARY_ONLY are not BEST_PRICE; policy OPEN (OQ-008)
 PRICE-SNAPSHOT-001       agreed / current / alternative visible together
@@ -733,7 +745,9 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
   A3 seller classification is **NOT TESTABLE** from listings alone. Synthetic CooperativeSeller
   accepts were removed; they are not a business-flow observation. TZ-BASKET-011 exercised Stage-1
   buyer/seller deals and tested seller-config executability (INCONCLUSIVE; seller-configured-constraint
-  observation NOT OBTAINED). This does not close OQ-002A
+  observation NOT OBTAINED). TZ-BASKET-012 attempted the seller-facing configuration chain
+  (`FLOW-012-*`): Impl **NOT EXECUTABLE** on inspected surfaces; seller-configured-constraint
+  observation still NOT OBTAINED. This does not close OQ-002A
   and does not justify a `Package` entity. Further closing OQ-002A requires a seller-facing
   configuration flow in which a deal cannot complete without contents. SPEC OQ-003 does not replace that
   observation.
@@ -747,7 +761,9 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
   change (`5–9 kg → 17` then `16`) are **SOURCE ABSENT** in those files. That is not a
   CooperativeSeller call-shape test and not a market finding that sellers have no range rule.
   TimeDiscountSeller is not B3. TZ-BASKET-011 observed linear listed unit price at 1/5/10 kg
-  (INCONCLUSIVE; seller-configured-tier observation NOT OBTAINED). This does not close OQ-002B and does not
+  (INCONCLUSIVE; seller-configured-tier observation NOT OBTAINED). TZ-BASKET-012 attempted seller
+  configuration of 1/5/10 kg prices (`FLOW-012-B-*`): Impl **NOT EXECUTABLE** on inspected surfaces.
+  This does not close OQ-002B and does not
   justify a `PriceSchedule` entity. Further closing OQ-002B requires a seller-facing
   configuration flow where a deal cannot complete without schedule-as-object. SPEC OQ-003 does not replace that
   observation.
@@ -804,6 +820,7 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
 | v0.6 | TZ-BASKET-009 | catalog/spec reconstruction only; no business-flow observation; OQ-002A/B remain OPEN; no SPEC bump |
 | v0.6 | TZ-BASKET-010 | Stage-1 source search of catalog/emulator/add-to-basket/TZ-025; business-flow observation not obtained; OQ-002A/B remain OPEN; no SPEC bump |
 | v0.6 | TZ-BASKET-011 | buyer/seller flow exercised; seller-config executability checked; OQ-002A/B INCONCLUSIVE; seller-configured constraint NOT OBTAINED; no Package/PriceSchedule; no SPEC bump |
+| v0.6 | TZ-BASKET-012 | seller-facing config attempted; FLOW-012 NOT EXECUTABLE on inspected surfaces; OQ-002A/B INCONCLUSIVE; no Package/PriceSchedule/minQuantity/maxQuantity; no SPEC bump |
 
 ## 50. Rule for the next PR
 
@@ -826,7 +843,7 @@ Observation → Domain decision → SPEC update → Invariant → Scenario → I
 ## 51. Current main technical conclusion
 
 After v0.6, package-unit deals and concrete volume Offers are split from still-open contents/schedules.
-TZ-BASKET-009/010/011 did not obtain evidence that closes OQ-002A/B (TZ-011: seller-configured constraint/tier **NOT OBTAINED**) and do not change this contract:
+TZ-BASKET-009/010/011/012 did not obtain evidence that closes OQ-002A/B (TZ-012: seller-facing config **NOT EXECUTABLE** on inspected surfaces; seller-configured constraint/tier **NOT OBTAINED**) and do not change this contract:
 
 ```
 price          → price of one unit (derived total = quantity × price; not stored)
@@ -844,9 +861,9 @@ OQ-012 CLOSED    passage of time: no SELLER_UNRESPONSIVE / auto-EXPIRED
 
 OQ-001 CLOSED    price = price of one unit
 OQ-002A OPEN     package-unit deal needs no stored contents; conversion/partial/bases remain GAP
-                 (TZ-009 reconstruction; TZ-010 source search; TZ-011 buyer flow INCONCLUSIVE; seller-configured constraint NOT OBTAINED)
+                 (TZ-009 reconstruction; TZ-010 source search; TZ-011 buyer flow INCONCLUSIVE; TZ-012 seller-facing config NOT EXECUTABLE)
 OQ-002B Stage-1  concrete volume deal = Offer; announcement is not an Offer; schedule object OPEN
-                 (TZ-009 reconstruction; TZ-010 source search; TZ-011 buyer flow INCONCLUSIVE; seller-configured tier NOT OBTAINED)
+                 (TZ-009 reconstruction; TZ-010 source search; TZ-011 buyer flow INCONCLUSIVE; TZ-012 seller-facing config NOT EXECUTABLE)
 OQ-005 OPEN      negotiation lifetime / TTL
 OQ-003 OPEN      duplicate ListItems
 OQ-008 OPEN      alternative price policy (not a representation question)
