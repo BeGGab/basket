@@ -2,7 +2,7 @@
 
 **Status:** Experimental Baseline v0.1
 
-`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All 105 scenarios are **programmatically exercised** by `npx tsx experiments/basket/tests/run.ts` (Model column). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
+`/sim` is a **demo/training viewer**, not the acceptance interface for BS-001…036 or PRICE-*/PACKAGE-*/ALT-*. All scenarios recorded by `npx tsx experiments/basket/tests/run.ts` are **programmatically exercised** (Model column; count is `rows.length` in RESULTS, not a hand-edited total). Impl PASS does not mean Domain CONFIRMED — some rows stay Domain OPEN. Impl NOT EXECUTABLE means the required seller-facing step cannot be performed on inspected surfaces. The `/sim demo` column is ✓ only when a named scenario on `/sim` covers that check for a human.
 
 | ID | Scenario | Model | Emulator | /sim demo | Main check |
 |---|---|:---:|:---:|:---:|---|
@@ -111,6 +111,18 @@
 | FLOW-011-B-LEVELS | 1/5/10 kg linear unit price | ✓ | ✓ |  | OPEN; INCONCLUSIVE; seller did not set a tier |
 | FLOW-011-B-TIME | time discount at qty 2 and 10 | ✓ | ✓ |  | OPEN; time ≠ qty price |
 | FLOW-011-B-COUNTER | negotiating +1 at qty 1 and 10 | ✓ | ✓ |  | OPEN; +1 ≠ qty tier |
+| FLOW-012-A-CONFIG | seller set min | ✓ | ✓ |  | OPEN; NOT EXECUTABLE; not setCatalog |
+| FLOW-012-A-BELOW-MIN | buyer N-1 vs configured min | ✓ | ✓ |  | OPEN; NOT EXECUTABLE; not I-030 |
+| FLOW-012-A-AT-MIN | buyer N vs configured min | ✓ | ✓ |  | OPEN; NOT EXECUTABLE |
+| FLOW-012-A-MAX-CONFIG | seller set max | ✓ | ✓ |  | OPEN; NOT EXECUTABLE; not setStock |
+| FLOW-012-A-ABOVE-MAX | buyer M+1 vs configured max | ✓ | ✓ |  | OPEN; NOT EXECUTABLE; not stock cap |
+| FLOW-012-A-AT-MAX | buyer M vs configured max | ✓ | ✓ |  | OPEN; NOT EXECUTABLE |
+| FLOW-012-A-RANGE | seller set min+max | ✓ | ✓ |  | OPEN; NOT EXECUTABLE |
+| FLOW-012-B-CONFIG | seller set 1/5/10 kg prices | ✓ | ✓ |  | OPEN; NOT EXECUTABLE |
+| FLOW-012-B-Q1 | buyer 1 kg vs configured table | ✓ | ✓ |  | OPEN; NOT EXECUTABLE |
+| FLOW-012-B-Q5 | buyer 5 kg vs configured table | ✓ | ✓ |  | OPEN; NOT EXECUTABLE |
+| FLOW-012-B-Q10 | buyer 10 kg vs configured table | ✓ | ✓ |  | OPEN; NOT EXECUTABLE |
+| FLOW-012-B-CROSS-CHECK | qty table vs time/profile/counter | ✓ | ✓ |  | OPEN; NOT EXECUTABLE; not TimeDiscount/+1 |
 
 TZ-004 assistant demos on `/sim` (DISCOUNT / HIKE / SELLER) are training overlays, not rows in this BS matrix.
 

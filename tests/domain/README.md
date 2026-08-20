@@ -97,6 +97,18 @@ npx tsx experiments/basket/tests/run.ts
 | `FLOW-011-B-LEVELS` | 1/5/10 kg linear unit price; seller did not set a tier | `scenarios.ts` FLOW-011-B-LEVELS |
 | `FLOW-011-B-TIME` | time discount is not quantity-tier pricing | `scenarios.ts` FLOW-011-B-TIME |
 | `FLOW-011-B-COUNTER` | negotiating +1 is not quantity-tier pricing | `scenarios.ts` FLOW-011-B-COUNTER |
+| `FLOW-012-A-CONFIG` | seller set min NOT EXECUTABLE on inspected surfaces | `scenarios.ts` FLOW-012-A-CONFIG |
+| `FLOW-012-A-BELOW-MIN` | buyer N-1 vs configured min not run | `scenarios.ts` FLOW-012-A-BELOW-MIN |
+| `FLOW-012-A-AT-MIN` | buyer N vs configured min not run | `scenarios.ts` FLOW-012-A-AT-MIN |
+| `FLOW-012-A-MAX-CONFIG` | seller set max NOT EXECUTABLE; not setStock | `scenarios.ts` FLOW-012-A-MAX-CONFIG |
+| `FLOW-012-A-ABOVE-MAX` | buyer M+1 vs configured max not run | `scenarios.ts` FLOW-012-A-ABOVE-MAX |
+| `FLOW-012-A-AT-MAX` | buyer M vs configured max not run | `scenarios.ts` FLOW-012-A-AT-MAX |
+| `FLOW-012-A-RANGE` | seller set min+max NOT EXECUTABLE | `scenarios.ts` FLOW-012-A-RANGE |
+| `FLOW-012-B-CONFIG` | seller quantity-price table NOT EXECUTABLE | `scenarios.ts` FLOW-012-B-CONFIG |
+| `FLOW-012-B-Q1` | buyer 1 kg vs configured table not run | `scenarios.ts` FLOW-012-B-Q1 |
+| `FLOW-012-B-Q5` | buyer 5 kg vs configured table not run | `scenarios.ts` FLOW-012-B-Q5 |
+| `FLOW-012-B-Q10` | buyer 10 kg vs configured table not run | `scenarios.ts` FLOW-012-B-Q10 |
+| `FLOW-012-B-CROSS-CHECK` | cannot cross-check missing seller table vs time/counter | `scenarios.ts` FLOW-012-B-CROSS-CHECK |
 | *(SPEC OQ-003)* | duplicate ListItems of same `(productId, unit)` | `run.ts` `DUPLICATE_LINE` (explicit, not silent collapse) |
 
 A PR that confirms a new domain rule MUST add or update a row here **and** the executable test.
