@@ -420,25 +420,25 @@ Free-text «Сегодня скидка на сыр». Quantity-range names as w
 
 `experiments/basket/**/*.ts` has no `run("FLOW-010-…")` and no `function observeCooperativeAccept`. Cleanup check of those two names, not a proof that synthetic business-flow is absent. Does not search `docs/` (**OPEN — SPEC OQ-002A**).
 
-## FLOW-011-A-CONFIG — seller product-config step
+## FLOW-011-A-CONFIG-CAPABILITY — seller-config executability
 
-Stage-1 deal reaches STABLE. Catalog is test `setCatalog`. CooperativeSeller only accepted. Seller min/max/tier configuration was not executed (**OPEN — SPEC OQ-002A**, observation INCONCLUSIVE).
+Capability/coverage check: `SellerEmulator` own functions are `respondToBuyerOffer` and `tick`; `SimulationRuntime` / `DEMO_SCENARIOS` have no configure-product operation. **Not** a seller-config business-flow observation (**OPEN — SPEC OQ-002A**, INCONCLUSIVE).
 
 ## FLOW-011-A1 — buyer quantity 1
 
-Buyer 1 kg accepted at listed unit price. No minimum applied. Seller never set a min (**OPEN — SPEC OQ-002A**, INCONCLUSIVE).
+Buyer 1 kg accepted at listed unit price. No minimum applied. Seller never set a min. Buyer flow without a seller-configured constraint (**OPEN — SPEC OQ-002A**, INCONCLUSIVE).
 
 ## FLOW-011-A2 — buyer quantity 100
 
-Buyer 100 kg accepted against stock 1000. Not a product max rule and not stock capping (**OPEN — SPEC OQ-002A**, INCONCLUSIVE).
+Buyer 100 kg accepted. Available stock snapshot 1000 before and after; CooperativeSeller accept does not decrement catalog stock. Not a product max rule, not inventory reservation, not stock capping (**OPEN — SPEC OQ-002A**, INCONCLUSIVE).
 
 ## FLOW-011-A3 — unconstrained 2 / 5 / 12 kg
 
 All STABLE at the same listed unit price. Seller min/max range was not set (**OPEN — SPEC OQ-002A**, INCONCLUSIVE).
 
-## FLOW-011-A4 — unconstrained listing shape
+## FLOW-011-A4-STAGE1-STATE — Stage-1 fixture listing shape
 
-Stored catalog row and PurchaseItem have no `minQuantity` / `maxQuantity` fields. Observed state in this run, not a source token scan (**OPEN — SPEC OQ-002A**, INCONCLUSIVE).
+Stored catalog row and PurchaseItem in this run have no `minQuantity` / `maxQuantity` own-properties. Fixture-model state only, not a source token scan and not proof rules are stored elsewhere (**OPEN — SPEC OQ-002A**, INCONCLUSIVE).
 
 ## FLOW-011-A-STOCK — stock cap is not maxQuantity
 

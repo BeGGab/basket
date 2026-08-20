@@ -4,6 +4,8 @@ import { DeterministicClock } from "../domain/clock";
 import { COUNTER_REASONS, isCounterReason } from "../domain/types";
 import type { OfferReason, ProductCatalog, PurchaseItem } from "../domain/types";
 import { createSellerEmulator, buyerOffer } from "../emulator/sellers";
+import { DEMO_SCENARIOS } from "../runtime/demos";
+import { SimulationRuntime } from "../runtime/simulation";
 import { resolve } from "../domain/resolution";
 import { catalogUnitPrice } from "../domain/catalog";
 import { hasStoredLinePrice, lineTotalAbsence, unitLineTotal } from "../domain/price";
@@ -80,6 +82,7 @@ function flow011Catalog(stock = 1000): ProductCatalog {
 function flow011CooperativeDeal(quantity: number, stock = 1000) {
   const w = new BasketWorld();
   w.setCatalog(flow011Catalog(stock));
+  const stockBefore = w.catalog.availability[0]?.stock ?? null;
   const list = w.createList("flow-011");
   w.addItem(list.id, { productId: "tomatoes", quantity, unit: "kg", alternatives: [] });
   const spId = w.createPurchaseFromList(list.id, "PRIMARY_ONLY", ["seller-a"]).sellerPurchaseIds[0];
@@ -95,7 +98,15 @@ function flow011CooperativeDeal(quantity: number, stock = 1000) {
     total: item ? unitLineTotal(item) : null,
     catalogRow: w.catalog.availability[0],
     item,
+    stockBefore,
+    stockAfter: w.catalog.availability[0]?.stock ?? null,
   };
+}
+
+function ownFunctionNames(target: object): string[] {
+  return Object.keys(target)
+    .filter((key) => typeof (target as Record<string, unknown>)[key] === "function")
+    .sort();
 }
 
 type Fact = string | number | boolean | null;
@@ -4069,17 +4080,40 @@ export function runAllScenarios(): ScenarioResult[] {
   );
 
   results.push(
-    run("FLOW-011-A-CONFIG", () => {
-      const deal = flow011CooperativeDeal(1);
+    run("FLOW-011-A-CONFIG-CAPABILITY", () => {
+      const emu = createSellerEmulator("seller-a", "CooperativeSeller");
+      const runtime = new SimulationRuntime();
+      const runtimeAny = runtime as unknown as Record<string, unknown>;
+      const demoOps = new Set<string>(DEMO_SCENARIOS.flatMap((scenario) => scenario.steps.map((step) => step.op)));
       return prove(
-        "FLOW-011-A-CONFIG",
-        "business-flow observation — not a domain invariant",
-        { status: "STABLE", quantity: 1, unitPrice: 15 },
-        { status: deal.status, quantity: deal.quantity, unitPrice: deal.unitPrice },
-        "Stage-1 deal reached STABLE. Catalog came from test setCatalog, not a seller product-config command. CooperativeSeller only accepted the buyer Offer. Seller min/max/tier configuration was not executed. Not SOURCE search and not a claim that sellers cannot define constraints in an unobserved flow",
+        "FLOW-011-A-CONFIG-CAPABILITY",
+        "capability/coverage check — not a business-flow observation",
+        {
+          emulatorMethods: "respondToBuyerOffer,tick",
+          emulatorMethodCount: 2,
+          runtimeHasSetCatalog: true,
+          runtimeHasSellerRespond: true,
+          runtimeHasConfigureProduct: false,
+          demoHasCatalog: true,
+          demoHasSellerRespond: true,
+          demoHasConfigureProduct: false,
+          demoHasSetMinQuantity: false,
+        },
+        {
+          emulatorMethods: ownFunctionNames(emu).join(","),
+          emulatorMethodCount: ownFunctionNames(emu).length,
+          runtimeHasSetCatalog: typeof runtime.setCatalog === "function",
+          runtimeHasSellerRespond: typeof runtime.sellerRespond === "function",
+          runtimeHasConfigureProduct: typeof runtimeAny.configureProduct === "function",
+          demoHasCatalog: demoOps.has("catalog"),
+          demoHasSellerRespond: demoOps.has("sellerRespond"),
+          demoHasConfigureProduct: demoOps.has("configureProduct"),
+          demoHasSetMinQuantity: demoOps.has("setMinQuantity"),
+        },
+        "Capability snapshot: SellerEmulator own functions are respondToBuyerOffer and tick. SimulationRuntime has setCatalog/sellerRespond and no configureProduct function. DEMO_SCENARIOS (the /sim player catalog) have catalog/sellerRespond and no configureProduct/setMinQuantity ops. This is not a seller-config business-flow observation. Production seller-card UI is not this runtime — see the observation report evidence boundary",
         "OPEN",
         "SPEC-OQ-002A",
-        { newConcept: "INCONCLUSIVE Stage-1 flow — seller product-config step not executable; does not justify Package" }
+        { newConcept: "INCONCLUSIVE — seller-config path not executable on inspected Stage-1 surfaces; does not justify Package" }
       );
     })
   );
@@ -4092,7 +4126,7 @@ export function runAllScenarios(): ScenarioResult[] {
         "business-flow observation — not a domain invariant",
         { status: "STABLE", quantity: 1, unitPrice: 15 },
         { status: deal.status, quantity: deal.quantity, unitPrice: deal.unitPrice },
-        "Buyer requested 1 kg; programmed CooperativeSeller accepted 1 kg at listed unit price. No minimum-quantity rule was applied in this flow. Seller never set a min. Not proof that a seller cannot define min in an unobserved flow",
+        "Buyer requested 1 kg; programmed CooperativeSeller accepted 1 kg at listed unit price. No minimum-quantity rule was applied in this buyer flow. Seller never set a min. FLOW-011-A-CONFIG-CAPABILITY is the executability check; this row is buyer flow without a seller-configured constraint",
         "OPEN",
         "SPEC-OQ-002A",
         { newConcept: "INCONCLUSIVE — observed unconstrained qty 1; not NOT SUPPORTED of seller min" }
@@ -4106,17 +4140,24 @@ export function runAllScenarios(): ScenarioResult[] {
       return prove(
         "FLOW-011-A2",
         "business-flow observation — not a domain invariant",
-        { status: "STABLE", quantity: 100, unitPrice: 15, stock: 1000 },
+        {
+          status: "STABLE",
+          quantity: 100,
+          unitPrice: 15,
+          stockBefore: 1000,
+          stockAfter: 1000,
+        },
         {
           status: deal.status,
           quantity: deal.quantity,
           unitPrice: deal.unitPrice,
-          stock: deal.catalogRow.stock,
+          stockBefore: deal.stockBefore,
+          stockAfter: deal.stockAfter,
         },
-        "Buyer requested 100 kg against stock 1000; programmed CooperativeSeller accepted 100 kg. No product maximum-quantity rule was applied. This is not PartialAvailabilitySeller stock capping. Seller never set a max",
+        "Available stock snapshot was 1000 before and after the deal. CooperativeSeller accept does not decrement catalog stock. Buyer 100 kg was accepted at listed unit price. This is not inventory reservation observation and not a product maxQuantity rule. Seller never set a max",
         "OPEN",
         "SPEC-OQ-002A",
-        { newConcept: "INCONCLUSIVE — observed unconstrained qty 100; not a product max rule" }
+        { newConcept: "INCONCLUSIVE — observed unconstrained qty 100 against an available-stock snapshot; not a product max rule" }
       );
     })
   );
@@ -4154,12 +4195,12 @@ export function runAllScenarios(): ScenarioResult[] {
   );
 
   results.push(
-    run("FLOW-011-A4", () => {
+    run("FLOW-011-A4-STAGE1-STATE", () => {
       const deal = flow011CooperativeDeal(3);
       const row = deal.catalogRow;
       const item = deal.item;
       return prove(
-        "FLOW-011-A4",
+        "FLOW-011-A4-STAGE1-STATE",
         "business-flow observation — not a domain invariant",
         {
           status: "STABLE",
@@ -4175,10 +4216,10 @@ export function runAllScenarios(): ScenarioResult[] {
           itemHasMinQuantity: Object.prototype.hasOwnProperty.call(item, "minQuantity"),
           itemHasMaxQuantity: Object.prototype.hasOwnProperty.call(item, "maxQuantity"),
         },
-        "Ordinary unconstrained listing: stored catalog row and PurchaseItem have no minQuantity/maxQuantity fields. This is observed product state in this run, not a source-file token scan and not proof sellers lack such rules elsewhere",
+        "Stage-1 stored catalog row and PurchaseItem in this run have no minQuantity/maxQuantity own-properties. Fixture-model state only. Not a source-file token scan and not proof seller configuration is stored elsewhere",
         "OPEN",
         "SPEC-OQ-002A",
-        { newConcept: "INCONCLUSIVE — stored Stage-1 listing shape has no quantity-constraint fields" }
+        { newConcept: "INCONCLUSIVE — Stage-1 listing/item shape in this run has no quantity-constraint fields" }
       );
     })
   );
@@ -4337,13 +4378,13 @@ export function formatResults(rows: ScenarioResult[]): string {
     "",
     "**Status:** Evidence from TZ-BASKET-001…011 mock run  ",
     "**Experiment version:** v0.1  ",
-    "**Model version:** v0.1.17 / SPEC v0.6 (TZ-011 Stage-1 buyer/seller flow observation is INCONCLUSIVE for OQ-002A/B; SPEC unchanged)",
+    "**Model version:** v0.1.17 / SPEC v0.6 (TZ-011: buyer/seller flow exercised; seller-config step not executable; OQ-002A/B INCONCLUSIVE; SPEC unchanged)",
     "",
     "## How to read results",
     "",
     "- **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).",
     "- **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).",
-    "- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG-KG/HONEY/TOKENS/BASKET/TREE, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, ALT-PRICE-002, and FLOW-011-* are in this bucket. FLOW-011 rows are Stage-1 buyer/seller flow observations whose OQ status is INCONCLUSIVE — not CONFIRMED commerce, not SOURCE search, and not a policy.",
+    "- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG-KG/HONEY/TOKENS/BASKET/TREE, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, ALT-PRICE-002, and FLOW-011-* are in this bucket. FLOW-011-A-CONFIG-CAPABILITY is an executability/coverage check, not a seller-config observation. Other FLOW-011 rows are buyer/seller deals without a seller-configured constraint. OQ status is INCONCLUSIVE — not CONFIRMED commerce, not SOURCE search, and not a policy.",
     "- Do not treat Impl PASS as confirmation of an unresolved OQ.",
     "- Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.",
     `- All ${rows.length} scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.`,
@@ -4507,9 +4548,9 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("Further closing OQ-002A/B still requires a business-flow observation where a deal cannot complete without the extra fact");
   lines.push("");
   lines.push("TZ-BASKET-011");
-  lines.push("Status: Stage-1 buyer/seller flow observed; OQ-002A/B INCONCLUSIVE; SPEC remains v0.6");
-  lines.push("OQ-002A: INCONCLUSIVE — seller product-config step is not executable in Stage-1 emulator/production mock; buyer quantities 1/100/2/5/12 were accepted without a min/max rule; stock cap and I-030 are not seller quantity constraints");
-  lines.push("OQ-002B: INCONCLUSIVE — this flow applied listed unit price linearly at 1/5/10 kg; TimeDiscount and NegotiatingSeller +1 are not quantity-tier rules; seller never configured a quantity-dependent price");
+  lines.push("Status: existing buyer/seller flow exercised; seller-config step tested for executability and not present on inspected Stage-1 surfaces; OQ-002A/B INCONCLUSIVE; seller-configured-constraint observation NOT OBTAINED; SPEC remains v0.6");
+  lines.push("OQ-002A: INCONCLUSIVE — FLOW-011-A-CONFIG-CAPABILITY is a coverage check (SellerEmulator/SimulationRuntime/DEMO_SCENARIOS), not a seller-config observation; buyer quantities 1/100/2/5/12 were accepted without a min/max rule; stock snapshot and I-030 are not seller quantity constraints");
+  lines.push("OQ-002B: INCONCLUSIVE — this buyer flow applied listed unit price linearly at 1/5/10 kg; TimeDiscount and NegotiatingSeller +1 are not quantity-tier rules; seller never configured a quantity-dependent price");
   lines.push("NEW CONCEPT JUSTIFIED: no — INCONCLUSIVE observation does not justify Package or PriceSchedule");
   lines.push("NO MODEL CHANGE: yes");
   lines.push("NO NEW INVARIANT: yes");
@@ -4531,7 +4572,7 @@ export function formatResults(rows: ScenarioResult[]): string {
   lines.push("Assistant unit-price comparisons are consistent with I-042; they are not the source of I-042.");
   lines.push("");
   lines.push("The model is still experimental. PASS does not close remaining OPEN questions.");
-  lines.push("Recommended next step: a seller-facing product-configuration flow (outside the current Stage-1 emulator) is required to move OQ-002A/B off INCONCLUSIVE. OQ-003 may proceed independently");
+  lines.push("Recommended next step: a seller-facing product-configuration flow (outside inspected Stage-1 surfaces) is required before OQ-002A/B can leave INCONCLUSIVE. OQ-003 may proceed independently");
   lines.push("```");
   lines.push("");
   return lines.join("\n");
