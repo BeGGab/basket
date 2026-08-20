@@ -2,7 +2,7 @@
 
 Version: 0.6
 Status: EXPERIMENTAL
-Update basis: TZ-BASKET-008 (package contents vs standing volume schedule); TZ-BASKET-009/010 do not bump the contract (no business-flow evidence that closes OQ-002A/B)
+Update basis: TZ-BASKET-008 (package contents vs standing volume schedule); TZ-BASKET-009/010/011 do not bump the contract (OQ-002A/B remain OPEN; TZ-011 seller-configured-constraint observation NOT OBTAINED, status INCONCLUSIVE)
 Scope: Stage 1 Basket Experiment
 Purpose: a single domain contract for the core code, emulators, scenarios, tests, and the later AI layer.
 
@@ -681,6 +681,16 @@ SOURCE-010-EMULATOR      named identifier tokens in sellers.ts SOURCE ABSENT —
 SOURCE-010-BASKET        no conversion/tier lookup found in ADD_TO_BASKET itself
 SOURCE-010-TZ025         markdown prose search of TZ-025 — free-text discount, range names SOURCE ABSENT
 SOURCE-010-TREE          cleanup check of two historical FLOW-010 names — not observation
+FLOW-011-A-CONFIG-CAPABILITY  seller-config path not executable on inspected surfaces — coverage, not observation
+FLOW-011-A1              buyer qty 1 accepted — not seller min
+FLOW-011-A2              buyer qty 100 accepted — stock snapshot 1000 before/after; not product max
+FLOW-011-A3              buyer 2/5/12 same unit price — range not seller-set
+FLOW-011-A4-STAGE1-STATE Stage-1 fixture listing has no min/max own-properties
+FLOW-011-A-STOCK         stock cap is not product maxQuantity
+FLOW-011-A-ZERO          I-030 qty 0 is not seller min
+FLOW-011-B-LEVELS        1/5/10 kg linear unit price — INCONCLUSIVE
+FLOW-011-B-TIME          time discount is not quantity-tier pricing
+FLOW-011-B-COUNTER       negotiating +1 is not quantity-tier pricing
 ALT-PRICE-001            primary cheaper than alternative — representation only
 ALT-PRICE-002            FIRST_AVAILABLE / PRIMARY_ONLY are not BEST_PRICE; policy OPEN (OQ-008)
 PRICE-SNAPSHOT-001       agreed / current / alternative visible together
@@ -721,9 +731,11 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
   `mockSellerCatalog.ts` and ADD_TO_BASKET: pack-contents (`1 мешок = 5 kg`) is **SOURCE ABSENT**
   in `mockSellerCatalog.ts`. **No conversion/tier lookup found in ADD_TO_BASKET itself.**
   A3 seller classification is **NOT TESTABLE** from listings alone. Synthetic CooperativeSeller
-  accepts were removed; they are not a business-flow observation. This does not close OQ-002A
-  and does not justify a `Package` entity. Further closing OQ-002A requires a business-flow
-  observation where a deal cannot complete without contents. SPEC OQ-003 does not replace that
+  accepts were removed; they are not a business-flow observation. TZ-BASKET-011 exercised Stage-1
+  buyer/seller deals and tested seller-config executability (INCONCLUSIVE; seller-configured-constraint
+  observation NOT OBTAINED). This does not close OQ-002A
+  and does not justify a `Package` entity. Further closing OQ-002A requires a seller-facing
+  configuration flow in which a deal cannot complete without contents. SPEC OQ-003 does not replace that
   observation.
 - **OQ-002B — Volume pricing.** **Stage-1 constraint + remaining OPEN.** A concrete volume deal
   is an Offer (I-048). A standing quantity-range announcement is not an Offer (I-050 /
@@ -734,9 +746,10 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
   TZ-BASKET-010 read `sellers.ts` and TZ-025: quantity-range identifier tokens and a schedule
   change (`5–9 kg → 17` then `16`) are **SOURCE ABSENT** in those files. That is not a
   CooperativeSeller call-shape test and not a market finding that sellers have no range rule.
-  TimeDiscountSeller is not B3. This does not close OQ-002B and does not
-  justify a `PriceSchedule` entity. Further closing OQ-002B requires a business-flow observation
-  where a deal cannot complete without schedule-as-object. SPEC OQ-003 does not replace that
+  TimeDiscountSeller is not B3. TZ-BASKET-011 observed linear listed unit price at 1/5/10 kg
+  (INCONCLUSIVE; seller-configured-tier observation NOT OBTAINED). This does not close OQ-002B and does not
+  justify a `PriceSchedule` entity. Further closing OQ-002B requires a seller-facing
+  configuration flow where a deal cannot complete without schedule-as-object. SPEC OQ-003 does not replace that
   observation.
 - **OQ-003 — Duplicate ListItems.** What to do with `Tomatoes / 2 kg` and `Tomatoes / 5 kg` in one
   List? **OPEN**
@@ -790,6 +803,7 @@ the experiment log in `docs/basket/BASKET_OPEN_QUESTIONS.md` (OQ-001…OQ-028).
 | v0.6 | TZ-BASKET-008 | no evidence yet justifies Package / PriceSchedule; further close of OQ-002A/B needs business observation |
 | v0.6 | TZ-BASKET-009 | catalog/spec reconstruction only; no business-flow observation; OQ-002A/B remain OPEN; no SPEC bump |
 | v0.6 | TZ-BASKET-010 | Stage-1 source search of catalog/emulator/add-to-basket/TZ-025; business-flow observation not obtained; OQ-002A/B remain OPEN; no SPEC bump |
+| v0.6 | TZ-BASKET-011 | buyer/seller flow exercised; seller-config executability checked; OQ-002A/B INCONCLUSIVE; seller-configured constraint NOT OBTAINED; no Package/PriceSchedule; no SPEC bump |
 
 ## 50. Rule for the next PR
 
@@ -812,7 +826,7 @@ Observation → Domain decision → SPEC update → Invariant → Scenario → I
 ## 51. Current main technical conclusion
 
 After v0.6, package-unit deals and concrete volume Offers are split from still-open contents/schedules.
-TZ-BASKET-009/010 did not obtain evidence that closes OQ-002A/B and do not change this contract:
+TZ-BASKET-009/010/011 did not obtain evidence that closes OQ-002A/B (TZ-011: seller-configured constraint/tier **NOT OBTAINED**) and do not change this contract:
 
 ```
 price          → price of one unit (derived total = quantity × price; not stored)
@@ -830,9 +844,9 @@ OQ-012 CLOSED    passage of time: no SELLER_UNRESPONSIVE / auto-EXPIRED
 
 OQ-001 CLOSED    price = price of one unit
 OQ-002A OPEN     package-unit deal needs no stored contents; conversion/partial/bases remain GAP
-                 (TZ-009 reconstruction; TZ-010 source search SOURCE ABSENT; business-flow not obtained)
+                 (TZ-009 reconstruction; TZ-010 source search; TZ-011 buyer flow INCONCLUSIVE; seller-configured constraint NOT OBTAINED)
 OQ-002B Stage-1  concrete volume deal = Offer; announcement is not an Offer; schedule object OPEN
-                 (TZ-009 reconstruction; TZ-010 source search SOURCE ABSENT; business-flow not obtained)
+                 (TZ-009 reconstruction; TZ-010 source search; TZ-011 buyer flow INCONCLUSIVE; seller-configured tier NOT OBTAINED)
 OQ-005 OPEN      negotiation lifetime / TTL
 OQ-003 OPEN      duplicate ListItems
 OQ-008 OPEN      alternative price policy (not a representation question)

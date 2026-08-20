@@ -87,6 +87,16 @@ npx tsx experiments/basket/tests/run.ts
 | `SOURCE-010-BASKET` | no conversion/tier lookup found in ADD_TO_BASKET itself; source inspection, not I-045 | `scenarios.ts` SOURCE-010-BASKET |
 | `SOURCE-010-TZ025` | markdown prose search of TZ-025; free-text discount; range names as whole words SOURCE ABSENT | `scenarios.ts` SOURCE-010-TZ025 |
 | `SOURCE-010-TREE` | cleanup check of two historical FLOW-010 names; not proof synthetic business-flow is absent | `scenarios.ts` SOURCE-010-TREE |
+| `FLOW-011-A-CONFIG-CAPABILITY` | seller-config path not executable on inspected surfaces; coverage check, not observation | `scenarios.ts` FLOW-011-A-CONFIG-CAPABILITY |
+| `FLOW-011-A1` | buyer qty 1 accepted; not seller min | `scenarios.ts` FLOW-011-A1 |
+| `FLOW-011-A2` | buyer qty 100 accepted; stock snapshot 1000 before/after; not product max | `scenarios.ts` FLOW-011-A2 |
+| `FLOW-011-A3` | buyer 2/5/12 same unit price; range not seller-set | `scenarios.ts` FLOW-011-A3 |
+| `FLOW-011-A4-STAGE1-STATE` | Stage-1 fixture listing/item have no min/max own-properties | `scenarios.ts` FLOW-011-A4-STAGE1-STATE |
+| `FLOW-011-A-STOCK` | stock cap is not product maxQuantity | `scenarios.ts` FLOW-011-A-STOCK |
+| `FLOW-011-A-ZERO` | I-030 qty 0 is not seller min | `scenarios.ts` FLOW-011-A-ZERO |
+| `FLOW-011-B-LEVELS` | 1/5/10 kg linear unit price; seller did not set a tier | `scenarios.ts` FLOW-011-B-LEVELS |
+| `FLOW-011-B-TIME` | time discount is not quantity-tier pricing | `scenarios.ts` FLOW-011-B-TIME |
+| `FLOW-011-B-COUNTER` | negotiating +1 is not quantity-tier pricing | `scenarios.ts` FLOW-011-B-COUNTER |
 | *(SPEC OQ-003)* | duplicate ListItems of same `(productId, unit)` | `run.ts` `DUPLICATE_LINE` (explicit, not silent collapse) |
 
 A PR that confirms a new domain rule MUST add or update a row here **and** the executable test.

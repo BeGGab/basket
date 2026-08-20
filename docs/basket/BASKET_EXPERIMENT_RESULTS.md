@@ -1,17 +1,17 @@
 # GreenMarket — Basket Experiment Results
 
-**Status:** Evidence from TZ-BASKET-001…010 mock run  
+**Status:** Evidence from TZ-BASKET-001…011 mock run  
 **Experiment version:** v0.1  
-**Model version:** v0.1.17 / SPEC v0.6 (TZ-010 is Stage-1 source search; business-flow observation not obtained; OQ-002A/B remain OPEN)
+**Model version:** v0.1.17 / SPEC v0.6 (TZ-011: buyer/seller flow exercised; seller-config step not executable; OQ-002A/B INCONCLUSIVE; SPEC unchanged)
 
 ## How to read results
 
 - **Impl `PASS`** — the mock matches the current experimental expectation (code + invariants in force).
 - **Domain `CONFIRMED`** — the scenario closes or supports a *specific tested invariant*, not an entire future subsystem (e.g. Allocation).
-- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG-KG/HONEY/TOKENS/BASKET/TREE, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, and ALT-PRICE-002 are in this bucket: they prove a Stage-1 limitation, catalog/spec reconstruction, or Stage-1 source absence — not a business-flow observation and not a policy.
+- **Domain `OPEN`** — the run is deterministic, but the *business* question stays open. PACKAGE-002/003/004, PACKAGE-SEM-002/004/005/006, PACKAGE-008-003/004/005/006, PACKAGE-BIZ-009-001/002, SOURCE-010-CATALOG-KG/HONEY/TOKENS/BASKET/TREE, VOLUME-PRICE-005B, VOLUME-008-001, VOLUME-BIZ-009-001, SOURCE-010-EMULATOR/TZ025, SNAPSHOT-VOL-001, ALT-PRICE-002, and FLOW-011-* are in this bucket. FLOW-011-A-CONFIG-CAPABILITY is an executability/coverage check, not a seller-config observation. Other FLOW-011 rows are buyer/seller deals without a seller-configured constraint. OQ status is INCONCLUSIVE — not CONFIRMED commerce, not SOURCE search, and not a policy.
 - Do not treat Impl PASS as confirmation of an unresolved OQ.
 - Expected/Actual are serialized from the fact map `prove()` asserted on live world state. A scenario cannot record a hand-written result: `prove()` is the only evidence builder.
-- All 95 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
+- All 105 scenarios are programmatically exercised; Domain OPEN rows are still run, not skipped. Evidence strength is not uniform: OPEN rows must not be read as CONFIRMED.
 
 ## Purpose
 
@@ -62,6 +62,16 @@ Record evidence from the mock domain and seller emulator.
 | BS-034 | PASS | CONFIRMED | none | I-035: isCounterReason (BUYER_CHANGE / SELLER_COUNTEROFFER) cannot reply to an expired Offer; PRICE_CHANGE may replace it |
 | BS-035 | PASS | CONFIRMED | none | silence must not create a fake FSM state or rewrite waiting facts; waitMs is derived from clock |
 | BS-036 | PASS | CONFIRMED | none | determinism regression: same start + same commands → same snapshot; not a proof of all nondeterminism sources |
+| FLOW-011-A-CONFIG-CAPABILITY | PASS | OPEN (SPEC-OQ-002A) | none | Capability snapshot: SellerEmulator own functions are respondToBuyerOffer and tick. SimulationRuntime has setCatalog/sellerRespond and no configureProduct function. DEMO_SCENARIOS (the /sim player catalog) have catalog/sellerRespond and no configureProduct/setMinQuantity ops. This is not a seller-config business-flow observation. Production seller-card UI is not this runtime — see the observation report evidence boundary |
+| FLOW-011-A-STOCK | PASS | OPEN (SPEC-OQ-002A) | none | PartialAvailabilitySeller capped 10 kg to catalog stock 5 with AVAILABILITY_CHANGE. That is stock, not a seller-defined product maxQuantity. Do not read this row as OQ-002A NOT SUPPORTED |
+| FLOW-011-A-ZERO | PASS | OPEN (SPEC-OQ-002A) | none | quantity 0 is rejected by I-030 at addItem. That is a domain bound on every quantity, not a seller-configured minimum of N. Not OQ-002A min-quantity evidence |
+| FLOW-011-A1 | PASS | OPEN (SPEC-OQ-002A) | none | Buyer requested 1 kg; programmed CooperativeSeller accepted 1 kg at listed unit price. No minimum-quantity rule was applied in this buyer flow. Seller never set a min. FLOW-011-A-CONFIG-CAPABILITY is the executability check; this row is buyer flow without a seller-configured constraint |
+| FLOW-011-A2 | PASS | OPEN (SPEC-OQ-002A) | none | Available stock snapshot was 1000 before and after the deal. CooperativeSeller accept does not decrement catalog stock. Buyer 100 kg was accepted at listed unit price. This is not inventory reservation observation and not a product maxQuantity rule. Seller never set a max |
+| FLOW-011-A3 | PASS | OPEN (SPEC-OQ-002A) | none | Buyer 2 / 5 / 12 kg all reached STABLE at the same listed unit price. A seller-defined min/max range was not set and was not applied. A3 as 'seller set min=N and max=M' is not executable in this engine |
+| FLOW-011-A4-STAGE1-STATE | PASS | OPEN (SPEC-OQ-002A) | none | Stage-1 stored catalog row and PurchaseItem in this run have no minQuantity/maxQuantity own-properties. Fixture-model state only. Not a source-file token scan and not proof seller configuration is stored elsewhere |
+| FLOW-011-B-COUNTER | PASS | OPEN (SPEC-OQ-002B) | none | NegotiatingSeller added +1 unit price for both 1 kg and 10 kg. Same offset, not a quantity-tier table. Programmed profile, not a seller-defined schedule |
+| FLOW-011-B-LEVELS | PASS | OPEN (SPEC-OQ-002B) | none | Buyer 1 / 5 / 10 kg: listed unit price stayed 15; totals 15 / 75 / 150. Programmed CooperativeSeller accepted each. This flow applied linear unit price. Seller never defined a quantity-dependent price. Not VOLUME-BIZ-009 reconstruction labeled as seller pricing |
+| FLOW-011-B-TIME | PASS | OPEN (SPEC-OQ-002B) | none | TimeDiscountSeller lowered unit price 15→12 for both 2 kg and 10 kg. Same unit-price drop regardless of quantity. This is a time profile, not a quantity-dependent price rule. Not OQ-002B CONFIRMED or NOT SUPPORTED |
 | PACKAGE-001 | PASS | CONFIRMED | none | package is representable as a unit |
 | PACKAGE-002 | PASS | OPEN (SPEC-OQ-002) | none | Stage-1: different catalog qty + different unit price is AMBIGUOUS. Volume-pricing policy is not decided |
 | PACKAGE-003 | PASS | OPEN (SPEC-OQ-002) | none | MODEL GAP: current identity cannot represent distinct package bases |
@@ -610,6 +620,126 @@ Record evidence from the mock domain and seller emulator.
 - New concept: none
 - Workaround: none
 - Decision: determinism regression: same start + same commands → same snapshot; not a proof of all nondeterminism sources
+
+### FLOW-011-A-CONFIG-CAPABILITY — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: emulatorMethods=respondToBuyerOffer,tick; emulatorMethodCount=2; runtimeHasSetCatalog=true; runtimeHasSellerRespond=true; runtimeHasConfigureProduct=false; demoHasCatalog=true; demoHasSellerRespond=true; demoHasConfigureProduct=false; demoHasSetMinQuantity=false
+- Actual: emulatorMethods=respondToBuyerOffer,tick; emulatorMethodCount=2; runtimeHasSetCatalog=true; runtimeHasSellerRespond=true; runtimeHasConfigureProduct=false; demoHasCatalog=true; demoHasSellerRespond=true; demoHasConfigureProduct=false; demoHasSetMinQuantity=false
+- Invariant: capability/coverage check — not a business-flow observation
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: INCONCLUSIVE — seller-config path not executable on inspected Stage-1 surfaces; does not justify Package
+- Workaround: none
+- Decision: Capability snapshot: SellerEmulator own functions are respondToBuyerOffer and tick. SimulationRuntime has setCatalog/sellerRespond and no configureProduct function. DEMO_SCENARIOS (the /sim player catalog) have catalog/sellerRespond and no configureProduct/setMinQuantity ops. This is not a seller-config business-flow observation. Production seller-card UI is not this runtime — see the observation report evidence boundary
+
+### FLOW-011-A-STOCK — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: offeredQty=5; reason=AVAILABILITY_CHANGE; stock=5
+- Actual: offeredQty=5; reason=AVAILABILITY_CHANGE; stock=5
+- Invariant: business-flow observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: stock cap is not a product quantity-constraint rule
+- Workaround: none
+- Decision: PartialAvailabilitySeller capped 10 kg to catalog stock 5 with AVAILABILITY_CHANGE. That is stock, not a seller-defined product maxQuantity. Do not read this row as OQ-002A NOT SUPPORTED
+
+### FLOW-011-A-ZERO — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: zeroRejected=true
+- Actual: zeroRejected=true
+- Invariant: business-flow observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: I-030 zero-quantity reject is not a seller min rule
+- Workaround: none
+- Decision: quantity 0 is rejected by I-030 at addItem. That is a domain bound on every quantity, not a seller-configured minimum of N. Not OQ-002A min-quantity evidence
+
+### FLOW-011-A1 — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: status=STABLE; quantity=1; unitPrice=15
+- Actual: status=STABLE; quantity=1; unitPrice=15
+- Invariant: business-flow observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: INCONCLUSIVE — observed unconstrained qty 1; not NOT SUPPORTED of seller min
+- Workaround: none
+- Decision: Buyer requested 1 kg; programmed CooperativeSeller accepted 1 kg at listed unit price. No minimum-quantity rule was applied in this buyer flow. Seller never set a min. FLOW-011-A-CONFIG-CAPABILITY is the executability check; this row is buyer flow without a seller-configured constraint
+
+### FLOW-011-A2 — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: status=STABLE; quantity=100; unitPrice=15; stockBefore=1000; stockAfter=1000
+- Actual: status=STABLE; quantity=100; unitPrice=15; stockBefore=1000; stockAfter=1000
+- Invariant: business-flow observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: INCONCLUSIVE — observed unconstrained qty 100 against an available-stock snapshot; not a product max rule
+- Workaround: none
+- Decision: Available stock snapshot was 1000 before and after the deal. CooperativeSeller accept does not decrement catalog stock. Buyer 100 kg was accepted at listed unit price. This is not inventory reservation observation and not a product maxQuantity rule. Seller never set a max
+
+### FLOW-011-A3 — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: lowStatus=STABLE; midStatus=STABLE; highStatus=STABLE; lowPrice=15; midPrice=15; highPrice=15
+- Actual: lowStatus=STABLE; midStatus=STABLE; highStatus=STABLE; lowPrice=15; midPrice=15; highPrice=15
+- Invariant: business-flow observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: INCONCLUSIVE — range could not be seller-configured; unconstrained qtys observed
+- Workaround: none
+- Decision: Buyer 2 / 5 / 12 kg all reached STABLE at the same listed unit price. A seller-defined min/max range was not set and was not applied. A3 as 'seller set min=N and max=M' is not executable in this engine
+
+### FLOW-011-A4-STAGE1-STATE — Impl PASS / Domain OPEN (SPEC-OQ-002A)
+
+- Expected: status=STABLE; catalogHasMinQuantity=false; catalogHasMaxQuantity=false; itemHasMinQuantity=false; itemHasMaxQuantity=false
+- Actual: status=STABLE; catalogHasMinQuantity=false; catalogHasMaxQuantity=false; itemHasMinQuantity=false; itemHasMaxQuantity=false
+- Invariant: business-flow observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002A
+- Model violation: none
+- New concept: INCONCLUSIVE — Stage-1 listing/item shape in this run has no quantity-constraint fields
+- Workaround: none
+- Decision: Stage-1 stored catalog row and PurchaseItem in this run have no minQuantity/maxQuantity own-properties. Fixture-model state only. Not a source-file token scan and not proof seller configuration is stored elsewhere
+
+### FLOW-011-B-COUNTER — Impl PASS / Domain OPEN (SPEC-OQ-002B)
+
+- Expected: price1=16; price10=16; qty1=1; qty10=10
+- Actual: price1=16; price10=16; qty1=1; qty10=10
+- Invariant: business-flow observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002B
+- Model violation: none
+- New concept: negotiating +1 is not quantity-dependent pricing
+- Workaround: none
+- Decision: NegotiatingSeller added +1 unit price for both 1 kg and 10 kg. Same offset, not a quantity-tier table. Programmed profile, not a seller-defined schedule
+
+### FLOW-011-B-LEVELS — Impl PASS / Domain OPEN (SPEC-OQ-002B)
+
+- Expected: price1=15; price5=15; price10=15; total1=15; total5=75; total10=150; status1=STABLE; status5=STABLE; status10=STABLE
+- Actual: price1=15; price5=15; price10=15; total1=15; total5=75; total10=150; status1=STABLE; status5=STABLE; status10=STABLE
+- Invariant: business-flow observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002B
+- Model violation: none
+- New concept: INCONCLUSIVE — linear unit price observed; seller did not configure a tier
+- Workaround: none
+- Decision: Buyer 1 / 5 / 10 kg: listed unit price stayed 15; totals 15 / 75 / 150. Programmed CooperativeSeller accepted each. This flow applied linear unit price. Seller never defined a quantity-dependent price. Not VOLUME-BIZ-009 reconstruction labeled as seller pricing
+
+### FLOW-011-B-TIME — Impl PASS / Domain OPEN (SPEC-OQ-002B)
+
+- Expected: afterQty2=12; afterQty10=12
+- Actual: afterQty2=12; afterQty10=12
+- Invariant: business-flow observation — not a domain invariant
+- Hypothesis: OPEN
+- Open question: SPEC-OQ-002B
+- Model violation: none
+- New concept: time discount is not quantity-tier pricing
+- Workaround: none
+- Decision: TimeDiscountSeller lowered unit price 15→12 for both 2 kg and 10 kg. Same unit-price drop regardless of quantity. This is a time profile, not a quantity-dependent price rule. Not OQ-002B CONFIRMED or NOT SUPPORTED
 
 ### PACKAGE-001 — Impl PASS / Domain CONFIRMED
 
@@ -1315,7 +1445,7 @@ Changes in this PR (already implemented and tested):
 - OQ-006 / OQ-008 closed
 - PartialAvailabilitySeller offers min(requested, stock) of the SAME CatalogLine (sellerId, productId, unit) — a pcs pool is not kg stock
 - cheapestAvailable() removed from domain catalog semantics (ambiguous ≠ cheapest); catalogUnitPrice returns null on disagreement
-- GREENMARKET_DOMAIN_SPEC v0.6 is the canonical domain contract; TZ-BASKET-009 records catalog/spec reconstruction; TZ-BASKET-010 records Stage-1 source search (SOURCE ABSENT in inspected files) and does not obtain a business-flow observation; neither introduces Package or PriceSchedule
+- GREENMARKET_DOMAIN_SPEC v0.6 is the canonical domain contract; TZ-BASKET-009 records catalog/spec reconstruction; TZ-BASKET-010 records Stage-1 source search (SOURCE ABSENT in inspected files); TZ-BASKET-011 records Stage-1 buyer/seller flow observation (INCONCLUSIVE for OQ-002A/B). None introduces Package or PriceSchedule
 - I-042: price is the price of one unit; derived total = quantity * price; no stored linePrice
 - I-043: changing quantity does not reread price as a line total
 - I-044: Offer stores (product, quantity, unit, price); a change is a new Offer
@@ -1391,6 +1521,17 @@ SPEC version bump: no
 Production architecture changed: NO
 Further closing OQ-002A/B still requires a business-flow observation where a deal cannot complete without the extra fact
 
+TZ-BASKET-011
+Status: existing buyer/seller flow exercised; seller-config step tested for executability and not present on inspected Stage-1 surfaces; OQ-002A/B INCONCLUSIVE; seller-configured-constraint observation NOT OBTAINED; SPEC remains v0.6
+OQ-002A: INCONCLUSIVE — FLOW-011-A-CONFIG-CAPABILITY is a coverage check (SellerEmulator/SimulationRuntime/DEMO_SCENARIOS), not a seller-config observation; buyer quantities 1/100/2/5/12 were accepted without a min/max rule; stock snapshot and I-030 are not seller quantity constraints
+OQ-002B: INCONCLUSIVE — this buyer flow applied listed unit price linearly at 1/5/10 kg; TimeDiscount and NegotiatingSeller +1 are not quantity-tier rules; seller never configured a quantity-dependent price
+NEW CONCEPT JUSTIFIED: no — INCONCLUSIVE observation does not justify Package or PriceSchedule
+NO MODEL CHANGE: yes
+NO NEW INVARIANT: yes
+SPEC version bump: no
+Production architecture changed: NO
+SOURCE token absence was not used as business evidence
+
 Still open:
 - SPEC OQ-002A — conversion / partial-whole package / distinct package bases
 - SPEC OQ-002B — standing quantity-range price schedule as a domain object
@@ -1405,5 +1546,5 @@ when a later live active Offer is evaluated (I-037). Assistants WAIT on MISSING_
 Assistant unit-price comparisons are consistent with I-042; they are not the source of I-042.
 
 The model is still experimental. PASS does not close remaining OPEN questions.
-Recommended next step: obtain a real business-flow observation for OQ-002A/B. OQ-003 may proceed independently, but does not replace this observation
+Recommended next step: a seller-facing product-configuration flow (outside inspected Stage-1 surfaces) is required before OQ-002A/B can leave INCONCLUSIVE. OQ-003 may proceed independently
 ```
